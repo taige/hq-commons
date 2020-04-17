@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doc>
+	<person id="1" sex="m">
+		<name>张三</name>
+		<age>32</age>
+		<adds>
+			<add code="home">hangzhou</add>
+			<add code="com">umpay</add>
+		</adds>
+	</person>
+	<person id="2" sex="w">
+		<name>lisi</name>
+		<age>22</age>
+		<adds>
+			<add ID="22" id="23" code="home">beijing</add>
+			<add ID="23" id="22" code="com">wangyin</add>
+			<add id="24" code="com">jd</add>
+		</adds>
+	</person>
+</doc>
