@@ -18,16 +18,26 @@
 
   <repositories>
     <repository>
-      <id>local-file</id>
-      <url>file://${project.basedir}/lib/</url>
-      <layout>default</layout>
+      <id>umf-nexus</id>
+      <name>UMF Nexus Repository</name>
+      <url>https://nexus.umftech.com/nexus/repository/maven-public/</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>true</enabled></snapshots>
     </repository>
-<!--    <repository>-->
-<!--      <id>repository.spring.release</id>-->
-<!--      <name>Spring GA Repository</name>-->
-<!--      <url>http://repo.spring.io/release</url>-->
-<!--    </repository>-->
   </repositories>
+
+  <distributionManagement>
+    <repository>
+      <id>umf-releases</id>
+      <name>Nexus-releases-repositories</name>
+      <url>https://nexus.umftech.com/nexus/repository/maven-releases/</url>
+    </repository>
+    <snapshotRepository>
+      <id>umf-snapshots</id>
+      <name>Nexus-snapshots-repositories</name>
+      <url>https://nexus.umftech.com/nexus/repository/maven-snapshots/</url>
+    </snapshotRepository>
+  </distributionManagement>
 
   <dependencies>
     <dependency>
