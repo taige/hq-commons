@@ -3,6 +3,8 @@ package com.umpay.commons.annotation.support;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.umpay.commons.annotation.JsonField;
 import com.umpay.commons.servlet.support.CachedBodyHttpServletRequest;
+import com.umpay.commons.util.ClassUtil;
+import com.umpay.commons.util.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.Conventions;
 import org.springframework.core.MethodParameter;
@@ -55,6 +57,7 @@ import java.util.Optional;
  *
  */
 public class JsonFieldArgumentProcessor extends AbstractMessageConverterMethodArgumentResolver {
+    private static final Logger LOGGER = new Logger();
 
     private static final String SERVLET_SERVER_HTTP_REQUEST = "ServletServerHttpRequest";
     private static final String BYTES_BODY_MAP = "BytesBodyMap";
@@ -172,21 +175,30 @@ public class JsonFieldArgumentProcessor extends AbstractMessageConverterMethodAr
         if (body == null) {
             // key在json中不存在，则尝试将整个json串解析为当前参数类型
             Class<?> parameterType = parameter.getParameterType();
-            // 基本类型
-            if (parameterType.isPrimitive()) { //todo
+            // 基本类型的包装类
+            if (ClassUtil.isPrimitiveWrapper(parameterType)) {
+                // checkRequired
+                checkRequired(null, parameter, inputMessage);
+                // 否则返回null
+                return null;
+            } else if (parameterType.isPrimitive()) {
+                // 原始类型没有解析会触发invoke异常
+                String methodName = parameter.getMethod() == null ? "null" :
+                        parameter.getMethod().getDeclaringClass().getName() + "#" + parameter.getMethod().getName();
+                LOGGER.error("fail to resolve method `%s` #%d argument `%s` with primitive type `%s`, " +
+                                "use PrimitiveWrapper class instead in case of IllegalArgumentException.",
+                        methodName, parameter.getParameterIndex(), parameter.getParameterName(), parameterType.getName());
+                throw new IllegalArgumentException(String.format("method `%s` #%d argument `%s` with improperly primitive type `%s`",
+                        methodName, parameter.getParameterIndex(), parameter.getParameterName(), parameterType.getName()));
+            }
+            // 非基本类型, (不解析所有字段 || 非必须)
+            if (! annJsonField.parseAllFields() || ! annJsonField.required()) {
                 // checkRequired
                 checkRequired(null, parameter, inputMessage);
                 // 否则返回null
                 return null;
             }
-            // 非基本类型, 不解析所有字段
-            if (! annJsonField.parseAllFields()) {
-                // checkRequired
-                checkRequired(null, parameter, inputMessage);
-                // 否则返回null
-                return null;
-            }
-            // 非基本类型，解析所有外层字段 // todo
+            // 非基本类型，解析所有外层字段
             if (contentLength >= 0) {
                 inputMessage.getHeaders().setContentLength(contentLength);
             }
