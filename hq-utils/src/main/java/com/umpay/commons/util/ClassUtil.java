@@ -2,6 +2,9 @@ package com.umpay.commons.util;
 
 import org.apache.commons.lang3.ClassUtils;
 
+import java.lang.reflect.Field;
+import java.util.List;
+
 /**
  * Created with IntelliJ IDEA.
  * User: wyshenjianlin
@@ -43,4 +46,19 @@ public class ClassUtil extends ClassUtils {
         }
         return false;
     }
+
+    public static List<Field> getAllFields(Class<?> targetClass, List<Field> fields) {
+        for (Field field: targetClass.getDeclaredFields()) {
+            if (fields.stream().anyMatch(f -> f.getName().equals(field.getName()))) {
+                continue;
+            }
+            fields.add(field);
+        }
+        if (targetClass.getSuperclass() != Object.class) {
+            return getAllFields(targetClass.getSuperclass(), fields);
+        } else {
+            return fields;
+        }
+    }
+
 }
