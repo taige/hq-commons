@@ -7,6 +7,7 @@ import org.apache.commons.lang3.Validate;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
@@ -17,6 +18,7 @@ import java.security.cert.X509Certificate;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,6 +59,12 @@ public class SecurityUtil extends DigestUtils {
      * 默认非对称加密填充算法
      */
     private static final String DEFAULT_ASYM_PADDING = "PKCS1Padding";
+
+    private static final int IV_LENGTH = 16;
+
+    private static final int GCM_IV_LENGTH = 12;
+
+    private static final int GCM_TAG_LENGTH = 16;
 
     public SecurityUtil(final String name) {
         super(name);
@@ -110,13 +118,44 @@ public class SecurityUtil extends DigestUtils {
             IllegalArgumentException {
         Validate.isTrue(ArrayUtils.isNotEmpty(bkey), "密钥不能为空");
         Validate.notNull(alg, "加解密算法不能为空");
+        Validate.isTrue(opmode == ENCRYPT_MODE || opmode == DECRYPT_MODE, "加密|解密");
         String[] algs = StringUtil.split(alg, '/');
         SecretKey key = new SecretKeySpec(bkey, algs[0]);
-        IvParameterSpec iv = null;
-        if (! alg.toUpperCase().contains("ECB")) {
-            iv = new IvParameterSpec(bkey); //使用CBC模式，需要一个向量iv
+        AlgorithmParameterSpec algorithmParameterSpec = null;
+        byte[] iv = null;
+        if (alg.toUpperCase().contains("GCM")) {
+            if (opmode == ENCRYPT_MODE) {
+                // 随机iv
+                iv = new byte[GCM_IV_LENGTH];
+                SecureRandom random = new SecureRandom();
+                random.nextBytes(iv);
+            } else {
+                iv = Arrays.copyOf(data, GCM_IV_LENGTH);
+                System.arraycopy(data, 0, iv, 0, iv.length);
+                data = Arrays.copyOfRange(data, iv.length, data.length);
+            }
+            algorithmParameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
+        } else if (! alg.toUpperCase().contains("ECB")) {
+            if (opmode == ENCRYPT_MODE) {
+                iv = new byte[IV_LENGTH];
+                SecureRandom random = new SecureRandom();
+                random.nextBytes(iv);
+            } else {
+                iv = Arrays.copyOf(data, IV_LENGTH);
+                System.arraycopy(data, 0, iv, 0, iv.length);
+                data = Arrays.copyOfRange(data, iv.length, data.length);
+            }
+            algorithmParameterSpec = new IvParameterSpec(iv);
         }
-        return cipher(data, key, opmode, alg, iv);
+        byte[] bs = cipher(data, key, opmode, alg, algorithmParameterSpec);
+        if (iv != null && opmode == ENCRYPT_MODE) {
+            // 把iv附在加密数据前面
+            byte[] result = new byte[iv.length + bs.length];
+            System.arraycopy(iv, 0, result, 0, iv.length);
+            System.arraycopy(bs, 0, result, iv.length, bs.length);
+            return result;
+        }
+        return bs;
     }
 
     /**

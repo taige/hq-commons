@@ -9,6 +9,7 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,9 +34,9 @@ public class SecurityServiceTest {
 //        initKeys();
     }
 
-    private void initKeys() throws GeneralSecurityException {
+    private void initKeys(int keySize) throws GeneralSecurityException {
         if (aesKey == null) {
-            aesKey = securityService.generateKey("AES", 128);
+            aesKey = securityService.generateKey("AES", keySize);
             SecurityService.B64KeyPair keyPair = securityService.generateKeyPair("RSA", 2048);
             privateKey = keyPair.getPrivateKey();
             publicKey = keyPair.getPublicKey();
@@ -65,41 +66,46 @@ public class SecurityServiceTest {
 
     @Test
     public void test_encryptByAES() throws Exception {
-        initKeys();
-        String plain = "hello world";
-        for (int i = 0; i < 3; i++)
-        {
-            String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "ECB");
-            System.out.println(enc);
-            byte[] dec = securityService.decryptByAES(enc, aesKey, "ECB");
-            assertArrayEquals(plain.getBytes(), dec);
-        }
-        for (int i = 0; i < 3; i++)
-        {
-            String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "CBC");
-            System.out.println(enc);
-            byte[] dec = securityService.decryptByAES(enc, aesKey, "CBC");
-            assertArrayEquals(plain.getBytes(), dec);
-        }
-        {
-            String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "PCBC");
-            byte[] dec = securityService.decryptByAES(enc, aesKey, "PCBC");
-            assertArrayEquals(plain.getBytes(), dec);
-        }
-        {
-            String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "CFB");
-            byte[] dec = securityService.decryptByAES(enc, aesKey, "CFB");
-            assertArrayEquals(plain.getBytes(), dec);
-        }
-        {
-            String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "OFB");
-            byte[] dec = securityService.decryptByAES(enc, aesKey, "OFB");
-            assertArrayEquals(plain.getBytes(), dec);
-        }
-        {
-            String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "CTR");
-            byte[] dec = securityService.decryptByAES(enc, aesKey, "CTR");
-            assertArrayEquals(plain.getBytes(), dec);
+        for (Integer keySize : Arrays.asList(128, 192, 256)) {
+            initKeys(keySize);
+            String plain = "hello world";
+            for (int i = 0; i < 3; i++) {
+                String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "ECB");
+                System.out.println(enc);
+                byte[] dec = securityService.decryptByAES(enc, aesKey, "ECB");
+                assertArrayEquals(plain.getBytes(), dec);
+            }
+            for (int i = 0; i < 3; i++) {
+                String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "CBC");
+                System.out.println(enc);
+                byte[] dec = securityService.decryptByAES(enc, aesKey, "CBC");
+                assertArrayEquals(plain.getBytes(), dec);
+            }
+            {
+                String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "PCBC");
+                byte[] dec = securityService.decryptByAES(enc, aesKey, "PCBC");
+                assertArrayEquals(plain.getBytes(), dec);
+            }
+            {
+                String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "CFB");
+                byte[] dec = securityService.decryptByAES(enc, aesKey, "CFB");
+                assertArrayEquals(plain.getBytes(), dec);
+            }
+            {
+                String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "OFB");
+                byte[] dec = securityService.decryptByAES(enc, aesKey, "OFB");
+                assertArrayEquals(plain.getBytes(), dec);
+            }
+            {
+                String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "CTR");
+                byte[] dec = securityService.decryptByAES(enc, aesKey, "CTR");
+                assertArrayEquals(plain.getBytes(), dec);
+            }
+            {
+                String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "GCM");
+                byte[] dec = securityService.decryptByAES(enc, aesKey, "GCM");
+                assertArrayEquals(plain.getBytes(), dec);
+            }
         }
     }
 
@@ -116,7 +122,7 @@ public class SecurityServiceTest {
 
     @Test
     public void test_sign() throws Exception {
-        initKeys();
+        initKeys(128);
         String plain = "hello world";
         String sign = securityService.sign(plain.getBytes(), privateKey, null);
         assertTrue(securityService.verify(plain.getBytes(), publicKey, sign, null));
