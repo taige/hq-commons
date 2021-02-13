@@ -1,0 +1,36 @@
+# This is a sample build configuration for Java (Maven).
+# Check our guides at https://confluence.atlassian.com/x/zd-5Mw for more examples.
+# Only use spaces to indent your .yml configuration.
+# -----
+# You can specify a custom docker image from Docker Hub as your build environment.
+image: maven:3.6.1-jdk-8
+
+pipelines:
+  branches:
+    master:
+      - step:
+          name: Deploy RELEASE Artifact
+          caches:
+            - maven
+          deployment: flash_nexus_release
+          script:
+            - bash configure-maven.sh
+            - mvn -DskipTests -B release:clean release:prepare release:perform -Dusername=$SCM_USER -Dpassword=$SCM_PWD -DscmCommentPrefix="[skip ci][maven release plugin]"
+      - step:
+          name: Merge back to develop
+          trigger: manual
+          script:
+            - echo "merging back to develop"
+            - git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+            - git pull origin develop && git checkout develop
+            - git merge --ff origin/master
+            - git push "https://$SCM_USER:$SCM_PWD@bitbucket.org/$BITBUCKET_REPO_OWNER/$BITBUCKET_REPO_SLUG.git" develop
+    develop:
+      - step:
+          name: Deploy SNAPSHOT Artifact
+          caches:
+            - maven
+          deployment: flash_nexus_snapshot
+          script:
+            - bash configure-maven.sh
+            - mvn -DskipTests -B clean deploy
