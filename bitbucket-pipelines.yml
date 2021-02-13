@@ -15,7 +15,7 @@ pipelines:
           deployment: flash_nexus_release
           script:
             - bash configure-maven.sh
-            - mvn -DskipTests -B release:clean release:prepare release:perform -Dusername=$SCM_USER -Dpassword=$SCM_PWD -DscmCommentPrefix="[skip ci][maven release plugin]"
+            - mvn -DskipTests -Darguments=-DskipTests -B release:clean release:prepare release:perform -Dusername=$SCM_USER -Dpassword=$SCM_PWD -DscmCommentPrefix="[skip ci][maven release plugin]"
       - step:
           name: Merge back to develop
           trigger: manual
