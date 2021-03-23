@@ -122,7 +122,9 @@ public class SecurityUtil extends DigestUtils {
         String[] algs = StringUtil.split(alg, '/');
         SecretKey key = new SecretKeySpec(bkey, algs[0]);
         AlgorithmParameterSpec algorithmParameterSpec = null;
+        final byte[] input = Arrays.copyOf(data, data.length);
         byte[] iv = null;
+        byte[] output = null;
         if (alg.toUpperCase().contains("GCM")) {
             if (opmode == ENCRYPT_MODE) {
                 // 随机iv
@@ -130,32 +132,72 @@ public class SecurityUtil extends DigestUtils {
                 SecureRandom random = new SecureRandom();
                 random.nextBytes(iv);
             } else {
-                iv = Arrays.copyOf(data, GCM_IV_LENGTH);
-                System.arraycopy(data, 0, iv, 0, iv.length);
-                data = Arrays.copyOfRange(data, iv.length, data.length);
+                iv = Arrays.copyOf(input, GCM_IV_LENGTH);
+//                System.arraycopy(data, 0, iv, 0, iv.length);
+                data = Arrays.copyOfRange(input, iv.length, input.length);
             }
             algorithmParameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
         } else if (! alg.toUpperCase().contains("ECB")) {
-            if (opmode == ENCRYPT_MODE) {
-                iv = new byte[IV_LENGTH];
-                SecureRandom random = new SecureRandom();
-                random.nextBytes(iv);
+            if (isRandomAesIV()) {
+                if (opmode == ENCRYPT_MODE) {
+                    iv = new byte[IV_LENGTH];
+                    SecureRandom random = new SecureRandom();
+                    random.nextBytes(iv);
+                } else {
+                    if (input.length <= IV_LENGTH) {
+                        iv = bkey;
+                    } else {
+                        iv = Arrays.copyOf(input, IV_LENGTH);
+//                    System.arraycopy(data, 0, iv, 0, iv.length);
+                        data = Arrays.copyOfRange(input, iv.length, input.length);
+                        algorithmParameterSpec = new IvParameterSpec(iv);
+                        output = cipher(data, key, opmode, alg, algorithmParameterSpec);
+                        if (output == null || output.length == 0) {
+                            output = null;
+                            iv = bkey;
+                            algorithmParameterSpec = null;
+                            data = input;
+                        }
+                    }
+                }
+                if (algorithmParameterSpec != null) {
+                    algorithmParameterSpec = new IvParameterSpec(iv);
+                }
             } else {
-                iv = Arrays.copyOf(data, IV_LENGTH);
-                System.arraycopy(data, 0, iv, 0, iv.length);
-                data = Arrays.copyOfRange(data, iv.length, data.length);
+                algorithmParameterSpec = new IvParameterSpec(bkey); //使用CBC模式，需要一个向量iv
             }
-            algorithmParameterSpec = new IvParameterSpec(iv);
         }
-        byte[] bs = cipher(data, key, opmode, alg, algorithmParameterSpec);
+        if (output == null) {
+            output = cipher(data, key, opmode, alg, algorithmParameterSpec);
+        }
         if (iv != null && opmode == ENCRYPT_MODE) {
             // 把iv附在加密数据前面
-            byte[] result = new byte[iv.length + bs.length];
+            byte[] result = new byte[iv.length + output.length];
             System.arraycopy(iv, 0, result, 0, iv.length);
-            System.arraycopy(bs, 0, result, iv.length, bs.length);
+            System.arraycopy(output, 0, result, iv.length, output.length);
             return result;
         }
-        return bs;
+        return output;
+    }
+
+    /**
+     * AES IV向量是否随机
+     *  默认不随机（即IV=KEY）
+     *  显示设置参数 RANDOM_AES_IV=true，打开随机IV
+     * @return AES IV向量是否随机
+     */
+    private static boolean isRandomAesIV() {
+        String random = System.getProperty("RANDOM_AES_IV");
+        if (random == null) {
+            random = System.getenv("RANDOM_AES_IV");
+            if (random == null) {
+                random = "false";
+            }
+        }
+        if (random.equalsIgnoreCase("true")) {
+            return true;
+        }
+        return false;
     }
 
     /**

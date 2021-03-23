@@ -19,7 +19,9 @@
  */
 package com.jolbox.bonecp;
 
-import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
+import com.mysql.cj.jdbc.exceptions.CommunicationsException;
+import com.mysql.cj.protocol.PacketReceivedTimeHolder;
+import com.mysql.cj.protocol.PacketSentTimeHolder;
 
 import java.sql.*;
 import java.util.Random;
@@ -98,7 +100,17 @@ public class MockJDBCStatement implements Statement {
 			}
 			connection.setQueryTimeout(true);
 			SQLException sqlException = new SQLException("query timeout after " + queryTimeout + " seconds");
-			throw new CommunicationsException(null, System.currentTimeMillis() - queryTimeout*1000, System.currentTimeMillis() - queryTimeout*1000, sqlException);
+			throw new CommunicationsException(null, new PacketSentTimeHolder() {
+				@Override
+				public long getLastPacketSentTime() {
+					return System.currentTimeMillis() - queryTimeout*1000;
+				}
+			}, new PacketReceivedTimeHolder() {
+				@Override
+				public long getLastPacketReceivedTime() {
+					return System.currentTimeMillis() - queryTimeout*1000;
+				}
+			}, sqlException);
 //			throw sqlException;
 		} else {
 			try {

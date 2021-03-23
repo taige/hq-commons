@@ -16,7 +16,6 @@
 
 package com.jolbox.bonecp;
 
-import com.mysql.jdbc.exceptions.jdbc4.MySQLNonTransientConnectionException;
 import com.umpay.commons.util.Logger;
 
 import java.sql.*;
@@ -75,7 +74,7 @@ public class MockConnection implements Connection {
 	public void close() throws SQLException {
 		if (queryTimeout) {
 			queryTimeout = false;
-			throw new MySQLNonTransientConnectionException("Communications link failure during rollback(). Transaction resolution unknown.");
+			throw new SQLNonTransientConnectionException("Communications link failure during rollback(). Transaction resolution unknown.");
 		}
 		int n = count.decrementAndGet();
 		LOGGER.info("-MockConnection.close(): " + n);
@@ -1288,7 +1287,7 @@ public class MockConnection implements Connection {
 	// @Override
 	public void rollback() throws SQLException {
 		if (autoCommit) {
-			throw new MySQLNonTransientConnectionException("Can't call rollback when autocommit=true");
+			throw new SQLNonTransientConnectionException("Can't call rollback when autocommit=true");
 		}
 	}
 

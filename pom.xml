@@ -3,9 +3,18 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>io.hqwu.commons</groupId>
-  <artifactId>hq-commons</artifactId>
+  <artifactId>hq-commons-parent</artifactId>
   <version>1.1.2-SNAPSHOT</version>
   <packaging>pom</packaging>
+
+  <properties>
+    <java.version>1.8</java.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <spring-boot.version>2.2.6.RELEASE</spring-boot.version>
+    <commons-io.version>2.6</commons-io.version>
+  </properties>
 
   <scm>
     <developerConnection>scm:git:https://bitbucket.org/alphapayit/common-utils.git</developerConnection>
@@ -15,7 +24,8 @@
 
   <modules>
     <module>hq-utils</module>
-<!--    <module>hq-cp</module>-->
+    <module>hq-cp</module>
+    <module>hq-cp-boot-starter</module>
   </modules>
 
   <repositories>
@@ -38,6 +48,23 @@
       <url>https://nexus.flash.ca/nexus/content/repositories/snapshots/</url>
     </snapshotRepository>
   </distributionManagement>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>${spring-boot.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>commons-io</groupId>
+        <artifactId>commons-io</artifactId>
+        <version>${commons-io.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <build>
     <plugins>

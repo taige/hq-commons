@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
+import java.util.Locale;
 
 /**
  * Created with IntelliJ IDEA for plat-arch-svn
@@ -41,6 +42,7 @@ public class ConnectionFactoryTest {
 
     @Test
     public void testGetConnection1() throws Exception {
+        Locale.setDefault(Locale.CHINA);
         Connection conn = ConnectionFactory.getConnection("jdbc1");
         conn.close();
         Connection conn2 = ConnectionFactory.getConnection("jdbc1", true);
