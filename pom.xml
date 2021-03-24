@@ -4,7 +4,7 @@
 
   <groupId>io.hqwu.commons</groupId>
   <artifactId>hq-commons-parent</artifactId>
-  <version>1.1.2-SNAPSHOT</version>
+  <version>1.1.2</version>
   <packaging>pom</packaging>
 
   <properties>
@@ -20,7 +20,7 @@
   <scm>
     <developerConnection>scm:git:https://bitbucket.org/alphapayit/common-utils.git</developerConnection>
     <url>https://bitbucket.org/alphapayit/common-utils</url>
-    <tag>HEAD</tag>
+    <tag>v1.1.2</tag>
   </scm>
 
   <modules>
