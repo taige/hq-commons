@@ -432,7 +432,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 if (ppstmt.isDefaultResultSetType()) {
                     validPreStatementsPool.put((String) args[0], ppstmt);
                     if (isVerbose()) {
-                        log.info(connectionName, " * prepareStatement(", args[0], ")[", validPreStatementsPool.size() ,"], use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                        log.info(connectionName, " * prepareStatement(", ppstmt.getPreparedSql(), ")[", validPreStatementsPool.size() ,"], use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                     }
                 }
             }

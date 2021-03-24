@@ -24,8 +24,12 @@ public class PooledPreparedStatement extends PooledStatement {
     protected PooledPreparedStatement(PooledConnection conn, PreparedStatement stmt, int stmtId, String sql) throws SQLException {
         super(conn, stmt, stmtId);
         real_pstmt = (PreparedStatement) getStatement();
-        this.sql = sql == null ? "" : JdbcUtil.multiLinesToOneLine(sql, " ");
+        this.sql = sql == null ? "" : JdbcUtil.removeBreakingWhitespace(sql);
         this.paras = new Object[getQMCount()];
+    }
+
+    public String getPreparedSql() {
+        return sql;
     }
 
     /*
