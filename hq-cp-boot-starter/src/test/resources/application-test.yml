@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    username: bp_user
+    password: TTNsJX90tav1gadjezEMHw==   # `bp_password`
+    url: jdbc:mysql://test.com:3306/billpayment
+    driver-class-name: some-db-driver-class
+    hqcp:
+      url: jdbc:mysql://test.com:3306/billpayment2
+      username: test
+      password: bp_password1
+      driver-class-name: some-db-driver
+      min-connections: 5
+      max-connections: 20
+      idle-timeout-sec: 200
+      checkout-timeout-millisec: 20000
+      query-timeout: 100
+      login-timeout: 20
+      check-statement: check it
+      commit-on-close: true
+      connection-info: a=A&b=B
+      info-sql-threshold: 20
+      warn-sql-threshold: 200
+      jmx-level: 1
+      lazy-init: true
+      max-pre-statements: 20
+      max-statements: 200
+      print-sql: false
+      transaction-mode: false
+      verbose: true
+      use-oracle-implicit-cache: false
+
+
+
