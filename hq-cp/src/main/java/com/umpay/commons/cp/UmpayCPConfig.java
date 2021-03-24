@@ -11,6 +11,7 @@ import org.springframework.context.ApplicationContextAware;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.DriverManager;
 import java.util.Map;
 import java.util.Properties;
@@ -20,11 +21,11 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
     /**
      * 连接URL
      */
-    private String connUrl;
+    private String url;
     /**
      * jdbc驱动类
      */
-    private String driver;
+    private String driverClassName;
 
     /**
      * 数据库用户名
@@ -38,27 +39,27 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
     /**
      * 池中最小连接数
      */
-    private int minConnNum = 0;
+    private int minConnections = 0;
     /**
      * 池中最大连接数
      */
-    private int maxConnNum = 10;
+    private int maxConnections = 10;
     /**
      * 池中最大语句数
      */
-    private int maxStmtNum = 100;
+    private int maxStatements = 100;
     /**
      * 池中最大语句数
      */
-    private int maxPreStmtNum = 10;
+    private int maxPreStatements = 10;
     /**
      * 连接最大空闲时间(milli sec)(空闲超过该时间的连接将被检测或回收)
      */
-    private long maxIdleMilliSec = 300 * 1000;
+    private long idleTimeoutMillisec = 300 * 1000;
     /**
      * 等待空闲连接时的超时时间(ms)
      */
-    private long checkOutTimeout = 10000;
+    private long checkoutTimeoutMillisec = 10000;
 
     /**
      * 关闭连接时自动提交事务
@@ -73,7 +74,7 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
     /**
      * 记录SQL语句及执行时间 //add by wuhq 2011.09.02
      */
-    private boolean printSQL = true;
+    private boolean printSql = true;
 
     /**
      * 检测连接是否可用的查询语句
@@ -101,12 +102,12 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
     /**
      * printSQL == true时，打印INFO级别的SQL的耗时阈值(ms)
      */
-    private long infoSQLThreshold = 10;
+    private long infoSqlThreshold = 10;
 
     /**
      * printSQL == true时，打印WARN级别的SQL的耗时阈值(ms)
      */
-    private long warnSQLThreshold = 100;
+    private long warnSqlThreshold = 100;
 
     /**
      * Indicates if this is for Oracle.
@@ -126,7 +127,7 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
     /**
      * Indicates if oracle implicit preparedstatement cache needed.
      */
-    private boolean useOracleImplicitPSCache = true;
+    private boolean useOracleImplicitCache = true;
 
     /**
      * connection properties on DriverManager.getConnection(url,info)<br/>
@@ -139,7 +140,7 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
      */
     private int queryTimeout = 60;
 
-    private String passwordAesKey = null;
+    private String passwordKey = null;
 
     private SecurityService securityService;
 
@@ -200,14 +201,10 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
         }
     }
 
-    public String getConnUrl() {
-        return connUrl;
-    }
-
-    public void setConnUrl(String connUrl) {
-        this.connUrl = connUrl;
-        if (this.connUrl != null && this.connUrl.trim().length() != 0) {
-            String[] buf = this.connUrl.split(":");
+    private void _setUrl(String url) {
+        this.url = url;
+        if (this.url != null && this.url.trim().length() != 0) {
+            String[] buf = this.url.split(":");
             if (buf.length < 2) {
                 return;
             }
@@ -229,12 +226,12 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
                     checkStatement = "select now()";
                 }
             }
-            if (this.driver == null || this.driver.trim().length() == 0) {
+            if (this.driverClassName == null || this.driverClassName.trim().length() == 0) {
                 //if driver NOT be set, auto-set by url
                 if (isOracle) {
-                    driver = "oracle.jdbc.driver.OracleDriver";
+                    driverClassName = "oracle.jdbc.driver.OracleDriver";
                 } else if (isMySQL) {
-                    driver = "com.mysql.jdbc.Driver";
+                    driverClassName = "com.mysql.cj.jdbc.Driver";
                 }
             }
         }
@@ -244,35 +241,35 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
      * 2012-11-12 zhangyao 支持url参数的注入，保持一其它数据库连接池一致
      */
     public String getUrl() {
-        return getConnUrl();
+        return this.url;
     }
 
     public void setUrl(String url) {
-        setConnUrl(url);
+        _setUrl(url);
     }
 
-    public long getWarnSQLThreshold() {
-        return warnSQLThreshold;
+    public long getWarnSqlThreshold() {
+        return warnSqlThreshold;
     }
 
-    public void setWarnSQLThreshold(long warnSQLThreshold) {
-        this.warnSQLThreshold = warnSQLThreshold;
+    public void setWarnSqlThreshold(long warnSqlThreshold) {
+        this.warnSqlThreshold = warnSqlThreshold;
     }
 
-    public long getInfoSQLThreshold() {
-        return infoSQLThreshold;
+    public long getInfoSqlThreshold() {
+        return infoSqlThreshold;
     }
 
-    public void setInfoSQLThreshold(long infoSQLThreshold) {
-        this.infoSQLThreshold = infoSQLThreshold;
+    public void setInfoSqlThreshold(long infoSqlThreshold) {
+        this.infoSqlThreshold = infoSqlThreshold;
     }
 
-    public String getDriver() {
-        return driver;
+    public String getDriverClassName() {
+        return driverClassName;
     }
 
-    public void setDriver(String driver) {
-        this.driver = driver;
+    public void setDriverClassName(String driver) {
+        this.driverClassName = driver;
     }
 
     public String getUsername() {
@@ -301,9 +298,9 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
             try {
                 byte[] base64DecodedPwd = Base64.decodeBase64(password);
                 boolean isBlock16 = (base64DecodedPwd.length % 16 == 0);  //对称加密数据一定是16的倍数(AES128)
-                if (isBlock16 && !new String(base64DecodedPwd, "UTF-8").matches(PATTERN_COMMONS_CHARS)) { //不可见字符，是加密密码
-                    byte[] decodePwd = this.getSecurityService().decryptByAES(base64DecodedPwd, this.getPasswordAesKey(), "CBC");
-                    String plainPwd = StringUtil.trimToEmpty(new String(decodePwd, "UTF-8"));//明文密码
+                if (isBlock16 && !new String(base64DecodedPwd, StandardCharsets.UTF_8).matches(PATTERN_COMMONS_CHARS)) { //不可见字符，是加密密码
+                    byte[] decodePwd = this.getSecurityService().decryptByAES(base64DecodedPwd, this.getPasswordKey(), "CBC");
+                    String plainPwd = StringUtil.trimToEmpty(new String(decodePwd, StandardCharsets.UTF_8));//明文密码
                     if (plainPwd.matches(PATTERN_COMMONS_CHARS)) { // 解密结果是可见字符
                         this.password = plainPwd;
                     }
@@ -325,19 +322,19 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
     }
 
     public int getMinConnections() {
-        return minConnNum;
+        return minConnections;
     }
 
     public void setMinConnections(int minConnections) {
-        this.minConnNum = minConnections;
+        this.minConnections = minConnections;
     }
 
     public int getMaxConnections() {
-        return maxConnNum;
+        return maxConnections;
     }
 
     public void setMaxConnections(int maxConnections) {
-        this.maxConnNum = maxConnections;
+        this.maxConnections = maxConnections;
     }
 
     public boolean isVerbose() {
@@ -348,12 +345,12 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
         this.verbose = verbose;
     }
 
-    public boolean isPrintSQL() {
-        return printSQL;
+    public boolean isPrintSql() {
+        return printSql;
     }
 
-    public void setPrintSQL(boolean printSQL) {
-        this.printSQL = printSQL;
+    public void setPrintSql(boolean printSql) {
+        this.printSql = printSql;
     }
 
     public boolean isCommitOnClose() {
@@ -365,39 +362,39 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
     }
 
     public long getIdleTimeoutSec() {
-        return maxIdleMilliSec / 1000;
+        return idleTimeoutMillisec / 1000;
     }
 
-    public long getIdleTimeoutMilliSec() {
-        return maxIdleMilliSec;
+    public long getIdleTimeoutMillisec() {
+        return idleTimeoutMillisec;
     }
 
     public void setIdleTimeoutSec(long idleTimeoutSec) {
-        this.maxIdleMilliSec = idleTimeoutSec * 1000;
+        this.idleTimeoutMillisec = idleTimeoutSec * 1000;
     }
 
-    public long getCheckoutTimeoutMilliSec() {
-        return checkOutTimeout;
+    public long getCheckoutTimeoutMillisec() {
+        return checkoutTimeoutMillisec;
     }
 
-    public void setCheckoutTimeoutMilliSec(long checkoutTimeoutMilliSec) {
-        this.checkOutTimeout = checkoutTimeoutMilliSec;
+    public void setCheckoutTimeoutMillisec(long checkoutTimeoutMilliSec) {
+        this.checkoutTimeoutMillisec = checkoutTimeoutMilliSec;
     }
 
     public int getMaxStatements() {
-        return maxStmtNum;
+        return maxStatements;
     }
 
     public void setMaxStatements(int maxStatements) {
-        this.maxStmtNum = maxStatements;
+        this.maxStatements = maxStatements;
     }
 
     public int getMaxPreStatements() {
-        return maxPreStmtNum;
+        return maxPreStatements;
     }
 
     public void setMaxPreStatements(int maxPreStatements) {
-        this.maxPreStmtNum = maxPreStatements;
+        this.maxPreStatements = maxPreStatements;
     }
 
     public String getCheckStatement() {
@@ -444,23 +441,23 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
         return isDB2;
     }
 
-    public boolean isUseOracleImplicitPSCache() {
-        return useOracleImplicitPSCache;
+    public boolean isUseOracleImplicitCache() {
+        return useOracleImplicitCache;
     }
 
-    public void setUseOracleImplicitPSCache(boolean useOracleImplicitPSCache) {
-        this.useOracleImplicitPSCache = useOracleImplicitPSCache;
+    public void setUseOracleImplicitCache(boolean useOracleImplicitPSCache) {
+        this.useOracleImplicitCache = useOracleImplicitPSCache;
     }
 
-    public void setPasswordAesKey(String passwordAesKey) {
+    public void setPasswordKey(String passwordAesKey) {
         if (passwordAesKey != null && passwordAesKey.length() > 0) {
-            this.passwordAesKey = passwordAesKey;
+            this.passwordKey = passwordAesKey;
         }
     }
 
-    String getPasswordAesKey() {
-        if (this.passwordAesKey != null) {
-            return this.passwordAesKey;
+    String getPasswordKey() {
+        if (this.passwordKey != null) {
+            return this.passwordKey;
         }
         String masteryKey = System.getProperty("JDBC_SECRET_KEY");
         if (masteryKey == null) {
@@ -469,8 +466,8 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
         if (masteryKey == null) {
             masteryKey = "eyGDTxVGdmJW7YMYclvWzPMGct4j0syHAdWEB3luYCk=";
         }
-        this.passwordAesKey = masteryKey;
-        return this.passwordAesKey;
+        this.passwordKey = masteryKey;
+        return this.passwordKey;
     }
 
     public void setSecurityService(SecurityService securityService) {
@@ -520,30 +517,31 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
     }
 
     public void setProperties(Properties prop) {
-        setConnUrl(prop.getProperty("jdbc.url"));
+        setUrl(prop.getProperty("jdbc.url"));
         setUsername(prop.getProperty("jdbc.username", null));
         setPassword(prop.getProperty("jdbc.password", null));
-        driver = prop.getProperty("jdbc.driver", driver);
-        verbose = Boolean.valueOf(prop.getProperty("jdbc.verbose", String.valueOf(verbose))).booleanValue();
-        printSQL = Boolean.valueOf(prop.getProperty("jdbc.printSQL", String.valueOf(printSQL))).booleanValue();
-        commitOnClose = Boolean.valueOf(prop.getProperty("jdbc.commit_on_close", String.valueOf(commitOnClose))).booleanValue();
-        minConnNum = Integer.parseInt(prop.getProperty("jdbc.min_connections", String.valueOf(minConnNum)));
-        maxConnNum = Integer.parseInt(prop.getProperty("jdbc.max_connections", String.valueOf(maxConnNum)));
-        maxIdleMilliSec = Long.parseLong(prop.getProperty("jdbc.idle_timeout", String.valueOf(maxIdleMilliSec / 1000))) * 1000;
-        checkOutTimeout = Long.parseLong(prop.getProperty("jdbc.checkout_timeout", String.valueOf(checkOutTimeout)));
-        checkStatement = prop.getProperty("jdbc.check_statement", checkStatement);
-        maxStmtNum = Integer.parseInt(prop.getProperty("jdbc.max_statements", String.valueOf(maxStmtNum)));
-        maxPreStmtNum = Integer.parseInt(prop.getProperty("jdbc.max_prestatements", String.valueOf(maxPreStmtNum)));
-        jmxLevel = Integer.parseInt(prop.getProperty("jdbc.jmx_level", String.valueOf(jmxLevel)));
-        transactionMode = Boolean.parseBoolean(prop.getProperty("jdbc.transaction_mode", String.valueOf(transactionMode)));
-        lazyInit = Boolean.parseBoolean(prop.getProperty("jdbc.lazy_init", String.valueOf(lazyInit)));
-        infoSQLThreshold = Long.parseLong(prop.getProperty("jdbc.infoSQL", String.valueOf(infoSQLThreshold)));
-        warnSQLThreshold = Long.parseLong(prop.getProperty("jdbc.warnSQL", String.valueOf(warnSQLThreshold)));
-        useOracleImplicitPSCache = Boolean.valueOf(prop.getProperty("jdbc.use_implicit_ps_cache", String.valueOf(useOracleImplicitPSCache)));
-        //setLoginTimeout(Integer.parseInt(prop.getProperty("jdbc.login_timeout", String.valueOf(0))));
-        setQueryTimeout(Integer.parseInt(prop.getProperty("jdbc.query_timeout", String.valueOf(queryTimeout))));
-        setConnectionInfo(prop.getProperty("jdbc.connection_info"));
-        setPasswordAesKey(prop.getProperty("jdbc.password_key", null));
+        driverClassName = prop.getProperty("jdbc.driver", driverClassName);
+        driverClassName = prop.getProperty("jdbc.driver-class-name", driverClassName);
+        verbose = Boolean.parseBoolean(prop.getProperty("jdbc.verbose", String.valueOf(verbose)));
+        printSql = Boolean.parseBoolean(prop.getProperty("jdbc.print-sql", String.valueOf(printSql)));
+        commitOnClose = Boolean.parseBoolean(prop.getProperty("jdbc.commit-on-close", String.valueOf(commitOnClose)));
+        minConnections = Integer.parseInt(prop.getProperty("jdbc.min-connections", String.valueOf(minConnections)));
+        maxConnections = Integer.parseInt(prop.getProperty("jdbc.max-connections", String.valueOf(maxConnections)));
+        idleTimeoutMillisec = Long.parseLong(prop.getProperty("jdbc.idle-timeout-sec", String.valueOf(idleTimeoutMillisec / 1000))) * 1000;
+        checkoutTimeoutMillisec = Long.parseLong(prop.getProperty("jdbc.checkout-timeout-millisec", String.valueOf(checkoutTimeoutMillisec)));
+        checkStatement = prop.getProperty("jdbc.check-statement", checkStatement);
+        maxStatements = Integer.parseInt(prop.getProperty("jdbc.max-statements", String.valueOf(maxStatements)));
+        maxPreStatements = Integer.parseInt(prop.getProperty("jdbc.max-pre-statements", String.valueOf(maxPreStatements)));
+        jmxLevel = Integer.parseInt(prop.getProperty("jdbc.jmx-level", String.valueOf(jmxLevel)));
+        transactionMode = Boolean.parseBoolean(prop.getProperty("jdbc.transaction-mode", String.valueOf(transactionMode)));
+        lazyInit = Boolean.parseBoolean(prop.getProperty("jdbc.lazy-init", String.valueOf(lazyInit)));
+        infoSqlThreshold = Long.parseLong(prop.getProperty("jdbc.info-sql-threshold", String.valueOf(infoSqlThreshold)));
+        warnSqlThreshold = Long.parseLong(prop.getProperty("jdbc.warn-sql-threshold", String.valueOf(warnSqlThreshold)));
+        useOracleImplicitCache = Boolean.parseBoolean(prop.getProperty("jdbc.use-oracle-implicit-cache", String.valueOf(useOracleImplicitCache)));
+//        setLoginTimeout(Integer.parseInt(prop.getProperty("jdbc.login-timeout", String.valueOf(0))));
+        setQueryTimeout(Integer.parseInt(prop.getProperty("jdbc.query-timeout", String.valueOf(queryTimeout))));
+        setConnectionInfo(prop.getProperty("jdbc.connection-info"));
+        setPasswordKey(prop.getProperty("jdbc.password-key", null));
         //set isOracle in setConnUrl method.
 //        if (connUrl != null) {
 //            isOracle = JdbcUtil.checkOracle(connUrl);
@@ -551,12 +549,12 @@ public class UmpayCPConfig implements UmpayCPConfigMBean, ApplicationContextAwar
     }
 
     static final String[] PROPERTIES = new String[]{
-            "jdbc.driver", "jdbc.url", "jdbc.username", "jdbc.password", "jdbc.check_statement",
-            "jdbc.verbose", "jdbc.printSQL", "jdbc.commit_on_close", "jdbc.transaction_mode", "jdbc.lazy_init",
-            "jdbc.min_connections", "jdbc.max_connections", "jdbc.max_statements", "jdbc.max_prestatements",
-            "jdbc.idle_timeout", "jdbc.checkout_timeout",
-            "jdbc.jmx_level", "jdbc.infoSQL", "jdbc.warnSQL", "jdbc.use_implicit_ps_cache", "jdbc.connection_info",
-            "jdbc.query_timeout", "jdbc.password_key"
+            "jdbc.driver-class-name", "jdbc.url", "jdbc.username", "jdbc.password", "jdbc.check_statement",
+            "jdbc.verbose", "jdbc.print-sql", "jdbc.commit-on-close", "jdbc.transaction-mode", "jdbc.lazy-init",
+            "jdbc.min-connections", "jdbc.max-connections", "jdbc.max-statements", "jdbc.max-pre-statements",
+            "jdbc.idle-timeout-sec", "jdbc.checkout-timeout-millisec",
+            "jdbc.jmx-level", "jdbc.info-sql-threshold", "jdbc.warn-sql-threshold", "jdbc.use-oracle-implicit-cache", "jdbc.connection-info",
+            "jdbc.query-timeout", "jdbc.password-key"
     };
     
 }

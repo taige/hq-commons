@@ -30,14 +30,14 @@ public class UmpayCPConfigTest {
 
     @Test
     public void testBaseSetterGetter() throws Exception {
-        config.setDriver(MockJDBCDriver.class.getName());
-        config.setConnUrl(MockConstant.MOCK_URL);
+        config.setDriverClassName(MockJDBCDriver.class.getName());
+//        config.setConnUrl(MockConstant.MOCK_URL);
         config.setUrl(MockConstant.MOCK_URL);
         config.setUsername("mockuser");
         config.setPassword("mockpasword");
 
-        assertEquals(MockJDBCDriver.class.getName(), config.getDriver());
-        assertEquals(MockConstant.MOCK_URL, config.getConnUrl());
+        assertEquals(MockJDBCDriver.class.getName(), config.getDriverClassName());
+        assertEquals(MockConstant.MOCK_URL, config.getUrl());
         assertEquals(MockConstant.MOCK_URL, config.getUrl());
         assertEquals("mockuser", config.getUsername());
 //        assertEquals("mockpasword", config.getPassword());
@@ -47,8 +47,8 @@ public class UmpayCPConfigTest {
 
     @Test
     public void testLoadDriver() throws Exception {
-        config.setDriver(MockJDBCDriver.class.getName());
-        config.setConnUrl(MockConstant.MOCK_URL);
+        config.setDriverClassName(MockJDBCDriver.class.getName());
+//        config.setConnUrl(MockConstant.MOCK_URL);
         config.setUrl(MockConstant.MOCK_URL);
 
         UmpayCP cp = new UmpayCP(config);
@@ -58,8 +58,8 @@ public class UmpayCPConfigTest {
 
     @Test
     public void testLoadDriverFail() throws Exception {
-        config.setDriver("some.unknow.driver");
-        config.setConnUrl(MockConstant.MOCK_URL);
+        config.setDriverClassName("some.unknow.driver");
+//        config.setConnUrl(MockConstant.MOCK_URL);
         config.setUrl(MockConstant.MOCK_URL);
 
         try {
@@ -78,9 +78,9 @@ public class UmpayCPConfigTest {
         prop.setProperty("jdbc.password", "mockpassword");
         config.setProperties(prop);
 
-        assertEquals(MockConstant.MOCK_URL, config.getConnUrl());
         assertEquals(MockConstant.MOCK_URL, config.getUrl());
-        assertEquals(MockJDBCDriver.class.getName(), config.getDriver());
+        assertEquals(MockConstant.MOCK_URL, config.getUrl());
+        assertEquals(MockJDBCDriver.class.getName(), config.getDriverClassName());
         assertEquals("mockuser", config.getUsername());
 //        assertEquals("mockpassword", config.getPassword());
         assertEquals("mockuser", config.getConnectionProperties().getProperty("user"));
@@ -100,7 +100,7 @@ public class UmpayCPConfigTest {
         config.setProperties(prop);
         assertEquals(true, config.isOracle());
         assertEquals("select systimestamp from dual", config.getCheckStatement());
-        assertEquals("oracle.jdbc.driver.OracleDriver", config.getDriver());
+        assertEquals("oracle.jdbc.driver.OracleDriver", config.getDriverClassName());
     }
 
     @Test
@@ -109,7 +109,7 @@ public class UmpayCPConfigTest {
         config.setProperties(prop);
         assertEquals(true, config.isMySQL());
         assertEquals("select now()", config.getCheckStatement());
-        assertEquals("com.mysql.jdbc.Driver", config.getDriver());
+        assertEquals("com.mysql.jdbc.Driver", config.getDriverClassName());
     }
 
     @Test
@@ -134,10 +134,10 @@ public class UmpayCPConfigTest {
 
     @Test
     public void testIsPrintSQL() throws Exception {
-        config.setPrintSQL(false);
-        assertEquals(false, config.isPrintSQL());
-        config.setPrintSQL(true);
-        assertEquals(true, config.isPrintSQL());
+        config.setPrintSql(false);
+        assertEquals(false, config.isPrintSql());
+        config.setPrintSql(true);
+        assertEquals(true, config.isPrintSql());
     }
 
     @Test
@@ -160,13 +160,13 @@ public class UmpayCPConfigTest {
     public void testGetIdleTimeoutSec() throws Exception {
         config.setIdleTimeoutSec(1234);
         assertEquals(1234, config.getIdleTimeoutSec());
-        assertEquals(1234000, config.getIdleTimeoutMilliSec());
+        assertEquals(1234000, config.getIdleTimeoutMillisec());
     }
 
     @Test
     public void testGetCheckoutTimeoutMilliSec() throws Exception {
-        config.setCheckoutTimeoutMilliSec(1235);
-        assertEquals(1235, config.getCheckoutTimeoutMilliSec());
+        config.setCheckoutTimeoutMillisec(1235);
+        assertEquals(1235, config.getCheckoutTimeoutMillisec());
     }
 
     @Test
@@ -183,14 +183,14 @@ public class UmpayCPConfigTest {
 
     @Test
     public void testInfoSQLThreshold() throws Exception {
-        config.setInfoSQLThreshold(139);
-        assertEquals(139, config.getInfoSQLThreshold());
+        config.setInfoSqlThreshold(139);
+        assertEquals(139, config.getInfoSqlThreshold());
     }
 
     @Test
     public void testWarnSQLThreshold() throws Exception {
-        config.setWarnSQLThreshold(1390);
-        assertEquals(1390, config.getWarnSQLThreshold());
+        config.setWarnSqlThreshold(1390);
+        assertEquals(1390, config.getWarnSqlThreshold());
     }
 
     @Test
@@ -228,10 +228,10 @@ public class UmpayCPConfigTest {
 
     @Test
     public void testUseOracleImplicitPSCache() throws Exception {
-        config.setUseOracleImplicitPSCache(true);
-        assertEquals(true, config.isUseOracleImplicitPSCache());
-        config.setUseOracleImplicitPSCache(false);
-        assertEquals(false, config.isUseOracleImplicitPSCache());
+        config.setUseOracleImplicitCache(true);
+        assertEquals(true, config.isUseOracleImplicitCache());
+        config.setUseOracleImplicitCache(false);
+        assertEquals(false, config.isUseOracleImplicitCache());
     }
 
     @Test
@@ -285,23 +285,23 @@ public class UmpayCPConfigTest {
     @Test
     public void testSetProperties() throws Exception {
         prop.setProperty("jdbc.verbose", "false");
-        prop.setProperty("jdbc.printSQL", "false");
-        prop.setProperty("jdbc.commit_on_close", "false");
-        prop.setProperty("jdbc.transaction_mode", "false");
-        prop.setProperty("jdbc.lazy_init", "false");
+        prop.setProperty("jdbc.print-sql", "false");
+        prop.setProperty("jdbc.commit-on-close", "false");
+        prop.setProperty("jdbc.transaction-mode", "false");
+        prop.setProperty("jdbc.lazy-init", "false");
 
-        prop.setProperty("jdbc.min_connections", "100");
-        prop.setProperty("jdbc.max_connections", "200");
-        prop.setProperty("jdbc.idle_timeout", "1234");
-        prop.setProperty("jdbc.checkout_timeout", "1235");
-        prop.setProperty("jdbc.check_statement", "test");
-        prop.setProperty("jdbc.max_statements", "120");
-        prop.setProperty("jdbc.max_prestatements", "139");
-        prop.setProperty("jdbc.jmx_level", "2");
+        prop.setProperty("jdbc.min-connections", "100");
+        prop.setProperty("jdbc.max-connections", "200");
+        prop.setProperty("jdbc.idle-timeout-sec", "1234");
+        prop.setProperty("jdbc.checkout-timeout-millisec", "1235");
+        prop.setProperty("jdbc.check-statement", "test");
+        prop.setProperty("jdbc.max-statements", "120");
+        prop.setProperty("jdbc.max-pre-statements", "139");
+        prop.setProperty("jdbc.jmx-level", "2");
         config.setProperties(prop);
 
         assertEquals(false, config.isVerbose());
-        assertEquals(false, config.isPrintSQL());
+        assertEquals(false, config.isPrintSql());
         assertEquals(false, config.isCommitOnClose());
         assertEquals(false, config.isTransactionMode());
         assertEquals(false, config.isLazyInit());
@@ -309,35 +309,35 @@ public class UmpayCPConfigTest {
         assertEquals(100, config.getMinConnections());
         assertEquals(200, config.getMaxConnections());
         assertEquals(1234, config.getIdleTimeoutSec());
-        assertEquals(1234000, config.getIdleTimeoutMilliSec());
-        assertEquals(1235, config.getCheckoutTimeoutMilliSec());
+        assertEquals(1234000, config.getIdleTimeoutMillisec());
+        assertEquals(1235, config.getCheckoutTimeoutMillisec());
         assertEquals("test", config.getCheckStatement());
         assertEquals(120, config.getMaxStatements());
         assertEquals(139, config.getMaxPreStatements());
         assertEquals(2, config.getJmxLevel());
 
         prop.setProperty("jdbc.verbose", "true");
-        prop.setProperty("jdbc.printSQL", "true");
-        prop.setProperty("jdbc.commit_on_close", "true");
-        prop.setProperty("jdbc.transaction_mode", "true");
-        prop.setProperty("jdbc.lazy_init", "true");
+        prop.setProperty("jdbc.print-sql", "true");
+        prop.setProperty("jdbc.commit-on-close", "true");
+        prop.setProperty("jdbc.transaction-mode", "true");
+        prop.setProperty("jdbc.lazy-init", "true");
         config.setProperties(prop);
         assertEquals(true, config.isVerbose());
-        assertEquals(true, config.isPrintSQL());
+        assertEquals(true, config.isPrintSql());
         assertEquals(true, config.isCommitOnClose());
         assertEquals(true, config.isTransactionMode());
         assertEquals(true, config.isLazyInit());
 
-        prop.setProperty("jdbc.infoSQL", "20");
-        prop.setProperty("jdbc.warnSQL", "200");
-        prop.setProperty("jdbc.use_implicit_ps_cache", "false");
-        prop.setProperty("jdbc.connection_info", "abc=ABC&cc=CC");
+        prop.setProperty("jdbc.info-sql-threshold", "20");
+        prop.setProperty("jdbc.warn-sql-threshold", "200");
+        prop.setProperty("jdbc.use-oracle-implicit-cache", "false");
+        prop.setProperty("jdbc.connection-info", "abc=ABC&cc=CC");
 //        prop.setProperty("jdbc.login_timeout", "10");
-        prop.setProperty("jdbc.query_timeout", "20");
+        prop.setProperty("jdbc.query-timeout", "20");
         config.setProperties(prop);
-        assertEquals(20, config.getInfoSQLThreshold());
-        assertEquals(200, config.getWarnSQLThreshold());
-        assertEquals(false, config.isUseOracleImplicitPSCache());
+        assertEquals(20, config.getInfoSqlThreshold());
+        assertEquals(200, config.getWarnSqlThreshold());
+        assertEquals(false, config.isUseOracleImplicitCache());
         assertEquals("ABC", config.getConnectionProperties().getProperty("abc"));
         assertEquals("CC", config.getConnectionProperties().getProperty("cc"));
 //        assertEquals(10, config.getLoginTimeout());
@@ -347,14 +347,14 @@ public class UmpayCPConfigTest {
     @Test
     public void testDefault() throws Exception {
         assertEquals(config.isVerbose(), false);
-        assertEquals(config.isPrintSQL(), true);
+        assertEquals(config.isPrintSql(), true);
         assertEquals(config.isCommitOnClose(), false);
         assertEquals(config.isTransactionMode(), false);
         assertEquals(0, config.getMinConnections());
         assertEquals(10, config.getMaxConnections());
         assertEquals(300, config.getIdleTimeoutSec());
-        assertEquals(300000, config.getIdleTimeoutMilliSec());
-        assertEquals(10000, config.getCheckoutTimeoutMilliSec());
+        assertEquals(300000, config.getIdleTimeoutMillisec());
+        assertEquals(10000, config.getCheckoutTimeoutMillisec());
         assertNull(config.getCheckStatement());
         assertEquals(100, config.getMaxStatements());
         assertEquals(10, config.getMaxPreStatements());
@@ -365,14 +365,14 @@ public class UmpayCPConfigTest {
     public void testEmptyProp() throws Exception {
         config.setProperties(prop);
         assertEquals(config.isVerbose(), false);
-        assertEquals(config.isPrintSQL(), true);
+        assertEquals(config.isPrintSql(), true);
         assertEquals(config.isCommitOnClose(), false);
         assertEquals(config.isTransactionMode(), false);
         assertEquals(0, config.getMinConnections());
         assertEquals(10, config.getMaxConnections());
         assertEquals(300, config.getIdleTimeoutSec());
-        assertEquals(300000, config.getIdleTimeoutMilliSec());
-        assertEquals(10000, config.getCheckoutTimeoutMilliSec());
+        assertEquals(300000, config.getIdleTimeoutMillisec());
+        assertEquals(10000, config.getCheckoutTimeoutMillisec());
         assertNull(config.getCheckStatement());
         assertEquals(100, config.getMaxStatements());
         assertEquals(10, config.getMaxPreStatements());
@@ -382,18 +382,18 @@ public class UmpayCPConfigTest {
     @Test
     public void testSetPropertiesLocation() throws Exception {
         config.setPropertiesLocation(new ClassPathResource("jdbc.properties"));
-        assertEquals("com.jolbox.bonecp.MockJDBCDriver", config.getDriver());
+        assertEquals("com.jolbox.bonecp.MockJDBCDriver", config.getDriverClassName());
         assertEquals("jdbc:mysql:url", config.getUrl());
         assertEquals("mockuser", config.getUsername());
 //        assertEquals("mockpassword", config.getPassword());
         assertEquals(true, config.isVerbose());
-        assertEquals(true, config.isPrintSQL());
+        assertEquals(true, config.isPrintSql());
         assertEquals(true, config.isCommitOnClose());
         assertEquals(1, config.getMinConnections());
         assertEquals(2, config.getMaxConnections());
-        assertEquals(20000, config.getIdleTimeoutMilliSec());
+        assertEquals(20000, config.getIdleTimeoutMillisec());
         assertEquals(20, config.getIdleTimeoutSec());
-        assertEquals(60000, config.getCheckoutTimeoutMilliSec());
+        assertEquals(60000, config.getCheckoutTimeoutMillisec());
         assertEquals("test", config.getCheckStatement());
         assertEquals(10, config.getMaxStatements());
         assertEquals(5, config.getMaxPreStatements());

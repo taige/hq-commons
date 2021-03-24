@@ -119,6 +119,9 @@ public class SecurityUtil extends DigestUtils {
         Validate.isTrue(ArrayUtils.isNotEmpty(bkey), "密钥不能为空");
         Validate.notNull(alg, "加解密算法不能为空");
         Validate.isTrue(opmode == ENCRYPT_MODE || opmode == DECRYPT_MODE, "加密|解密");
+        if (data == null) {
+            return null;
+        }
         String[] algs = StringUtil.split(alg, '/');
         SecretKey key = new SecretKeySpec(bkey, algs[0]);
         AlgorithmParameterSpec algorithmParameterSpec = null;

@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    username: bp_user
+    password: TTNsJX90tav1gadjezEMHw==   # `bp_password`
+    url: jdbc:mysql://test.com:3306/billpayment
+    driver-class-name: some-db-driver-class
+
+

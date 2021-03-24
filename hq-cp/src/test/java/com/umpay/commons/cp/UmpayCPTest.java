@@ -48,10 +48,10 @@ public class UmpayCPTest {
         mockConnection.close();
         expectLastCall().once();
         config = mocksControl.createMock(UmpayCPConfig.class);
-        expect(config.getConnUrl()).andReturn(MockConstant.MOCK_URL).atLeastOnce();
-        expect(config.getDriver()).andReturn(null).atLeastOnce();
-        expect(config.getIdleTimeoutMilliSec()).andReturn(10000L).atLeastOnce(); //回收时间10sec
-        expect(config.getCheckoutTimeoutMilliSec()).andReturn(5000L).anyTimes(); //获取连接的超时时间5sec
+        expect(config.getUrl()).andReturn(MockConstant.MOCK_URL).atLeastOnce();
+        expect(config.getDriverClassName()).andReturn(null).atLeastOnce();
+        expect(config.getIdleTimeoutMillisec()).andReturn(10000L).atLeastOnce(); //回收时间10sec
+        expect(config.getCheckoutTimeoutMillisec()).andReturn(5000L).anyTimes(); //获取连接的超时时间5sec
         expect(config.getCheckStatement()).andReturn("test").anyTimes();
         expect(config.getJmxLevel()).andReturn(2).atLeastOnce();
         expect(config.getMaxConnections()).andReturn(5).anyTimes(); //最大连接 5
@@ -62,12 +62,12 @@ public class UmpayCPTest {
 //        expect(config.getPassword()).andReturn("mockpassword").anyTimes();
         expect(config.isVerbose()).andReturn(false).once().andReturn(true).anyTimes();
         expect(config.isCommitOnClose()).andReturn(false).once().andReturn(true).anyTimes();
-        expect(config.isPrintSQL()).andReturn(false).once().andReturn(true).anyTimes();
+        expect(config.isPrintSql()).andReturn(false).once().andReturn(true).anyTimes();
         expect(config.isTransactionMode()).andReturn(false).once().andReturn(true).anyTimes();
-        expect(config.getInfoSQLThreshold()).andReturn(10L).anyTimes();
-        expect(config.getWarnSQLThreshold()).andReturn(100L).anyTimes();
+        expect(config.getInfoSqlThreshold()).andReturn(10L).anyTimes();
+        expect(config.getWarnSqlThreshold()).andReturn(100L).anyTimes();
         expect(config.isOracle()).andReturn(false).atLeastOnce();
-        expect(config.isUseOracleImplicitPSCache()).andReturn(true).anyTimes();
+        expect(config.isUseOracleImplicitCache()).andReturn(true).anyTimes();
         expect(config.getQueryTimeout()).andReturn(0).atLeastOnce();
         Properties properties = new Properties();
         properties.setProperty("user", "mockuser");

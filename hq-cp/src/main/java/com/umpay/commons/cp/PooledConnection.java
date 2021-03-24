@@ -143,11 +143,11 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         //Properties properties = generateConnectionProperties();
         // conneciton properties 放到 UmpayCPConfig 中统一维护
 
-        real_connection = DriverManager.getConnection(connectionPool.getConfig().getConnUrl(), connectionPool.getConfig().getConnectionProperties());
+        real_connection = DriverManager.getConnection(connectionPool.getConfig().getUrl(), connectionPool.getConfig().getConnectionProperties());
 
         //real_connection.setAutoCommit(autoCommit);
         this.autoCommit = real_connection.getAutoCommit();
-        log.info(connectionName, " make new connection to ", connectionPool.getConfig().getConnUrl(), " use ", Formatter.formatNS(System.nanoTime() - start), " ns");
+        log.info(connectionName, " make new connection to ", connectionPool.getConfig().getUrl(), " use ", Formatter.formatNS(System.nanoTime() - start), " ns");
         closed.set(false);
         setFatalExceptionHappened(false);//默认不关闭链接
     }
@@ -644,7 +644,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     }
 
     public boolean isPrintSQL() {
-        return connectionPool.getConfig().isPrintSQL();
+        return connectionPool.getConfig().isPrintSql();
     }
 
     /**
@@ -694,10 +694,10 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     }
 
     public long getInfoSQLThreshold() {
-        return connectionPool.getConfig().getInfoSQLThreshold();
+        return connectionPool.getConfig().getInfoSqlThreshold();
     }
 
     public long getWarnSQLThreshold() {
-        return connectionPool.getConfig().getWarnSQLThreshold();
+        return connectionPool.getConfig().getWarnSqlThreshold();
     }
 }

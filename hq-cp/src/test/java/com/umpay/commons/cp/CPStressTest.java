@@ -91,7 +91,7 @@ public class CPStressTest {
                 config.setMinConnections(minConn);
                 config.setMaxConnections(maxConn);
                 config.setVerbose(false);
-                config.setPrintSQL(false);
+                config.setPrintSql(false);
                 fc = new UmpayCP(config);
             }
         }

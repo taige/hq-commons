@@ -115,30 +115,30 @@ public class UmpayCP implements UmpayCPMBean {
     // by wuhongqiang 2014.2.25
     // change the method name from startMonitor to initPool
     private void initPool() throws SQLException {
-        if (this.config == null || this.config.getConnUrl() == null) {
+        if (this.config == null || this.config.getUrl() == null) {
             throw new SQLException("jdbc.url cannot be NULL");
         }
-        if (config.getDriver() != null) {
+        if (config.getDriverClassName() != null) {
             try {
-                Class.forName(config.getDriver());
-                log.info("load ", config.getDriver(), " ok");
+                Class.forName(config.getDriverClassName());
+                log.info("load ", config.getDriverClassName(), " ok");
             } catch (ClassNotFoundException e) {
                 throw new SQLException(e.toString(), e);
             }
         }
-        boolean isOracle10 = config.isOracle() && DriverManager.getDriver(config.getConnUrl()).getMajorVersion() == 10;
-        if (isOracle10 && config.isUseOracleImplicitPSCache()) {
+        boolean isOracle10 = config.isOracle() && DriverManager.getDriver(config.getUrl()).getMajorVersion() == 10;
+        if (isOracle10 && config.isUseOracleImplicitCache()) {
             config.getConnectionProperties().setProperty(OracleUtil.ORACLE_FREECACHE_PROPERTY_NAME, OracleUtil.ORACLE_FREECACHE_PROPERTY_VALUE_TRUE);
         } else {
             config.getConnectionProperties().remove(OracleUtil.ORACLE_FREECACHE_PROPERTY_NAME);
         }
         //设置native驱动的超时设置
         //add by wuhongqiang. 2014.07.04
-        if (config.getCheckoutTimeoutMilliSec() > 0) {
+        if (config.getCheckoutTimeoutMillisec() > 0) {
             if (config.isOracle()) {
-                config.getConnectionProperties().setProperty(OracleUtil.CONNECT_TIMEOUT, String.valueOf(config.getCheckoutTimeoutMilliSec()));
+                config.getConnectionProperties().setProperty(OracleUtil.CONNECT_TIMEOUT, String.valueOf(config.getCheckoutTimeoutMillisec()));
             } else if (config.isMySQL()) {
-                config.getConnectionProperties().setProperty(MySQLPooledConnection.CONNECT_TIMEOUT, String.valueOf(config.getCheckoutTimeoutMilliSec()));
+                config.getConnectionProperties().setProperty(MySQLPooledConnection.CONNECT_TIMEOUT, String.valueOf(config.getCheckoutTimeoutMillisec()));
             }
 
         }
@@ -306,10 +306,10 @@ public class UmpayCP implements UmpayCPMBean {
         }
         if (connId == null) {
             if (validConnectionNum.get() >= config.getMaxConnections()) {
-                log.info("connections of ", poolName, " to ", config.getConnUrl(), " exhausted, wait ", config.getCheckoutTimeoutMilliSec(), " ms for idle connection");
+                log.info("connections of ", poolName, " to ", config.getUrl(), " exhausted, wait ", config.getCheckoutTimeoutMillisec(), " ms for idle connection");
             }
             try {
-                connId = idleConnectionsId.pop(config.getCheckoutTimeoutMilliSec(), TimeUnit.MILLISECONDS);
+                connId = idleConnectionsId.pop(config.getCheckoutTimeoutMillisec(), TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
                 log.info(e);
             }
@@ -317,7 +317,7 @@ public class UmpayCP implements UmpayCPMBean {
         if (connId == null) {
             //add by wuhq. 2014.02.19 在连接池耗尽时，打印连接池的状态
             logVerboseInfo(true);
-            throw new SQLException("Timeout on waiting for a free available connection of " + poolName + " to " + config.getConnUrl(), "08001");
+            throw new SQLException("Timeout on waiting for a free available connection of " + poolName + " to " + config.getUrl(), "08001");
         }
         PooledConnection pconn = validConnectionsPool.get(connId);
         try {
@@ -373,7 +373,7 @@ public class UmpayCP implements UmpayCPMBean {
                     idleConnectionsId.push(connId);
                 }
                 if (config.isVerbose()) {
-                    log.info(poolName, " +)", validConnectionNum.get(), " connections to ", config.getConnUrl());
+                    log.info(poolName, " +)", validConnectionNum.get(), " connections to ", config.getUrl());
                 }
             } catch (SQLException e) {
                 validConnectionNum.decrementAndGet();
@@ -403,7 +403,7 @@ public class UmpayCP implements UmpayCPMBean {
         pc.close();
         pc.unregisterJMX();
         if (config.isVerbose()) {
-            log.info(poolName, " -)", validConnectionNum.get() ," connections to ", config.getConnUrl());
+            log.info(poolName, " -)", validConnectionNum.get() ," connections to ", config.getUrl());
         }
         return true;
     }
@@ -501,7 +501,7 @@ public class UmpayCP implements UmpayCPMBean {
          * @throws InterruptedException
          */
         private long idleConnectionCheckOrClose() throws InterruptedException {
-            long timeToNextCheck = config.getIdleTimeoutMilliSec();
+            long timeToNextCheck = config.getIdleTimeoutMillisec();
             Integer[] connIds = idleConnectionsId.toArray();
             for (Integer connId: connIds) {
                 PooledConnection pc = validConnectionsPool.get(connId);
@@ -512,11 +512,11 @@ public class UmpayCP implements UmpayCPMBean {
                         break;
                     }
                     //下次检测时间=检入时间+检测间隔
-                    timeToNextCheck = pc.getTimeCheckIn() + config.getIdleTimeoutMilliSec() - System.currentTimeMillis();
+                    timeToNextCheck = pc.getTimeCheckIn() + config.getIdleTimeoutMillisec() - System.currentTimeMillis();
                     if (timeToNextCheck <= 0) {
                         //达到需要检测或回收的时间
                         //置下次检测时间=当前时间+最大检测间隔
-                        timeToNextCheck = config.getIdleTimeoutMilliSec();
+                        timeToNextCheck = config.getIdleTimeoutMillisec();
                         if (validConnectionNum.get() > config.getMinConnections()) {
                             //当前连接数>最少连接数，则回收该连接
                             if (! closeConnection(pc)) {
@@ -549,7 +549,7 @@ public class UmpayCP implements UmpayCPMBean {
                 }
             });
             try {
-                future.get(config.getIdleTimeoutMilliSec(), TimeUnit.MILLISECONDS);
+                future.get(config.getIdleTimeoutMillisec(), TimeUnit.MILLISECONDS);
             } catch (Exception e) {
                 log.warn("get connection: ", pooledConnection.getConnectionName(), " check result error: ", e);
                 pooledConnection.close();
@@ -585,7 +585,7 @@ public class UmpayCP implements UmpayCPMBean {
 
         public void run() {
             log.info(getName(), " start!");
-            long idleTimeout = config.getIdleTimeoutMilliSec();
+            long idleTimeout = config.getIdleTimeoutMillisec();
             while (! shutdown.get()) {
                 try {
                     //保持最小连接数
@@ -601,10 +601,10 @@ public class UmpayCP implements UmpayCPMBean {
                         break;
                     }
                 } catch (Exception e) {
-                    idleTimeout = config.getIdleTimeoutMilliSec();
+                    idleTimeout = config.getIdleTimeoutMillisec();
                     log.warn(e);
                 } catch (Throwable t) {
-                    idleTimeout = config.getIdleTimeoutMilliSec();
+                    idleTimeout = config.getIdleTimeoutMillisec();
                     log.error(t);
                 }
             }

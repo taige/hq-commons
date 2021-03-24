@@ -2,11 +2,11 @@ package com.umpay.commons.cp;
 
 public interface UmpayCPConfigMBean {
 
-    public String getConnUrl();
-    public void setConnUrl(String url);
+    public String getUrl();
+    public void setUrl(String url);
     
-    public String getDriver();
-    public void setDriver(String driver);
+    public String getDriverClassName();
+    public void setDriverClassName(String driver);
     
     public String getUsername();
     public void setUsername(String username);
@@ -23,8 +23,8 @@ public interface UmpayCPConfigMBean {
     public boolean isVerbose();
     public void setVerbose(boolean vb);
     
-    public boolean isPrintSQL();
-    public void setPrintSQL(boolean ps);
+    public boolean isPrintSql();
+    public void setPrintSql(boolean ps);
     
     public boolean isCommitOnClose();
     public void setCommitOnClose(boolean cc);
@@ -32,8 +32,8 @@ public interface UmpayCPConfigMBean {
     public long getIdleTimeoutSec();
     public void setIdleTimeoutSec(long idle);
     
-    public long getCheckoutTimeoutMilliSec();
-    public void setCheckoutTimeoutMilliSec(long checkout);
+    public long getCheckoutTimeoutMillisec();
+    public void setCheckoutTimeoutMillisec(long checkout);
 
     public int getMaxStatements();
     public void setMaxStatements(int num);

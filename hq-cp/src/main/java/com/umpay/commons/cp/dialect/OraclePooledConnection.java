@@ -112,6 +112,6 @@ public class OraclePooledConnection extends PooledConnection {
     @Override
     protected PooledPreparedStatement getPooledPreparedStatement(PreparedStatement stmt, int stmtId, String sql) throws SQLException {
         return new OraclePooledPreparedStatement(
-                this, stmt, stmtId, sql, super.getConnectionPool().getConfig().isUseOracleImplicitPSCache());
+                this, stmt, stmtId, sql, super.getConnectionPool().getConfig().isUseOracleImplicitCache());
     }
 }
