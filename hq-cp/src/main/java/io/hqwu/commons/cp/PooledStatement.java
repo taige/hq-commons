@@ -235,7 +235,7 @@ class PooledStatement implements InvocationHandler {
     }
 
     protected String getSqlDoing() {
-        sqlDoing = sqlDoing == null ? "" : JdbcUtil.multiLinesToOneLine(sqlDoing, " ");
+        sqlDoing = sqlDoing == null ? "" : JdbcUtil.removeBreakingWhitespace(sqlDoing);
         return sqlDoing;
     }
 

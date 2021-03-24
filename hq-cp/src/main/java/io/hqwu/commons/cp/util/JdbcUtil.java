@@ -8,6 +8,7 @@ import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.StringTokenizer;
 
 /**
  * JdbcUtil
@@ -83,6 +84,16 @@ public class JdbcUtil {
                 LOGGER.warn("E close(Statement)...", e);
             }
         }
+    }
+
+    public static String removeBreakingWhitespace(String original) {
+        StringTokenizer whitespaceStripper = new StringTokenizer(original);
+        StringBuilder builder = new StringBuilder();
+        while (whitespaceStripper.hasMoreTokens()) {
+            builder.append(whitespaceStripper.nextToken());
+            builder.append(" ");
+        }
+        return builder.toString();
     }
 
     public static String multiLinesToOneLine(String lines, String replacement) {
