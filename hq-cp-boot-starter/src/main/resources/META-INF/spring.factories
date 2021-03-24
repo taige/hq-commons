@@ -1,1 +1,1 @@
-org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.umpay.commons.cp.HqCpDataSourceAutoConfiguration
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=io.hqwu.commons.cp.HqcpDataSourceAutoConfiguration

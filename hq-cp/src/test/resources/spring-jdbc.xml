@@ -5,7 +5,7 @@
         http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
 
 	<!-- dataSource -->
-  <bean id="dataSource" class="com.umpay.commons.cp.UmpayCPDataSource">
+  <bean id="dataSource" class="io.hqwu.commons.cp.HqcpDataSource">
     <property name="propertiesLocation" value="classpath:mysql.properties" />
   </bean>
   <!-- dataSource -->
@@ -15,7 +15,7 @@
   </bean>
 
   <!-- 首先定义抽象的abstractDao，其有一个jdbcTemplate属性，从而可以让继承的子类自动继承jdbcTemplate属性注入； -->
-  <bean id="testDao" class="com.umpay.commons.cp.TestDaoImpl">
+  <bean id="testDao" class="io.hqwu.commons.cp.TestDaoImpl">
     <property name="jdbcTemplate" ref="jdbcTemplate" />
   </bean>
 
@@ -34,7 +34,7 @@
   <!--<tx:annotation-driven transaction-manager="txManager2" />-->
 
   <!-- dataSource -->
-  <bean id="dataSource2" class="com.umpay.commons.cp.UmpayCPDataSource">
+  <bean id="dataSource2" class="io.hqwu.commons.cp.HqcpDataSource">
     <property name="propertiesLocation" value="classpath:mysql.properties" />
   </bean>
   <!-- dataSource -->
@@ -44,7 +44,7 @@
   </bean>
 
   <!-- 首先定义抽象的abstractDao，其有一个jdbcTemplate属性，从而可以让继承的子类自动继承jdbcTemplate属性注入； -->
-  <bean id="testDao2" class="com.umpay.commons.cp.TestDaoImpl2">
+  <bean id="testDao2" class="io.hqwu.commons.cp.TestDaoImpl2">
     <property name="jdbcTemplate" ref="jdbcTemplate2" />
   </bean>
 
