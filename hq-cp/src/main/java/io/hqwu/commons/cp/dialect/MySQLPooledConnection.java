@@ -1,8 +1,10 @@
 package io.hqwu.commons.cp.dialect;
 
+import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.Hqcp;
 import io.hqwu.commons.cp.PooledConnection;
 
+import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 
 /**
@@ -12,6 +14,7 @@ import java.sql.SQLException;
  * Time: 下午10:19
  */
 public class MySQLPooledConnection extends PooledConnection {
+    private static final Logger LOGGER = new Logger();
 
     public static final String CONNECT_TIMEOUT = "connectTimeout";
     public static final String SOCKET_TIMEOUT = "socketTimeout";
@@ -28,6 +31,7 @@ public class MySQLPooledConnection extends PooledConnection {
         String sqlState = sqle.getSQLState();
         if (sqlState == null || sqlState.equals("40001")) {
             // sqlState == 40001 is mysql specific triggered when a deadlock is detected
+            LOGGER.debug("consider fetal exception because sqlState: %s", sqlState);
             return true;
         }
 
@@ -52,25 +56,64 @@ public class MySQLPooledConnection extends PooledConnection {
                 // Out-of-memory errors
             case 1037: // ER_OUTOFMEMORY
             case 1038: // ER_OUT_OF_SORTMEMORY
+                // Access denied
+            case 1142: // ER_TABLEACCESS_DENIED_ERROR
+            case 1227: // ER_SPECIFIC_ACCESS_DENIED_ERROR
+            case 1023: // ER_ERROR_ON_CLOSE
+            case 1290: // ER_OPTION_PREVENTS_STATEMENT
+                LOGGER.debug("consider fetal exception because errorCode: %d", errorCode);
                 return true;
             default:
                 break;
         }
 
+        // for oceanbase
         if (errorCode >= -10000 && errorCode <= -9000) {
+            LOGGER.debug("consider fetal exception because errorCode: %d", errorCode);
+            return true;
+        }
+
+        String className = sqle.getClass().getName();
+        if (className.endsWith("CommunicationsException")) {
+            LOGGER.debug("consider fetal exception because className: %s", className);
             return true;
         }
 
         String message = sqle.getMessage();
         if (message != null && message.length() > 0) {
-            final String errorText = message.toUpperCase();
-
-            if ((errorCode == 0 && (errorText.indexOf("COMMUNICATIONS LINK FAILURE") > -1) //
-                    || errorText.indexOf("COULD NOT CREATE CONNECTION") > -1) //
-                    || errorText.indexOf("NO DATASOURCE") > -1 //
-                    || errorText.indexOf("NO ALIVE DATASOURCE") > -1) {
+            if (message.startsWith("Streaming result set com.mysql.jdbc.RowDataDynamic")
+                    && message.endsWith("is still active. No statements may be issued when any streaming result sets are open and in use on a given connection. Ensure that you have called .close() on any active streaming result sets before attempting more queries.")) {
+                LOGGER.debug("consider fetal exception because message: %s", message);
                 return true;
             }
+
+            final String errorText = message.toUpperCase();
+
+            if ((errorCode == 0 && (errorText.contains("COMMUNICATIONS LINK FAILURE")) //
+                    || errorText.contains("COULD NOT CREATE CONNECTION")) //
+                    || errorText.contains("NO DATASOURCE") //
+                    || errorText.contains("NO ALIVE DATASOURCE")) {
+                LOGGER.debug("consider fetal exception because errorText: %s", errorText);
+                return true;
+            }
+        }
+
+        Throwable cause = sqle.getCause();
+        for (int i = 0; i < 5 && cause != null; ++i) {
+            if (cause instanceof SocketTimeoutException) {
+                LOGGER.debug("consider fetal exception because SocketTimeoutException[%d]", i);
+                return true;
+            }
+
+            className = cause.getClass().getName();
+            if (className.endsWith("CommunicationsException")
+                    || className.endsWith("ConnectionIsClosedException")
+                    || className.endsWith("StatementIsClosedException")) {
+                LOGGER.debug("consider fetal exception because className[%d]: %s", i, className);
+                return true;
+            }
+
+            cause = cause.getCause();
         }
         return false;
     }

@@ -175,8 +175,14 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
      * @return
      */
     public boolean isFetalException(SQLException sqle) {
+        if (sqle instanceof SQLRecoverableException) {
+            log.debug("consider fetal exception because SQLRecoverableException");
+            return true;
+        }
+
         String sqls = sqle.getSQLState();
         if (sqls == null || sqls.startsWith("08")) { // Connection Exception
+            log.debug("consider fetal exception because sqlState: %s", sqls);
             return true;
         }
 
@@ -191,6 +197,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
         char firstChar = sqls.charAt(0);
         if (firstChar >= '5' && firstChar <='9') {
+            log.debug("consider fetal exception because sqlState[5-9]: %s", sqls);
             return true;
         }
         return false;
