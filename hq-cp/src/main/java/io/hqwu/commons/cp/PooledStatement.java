@@ -146,6 +146,16 @@ class PooledStatement implements InvocationHandler {
                 //connection.recover(e);
             }
             throw e;
+        } catch (Exception e) {
+            // MySQL unexpected exception with mysql-connector-java:8.0.19:
+            // java.lang.NullPointerException: null
+            //	at com.mysql.cj.AbstractQuery.stopQueryTimer(AbstractQuery.java:206)
+            //	at com.mysql.cj.jdbc.StatementImpl.stopQueryTimer(StatementImpl.java:643)
+            //	at com.mysql.cj.jdbc.StatementImpl.executeQuery(StatementImpl.java:1182)
+            log.error("unexpected exception: ", e);
+            close();
+            connection.setFatalExceptionHappened(true);
+            throw e;
         } finally {
             busying = 0;
         }

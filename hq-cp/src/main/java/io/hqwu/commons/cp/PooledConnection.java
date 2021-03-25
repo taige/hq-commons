@@ -549,7 +549,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
             rs.next();
 //            stmt.setQueryTimeout(to);
         } catch (Exception e) {
-            log.warn(e);
+            log.warn("error occurs when doCheck", e);
         } finally {
             // modify by shenjl 修改资源泄露问题
             JdbcUtil.closeQuietly(rs);
