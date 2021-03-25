@@ -530,7 +530,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         return b;
     }
 
-    public void doCheck() {
+    public void doCheck() throws Exception {
         Statement stmt = null;
         ResultSet rs = null;
         String checkStmt = connectionPool.getConfig().getCheckStatement();
@@ -548,8 +548,6 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
             rs = stmt.executeQuery(checkStmt);
             rs.next();
 //            stmt.setQueryTimeout(to);
-        } catch (Exception e) {
-            log.warn("error occurs when doCheck", e);
         } finally {
             // modify by shenjl 修改资源泄露问题
             JdbcUtil.closeQuietly(rs);

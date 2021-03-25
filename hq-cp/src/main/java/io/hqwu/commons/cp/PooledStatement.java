@@ -135,26 +135,25 @@ class PooledStatement implements InvocationHandler {
                 connection.setDirty();
             }
             return obj;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             if (methodDoing.startsWith("execute")) {
-                log.error(e.toString(), "[ErrorCode=", e.getErrorCode(), ";SQLState=", e.getSQLState(), "] on ", methodDoing, "(", getSqlDoing(), ")");
+                if (e instanceof SQLException) {
+                    log.info(e.toString(), "[ErrorCode=", ((SQLException) e).getErrorCode(), ";SQLState=", ((SQLException) e).getSQLState(), "] on ", methodDoing, "(", getSqlDoing(), ")");
+                } else {
+                    // MySQL unexpected exception with mysql-connector-java:8.0.19:
+                    // java.lang.NullPointerException: null
+                    //	at com.mysql.cj.AbstractQuery.stopQueryTimer(AbstractQuery.java:206)
+                    //	at com.mysql.cj.jdbc.StatementImpl.stopQueryTimer(StatementImpl.java:643)
+                    //	at com.mysql.cj.jdbc.StatementImpl.executeQuery(StatementImpl.java:1182)
+                    log.error("unexpected exception occurs on ", methodDoing, "(", getSqlDoing(), ")", e);
+                }
             }
-            if (connection.isFetalException(e)) {
+            if (! (e instanceof SQLException) || connection.isFetalException((SQLException) e)) {
                 close();
                 //sql执行失败不新建连接,直接关闭物理链接,等待Connection的close调用,modify by shenjl at 2015-03-09
                 connection.setFatalExceptionHappened(true);
                 //connection.recover(e);
             }
-            throw e;
-        } catch (Exception e) {
-            // MySQL unexpected exception with mysql-connector-java:8.0.19:
-            // java.lang.NullPointerException: null
-            //	at com.mysql.cj.AbstractQuery.stopQueryTimer(AbstractQuery.java:206)
-            //	at com.mysql.cj.jdbc.StatementImpl.stopQueryTimer(StatementImpl.java:643)
-            //	at com.mysql.cj.jdbc.StatementImpl.executeQuery(StatementImpl.java:1182)
-            log.error("unexpected exception: ", e);
-            close();
-            connection.setFatalExceptionHappened(true);
             throw e;
         } finally {
             busying = 0;
