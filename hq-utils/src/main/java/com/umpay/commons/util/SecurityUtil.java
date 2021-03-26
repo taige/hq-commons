@@ -530,7 +530,7 @@ public class SecurityUtil extends DigestUtils {
         KeyPair keyPair = keyGen.generateKeyPair();
         long cost = System.currentTimeMillis() - start;
 //        if (_log.isDebugEnabled()) {// 参数大于3个时，避免创建数组
-        LOGGER.debugf("# genKeyPair(%s,%d)...use %d ms.", keyType, keySize,
+        LOGGER.debug("# genKeyPair(%s,%d)...use %d ms.", keyType, keySize,
                     cost);
 //        }
         return keyPair;
@@ -603,7 +603,7 @@ public class SecurityUtil extends DigestUtils {
             throws IOException, GeneralSecurityException {
         X509Certificate cached = certs.get(filename);
         if (cached != null) {// 文件已经读取过，则直接返回上次结果
-            LOGGER.debugf("# readX509Cert(%s) return cached instance.", filename);
+            LOGGER.debug("# readX509Cert(%s) return cached instance.", filename);
             return cached;
         }
         InputStream is = null;
@@ -611,7 +611,7 @@ public class SecurityUtil extends DigestUtils {
             is = FileUtil.toInputStream(filename);
             X509Certificate created = readX509Cert(is);
             certs.putIfAbsent(filename, created);
-            LOGGER.debugf("# readX509Cert(%s) return new instance.", filename);
+            LOGGER.debug("# readX509Cert(%s) return new instance.", filename);
             return created;
         } finally {
             IOUtil.close(is, "readX509Cert");
@@ -632,14 +632,14 @@ public class SecurityUtil extends DigestUtils {
                                               String ksType) throws IOException, GeneralSecurityException {
         KeyStore cached = keyStores.get(filename);
         if (cached != null) {// 文件已经读取过，则直接返回上次结果
-            LOGGER.debugf("# readKeyStore(%s) return cached instance.", filename);
+            LOGGER.debug("# readKeyStore(%s) return cached instance.", filename);
             return cached;
         }
         InputStream fis = null;
         try {
             fis = FileUtil.toInputStream(filename);
             KeyStore created = readKeyStore(fis, pwd, ksType);
-            LOGGER.debugf("# readKeyStore(%s) return new instance.", filename);
+            LOGGER.debug("# readKeyStore(%s) return new instance.", filename);
             keyStores.putIfAbsent(filename, created);
             return created;
         } finally {
@@ -727,25 +727,25 @@ public class SecurityUtil extends DigestUtils {
             if (cert != null) {
                 Date start = cert.getNotBefore();
                 Date end = cert.getNotAfter();
-                LOGGER.debugf("%d.证书别名:%s ", i, alias);
-                LOGGER.debugf("%d.证书类型:%s/v%d", i, cert.getType(),
+                LOGGER.debug("%d.证书别名:%s ", i, alias);
+                LOGGER.debug("%d.证书类型:%s/v%d", i, cert.getType(),
                         cert.getVersion());
-                LOGGER.debugf("%d.密钥算法:%s ", i, cert.getPublicKey().getAlgorithm());
-                LOGGER.debugf("%d.签名算法:%s ", i, cert.getSigAlgName());
-                LOGGER.debugf("%d.证书序号:%s ", i, cert.getSerialNumber());
-                LOGGER.debugf("%d.有效期(%s----%s)", i, start, end);
-                LOGGER.debugf("%d.持有者:%s ", i, cert.getSubjectDN());
-                LOGGER.debugf("%d.签发者:%s ", i, cert.getIssuerDN());
+                LOGGER.debug("%d.密钥算法:%s ", i, cert.getPublicKey().getAlgorithm());
+                LOGGER.debug("%d.签名算法:%s ", i, cert.getSigAlgName());
+                LOGGER.debug("%d.证书序号:%s ", i, cert.getSerialNumber());
+                LOGGER.debug("%d.有效期(%s----%s)", i, start, end);
+                LOGGER.debug("%d.持有者:%s ", i, cert.getSubjectDN());
+                LOGGER.debug("%d.签发者:%s ", i, cert.getIssuerDN());
             }
             // 必须要有口令才可访问私钥
             if (pwd != null) {
                 Key privateKey = keystore.getKey(alias, pwd.toCharArray());
                 if (privateKey == null) {
-                    LOGGER.debugf("%d.别名:%s无私钥 ", i, alias);
+                    LOGGER.debug("%d.别名:%s无私钥 ", i, alias);
                     continue;
                 }
-                LOGGER.debugf("%d.私钥类名:%s ", i, privateKey.getClass());
-                LOGGER.debugf("%d.私钥格式:%s/%s}", i, privateKey.getAlgorithm(),
+                LOGGER.debug("%d.私钥类名:%s ", i, privateKey.getClass());
+                LOGGER.debug("%d.私钥格式:%s/%s}", i, privateKey.getAlgorithm(),
                         privateKey.getFormat());
             }
         }
@@ -782,7 +782,7 @@ public class SecurityUtil extends DigestUtils {
         sig.update(data);
         byte[] signed = sig.sign();
         long cost = System.currentTimeMillis() - start;
-        LOGGER.debugf("# sign() using %s use %d ms.", alg, cost);
+        LOGGER.debug("# sign() using %s use %d ms.", alg, cost);
         return signed;
     }
 
@@ -805,7 +805,7 @@ public class SecurityUtil extends DigestUtils {
         boolean ok = sig.verify(sign);
         long cost = System.currentTimeMillis() - start;
 //        if (_log.isDebugEnabled()) {// 参数大于3个时，避免创建数组
-            LOGGER.debugf("# verify() using %s result is %s use %d ms.", alg, ok,
+            LOGGER.debug("# verify() using %s result is %s use %d ms.", alg, ok,
                     cost);
 //        }
         return ok;
@@ -846,7 +846,7 @@ public class SecurityUtil extends DigestUtils {
         String[] serviceTypes = {"Signature", "MessageDigest", "Cipher",
                 "Mac", "KeyStore"};
         for (String serviceType : serviceTypes) {
-            LOGGER.debugf("%s = %s", serviceType,
+            LOGGER.debug("%s = %s", serviceType,
                     Security.getAlgorithms(serviceType));
         }
     }
