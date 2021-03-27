@@ -410,7 +410,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 pstmt = new PooledStatement(this, stmt, statementNo.getAndIncrement());
                 if (isVerbose() && log.isInfoEnabled()) {
                     log.info(Arrays.stream(args == null ? new Object[] {} : args).map(String::valueOf)
-                            .collect(Collectors.joining(",", connectionName + " * createStatement(",
+                            .collect(Collectors.joining(";", connectionName + " * createStatement(",
                             ")[" + validStatementNum.get() + "], use " + Formatter.formatNS(System.nanoTime() - invokeStart) + " ns"
                     )));
                 }
@@ -452,8 +452,8 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                         } else {
                             return String.valueOf(arg);
                         }
-                    }).collect(Collectors.joining(",",
-                            connectionName + " * prepareStatement(" + ppstmt.getPreparedSql() + (args.length > 1 ? "," : ""),
+                    }).collect(Collectors.joining(";",
+                            connectionName + " * prepareStatement(" + ppstmt.getPreparedSql() + (args.length > 1 ? ";" : ""),
                             ")[" + validPreStatementsPool.size() + "], use " + Formatter.formatNS(System.nanoTime() - invokeStart) + " ns"
                     )));
                 }
@@ -490,7 +490,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                     validPreStatementsPool.put((String) args[0], pcstmt);
                 }
                 if (isVerbose() && log.isInfoEnabled()) {
-                    log.info(Arrays.stream(args).skip(1).map(String::valueOf).collect(Collectors.joining(",",
+                    log.info(Arrays.stream(args).skip(1).map(String::valueOf).collect(Collectors.joining(";",
                             connectionName + " * prepareCall(" + pcstmt.getPreparedSql() + (args.length > 1 ? "," : ""),
                             ")[" + validPreStatementsPool.size() + "], use " + Formatter.formatNS(System.nanoTime() - invokeStart) + " ns"
                     )));
