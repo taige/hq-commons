@@ -1,6 +1,7 @@
 package com.umpay.commons.util;
 
 import org.slf4j.LoggerFactory;
+import org.slf4j.Marker;
 import org.slf4j.event.Level;
 import org.slf4j.spi.LocationAwareLogger;
 
@@ -44,7 +45,7 @@ class LoggerBase {
 
     private static final String callerFQCN = LoggerBase.class.getName();
 
-    private final LocationAwareLogger delegate;
+    protected final LocationAwareLogger delegate;
 
     static {
         ACCESS_LOGGER = LoggerFactory.getLogger(System.getProperty("logger.access.name", "ACCESS"));
@@ -64,6 +65,10 @@ class LoggerBase {
         } else {
             delegate = (LocationAwareLogger) LoggerFactory.getLogger(clazz);
         }
+    }
+
+    public String getName() {
+        return delegate.getName();
     }
 
     public boolean isTraceEnabled() {
@@ -191,10 +196,6 @@ class LoggerBase {
         logf(Level.TRACE, format, objects);
     }
 
-    public void trace(String format, Object... objects) {
-        log(Level.TRACE, format, objects);
-    }
-
     public void trace(Object... objects) {
         log(Level.TRACE, objects);
     }
@@ -205,10 +206,6 @@ class LoggerBase {
 
     public void debugf(String format, Object... objects) {
         logf(Level.DEBUG, format, objects);
-    }
-
-    public void debug(String format, Object... objects) {
-        log(Level.DEBUG, format, objects);
     }
 
     public void debug(Object... objects) {
@@ -223,10 +220,6 @@ class LoggerBase {
         logf(Level.INFO, format, objects);
     }
 
-    public void info(String format, Object... objects) {
-        log(Level.INFO, format, objects);
-    }
-
     public void info(Object... objects) {
         log(Level.INFO, objects);
     }
@@ -237,10 +230,6 @@ class LoggerBase {
 
     public void warnf(String format, Object... objects) {
         logf(Level.WARN, format, objects);
-    }
-
-    public void warn(String format, Object... objects) {
-        log(Level.WARN, format, objects);
     }
 
     public void warn(Object... objects) {
@@ -255,10 +244,6 @@ class LoggerBase {
         logf(Level.ERROR, format, objects);
     }
 
-    public void error(String format, Object... objects) {
-        log(Level.ERROR, format, objects);
-    }
-
     public void error(Object... objects) {
         log(Level.ERROR, objects);
     }
@@ -267,14 +252,18 @@ class LoggerBase {
         log(Level.ERROR, object);
     }
 
-    private void callLog(Level level, String format, Object... objects) {
+    private void callLog(Marker marker, Level level, String format, Object... objects) {
         Object[] args = new Object[objects.length + 1];
         args[0] = format;
         System.arraycopy(objects, 0, args, 1, objects.length);
-        log(level, args);
+        log(marker, level, args);
     }
 
     protected void logf(Level level, String format, Object... objects) {
+        this.logf(null, level, format, objects);
+    }
+
+    protected void logf(Marker marker, Level level, String format, Object... objects) {
         if (! isLevelEnabled(level)) {
             return;
         }
@@ -283,43 +272,51 @@ class LoggerBase {
             message = _format(format, objects);
         } catch (IllegalFormatException e) {
             System.err.println(e.toString());
-            callLog(level, format, objects);
+            callLog(marker, level, format, objects);
             return;
         }
         if (objects.length >= 1 && objects[objects.length - 1] instanceof Throwable) {
-            delegate.log(null, callerFQCN, level.toInt(), message, null, (Throwable) objects[objects.length - 1]);
+            delegate.log(marker, callerFQCN, level.toInt(), message, null, (Throwable) objects[objects.length - 1]);
         } else {
-            log(level, message);
+            log(marker, level, message);
         }
     }
 
     protected void log(Level level, String format, Object... objects) {
+        this.log(null, level, format, objects);
+    }
+
+    protected void log(Marker marker, Level level, String format, Object... objects) {
         if (! isLevelEnabled(level)) {
             return;
         }
         if (format.contains("{}")) {
             // slf4j 占位符
-            delegate.log(null, callerFQCN, level.toInt(), format, objects, null);
+            delegate.log(marker, callerFQCN, level.toInt(), format, objects, null);
         } else {
             Matcher m = fsPattern.matcher(format);
             if (m.find()) {
                 // java formatter %...
-                logf(level, format, objects);
+                logf(marker, level, format, objects);
             } else {
-                callLog(level, format, objects);
+                callLog(marker, level, format, objects);
             }
         }
     }
 
     protected void log(Level level, Object...  objects) {
+        this.log(null, level, objects);
+    }
+
+    protected void log(Marker marker, Level level, Object...  objects) {
         if (! isLevelEnabled(level)) {
             return;
         }
         String message = _concat(objects);
         if (objects.length >= 1 && objects[objects.length - 1] instanceof Throwable) {
-            delegate.log(null, callerFQCN, level.toInt(), message, null, (Throwable) objects[objects.length - 1]);
+            delegate.log(marker, callerFQCN, level.toInt(), message, null, (Throwable) objects[objects.length - 1]);
         } else {
-            log(level, message);
+            log(marker, level, message);
         }
     }
 
@@ -335,10 +332,14 @@ class LoggerBase {
     }
 
     protected void log(Level level, String message) {
+        this.log(null, level, message);
+    }
+
+    protected void log(Marker marker, Level level, String message) {
         if (! isLevelEnabled(level)) {
             return;
         }
-        delegate.log(null, callerFQCN, level.toInt(), message, null, null);
+        delegate.log(marker, callerFQCN, level.toInt(), message, null, null);
     }
 
     protected boolean isLevelEnabled(Level level) {

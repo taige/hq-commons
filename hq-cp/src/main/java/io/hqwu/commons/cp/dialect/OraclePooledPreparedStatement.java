@@ -17,9 +17,9 @@ class OraclePooledPreparedStatement extends PooledPreparedStatement {
 
     private boolean useOracleImplicitCache;
 
-    OraclePooledPreparedStatement(PooledConnection conn, PreparedStatement stmt, int stmtId, String sql,
+    OraclePooledPreparedStatement(PooledConnection conn, PreparedStatement stmt, int stmtId, Object[] args,
                                   boolean useOracleImplicitCache) throws SQLException {
-        super(conn, stmt, stmtId, sql);
+        super(conn, stmt, stmtId, args);
         this.useOracleImplicitCache = useOracleImplicitCache;
     }
 

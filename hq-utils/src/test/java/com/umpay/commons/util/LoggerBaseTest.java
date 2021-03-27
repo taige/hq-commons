@@ -14,11 +14,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * Time: 下午4:31
  */
 public class LoggerBaseTest {
-    LoggerBase logger = new LoggerBase(LoggerBaseTest.class);
+    Logger logger = new Logger();
 
     @Test
     public void testAllf() throws Exception {
-        logger.tracef("%s", "allf");
+        logger.trace("%s", "allf");
     }
 
     @Test
@@ -33,7 +33,7 @@ public class LoggerBaseTest {
 
     @Test
     public void testDebugf() throws Exception {
-        logger.debugf("debugf %s-%s", "a", 4);
+        logger.debug("debugf %s-%s", "a", 4);
     }
 
     @Test
@@ -48,7 +48,7 @@ public class LoggerBaseTest {
 
     @Test
     public void testInfof() throws Exception {
-        logger.infof("infof %s-%b", "is", false);
+        logger.info("infof %s-%b", "is", false);
     }
 
     @Test
@@ -64,6 +64,7 @@ public class LoggerBaseTest {
     @Test
     public void testWarnf() throws Exception {
         logger.warnf("warnf %s", new Exception());
+        logger.warn("warnf %s", new Exception());
     }
 
     @Test
@@ -79,6 +80,7 @@ public class LoggerBaseTest {
     @Test
     public void testErrorf() throws Exception {
         logger.errorf("errorf %s", new Exception());
+        logger.error("errorf %s", new Exception());
     }
 
     @Test
