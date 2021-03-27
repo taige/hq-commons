@@ -56,7 +56,7 @@ class PooledStatement implements InvocationHandler {
     /**
      * 是否默认的结果集类型
      */
-    private boolean isDefaultResultSetType = true;
+    protected boolean isDefaultResultSetType = true;
     /**
      * 语句打开的结果集
      */

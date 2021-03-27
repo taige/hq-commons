@@ -17,6 +17,7 @@ import static org.easymock.EasyMock.anyObject;
 import static org.easymock.EasyMock.expect;
 import static org.easymock.classextension.EasyMock.createNiceControl;
 import static org.easymock.classextension.EasyMock.makeThreadSafe;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 /**
@@ -117,6 +118,39 @@ public class HqcpStatementTest {
             Statement stmt1 = conn.createStatement();
             assertSame(stmt1, stmt);
             stmt1.close();
+        } finally {
+            conn.close();
+
+        }
+    }
+
+    @Test
+    public void testCreateStatement_2() throws Exception {
+        //answer = mocksControl.createMock(MockJDBCAnswer.class);
+        //expect(answer.answer()).andReturn(mockConnection).once();
+        mocksControl.replay();
+        driver = new MockJDBCDriver();
+
+        connPool = new Hqcp(config);
+        Connection conn = connPool.getConnection();
+
+        try {
+            Statement stmt0 = conn.createStatement();
+            stmt0.close();
+
+            Statement stmt1 = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            stmt1.close();
+
+            Statement stmt0_1 = conn.createStatement();
+            assertSame(stmt0, stmt0_1);
+            stmt0_1.close();
+
+            Statement stmt2 = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+            stmt2.close();
+
+            Statement stmt2_1 = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+            assertNotSame(stmt2, stmt2_1);
+            stmt2_1.close();
         } finally {
             conn.close();
 

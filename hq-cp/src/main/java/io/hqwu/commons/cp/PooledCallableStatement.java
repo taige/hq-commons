@@ -7,8 +7,8 @@ import java.sql.Statement;
 
 class PooledCallableStatement extends PooledPreparedStatement {
 
-    PooledCallableStatement(PooledConnection conn, CallableStatement stmt, int stmtId, String sql) throws SQLException {
-        super(conn, stmt, stmtId, sql);
+    PooledCallableStatement(PooledConnection conn, CallableStatement stmt, int stmtId, Object[] args) throws SQLException {
+        super(conn, stmt, stmtId, args);
     }
 
     @SuppressWarnings("unchecked")

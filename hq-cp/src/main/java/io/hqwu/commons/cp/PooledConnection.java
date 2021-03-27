@@ -4,12 +4,14 @@ import com.umpay.commons.util.Formatter;
 import com.umpay.commons.util.JMXUtil;
 import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.util.JdbcUtil;
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.*;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,6 +19,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 public class PooledConnection implements InvocationHandler, PooledConnectionMBean {
     private static final Logger log = new Logger();
@@ -80,7 +83,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     /**
      * 可用的预编译语句
      */
-    private LinkedHashMap<String, PooledPreparedStatement> validPreStatementsPool;
+    private final LinkedHashMap<String, PooledPreparedStatement> validPreStatementsPool;
     /**
      * 连接是否关闭
      */
@@ -393,8 +396,8 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         if (args == null || args.length == 0) {
             //没有参数的createStatement才试图从池中获取取
             pstmt = idleStatementsPool.poll();
-        } else {
-            return (Statement) method.invoke(real_connection, args);
+//        } else {
+//            return (Statement) method.invoke(real_connection, args);
         }
         if (pstmt == null) {
             //没有空闲连接
@@ -405,8 +408,11 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                     stmt.setQueryTimeout(connectionPool.getConfig().getQueryTimeout());
                 }
                 pstmt = new PooledStatement(this, stmt, statementNo.getAndIncrement());
-                if (isVerbose()) {
-                    log.info(connectionName, " * createStatement(...)[", validStatementNum.get() ,"], use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                if (isVerbose() && log.isInfoEnabled()) {
+                    log.info(Arrays.stream(args == null ? new Object[] {} : args).map(String::valueOf)
+                            .collect(Collectors.joining(",", connectionName + " * createStatement(",
+                            ")[" + validStatementNum.get() + "], use " + Formatter.formatNS(System.nanoTime() - invokeStart) + " ns"
+                    )));
                 }
             } else {
                 validStatementNum.decrementAndGet();
@@ -426,8 +432,8 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
             if (args.length == 1) {
                 //没有额外参数的prepareStatement才试图从池中获取取
                 ppstmt = validPreStatementsPool.get(args[0]);
-            } else {
-                return (PreparedStatement) method.invoke(real_connection, args);
+//            } else {
+//                return (PreparedStatement) method.invoke(real_connection, args);
             }
             if (ppstmt == null) {
                 long invokeStart = System.nanoTime();
@@ -435,12 +441,21 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 if (connectionPool.getConfig().getQueryTimeout() > 0) {
                     pstmt.setQueryTimeout(connectionPool.getConfig().getQueryTimeout());
                 }
-                ppstmt = getPooledPreparedStatement(pstmt, statementNo.getAndIncrement(), (String) args[0]);
+                ppstmt = getPooledPreparedStatement(pstmt, statementNo.getAndIncrement(), args);
                 if (ppstmt.isDefaultResultSetType()) {
                     validPreStatementsPool.put((String) args[0], ppstmt);
-                    if (isVerbose()) {
-                        log.info(connectionName, " * prepareStatement(", ppstmt.getPreparedSql(), ")[", validPreStatementsPool.size() ,"], use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
-                    }
+                }
+                if (isVerbose() && log.isInfoEnabled()) {
+                    log.info(Arrays.stream(args).skip(1).map(arg -> {
+                        if (arg.getClass().isArray()) {
+                            return ArrayUtils.toString(arg);
+                        } else {
+                            return String.valueOf(arg);
+                        }
+                    }).collect(Collectors.joining(",",
+                            connectionName + " * prepareStatement(" + ppstmt.getPreparedSql() + (args.length > 1 ? "," : ""),
+                            ")[" + validPreStatementsPool.size() + "], use " + Formatter.formatNS(System.nanoTime() - invokeStart) + " ns"
+                    )));
                 }
             }
         }
@@ -452,8 +467,8 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     /**
      * Generates PooledPreparedStatement based on the connection type.
      */
-    protected PooledPreparedStatement getPooledPreparedStatement(PreparedStatement stmt, int stmtId, String sql) throws SQLException {
-        return new PooledPreparedStatement(this, stmt, stmtId, sql);
+    protected PooledPreparedStatement getPooledPreparedStatement(PreparedStatement stmt, int stmtId, Object[] args) throws SQLException {
+        return new PooledPreparedStatement(this, stmt, stmtId, args);
     }
 
     public CallableStatement prepareCall(Method method, Object[] args) throws Throwable {
@@ -461,8 +476,8 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         synchronized (validPreStatementsPool) {
             if (args.length == 1) {
                 pcstmt = (PooledCallableStatement) validPreStatementsPool.get(args[0]);
-            } else {
-                return (CallableStatement) method.invoke(real_connection, args);
+//            } else {
+//                return (CallableStatement) method.invoke(real_connection, args);
             }
             if (pcstmt == null) {
                 long invokeStart = System.nanoTime();
@@ -470,12 +485,15 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 if (connectionPool.getConfig().getQueryTimeout() > 0) {
                     cstmt.setQueryTimeout(connectionPool.getConfig().getQueryTimeout());
                 }
-                pcstmt = new PooledCallableStatement(this, cstmt, statementNo.getAndIncrement(), (String) args[0]);
+                pcstmt = new PooledCallableStatement(this, cstmt, statementNo.getAndIncrement(), args);
                 if (pcstmt.isDefaultResultSetType()) {
                     validPreStatementsPool.put((String) args[0], pcstmt);
-                    if (isVerbose()) {
-                        log.info(connectionName, " * prepareCall(", args[0], ")[", validPreStatementsPool.size() ,"], use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
-                    }
+                }
+                if (isVerbose() && log.isInfoEnabled()) {
+                    log.info(Arrays.stream(args).skip(1).map(String::valueOf).collect(Collectors.joining(",",
+                            connectionName + " * prepareCall(" + pcstmt.getPreparedSql() + (args.length > 1 ? "," : ""),
+                            ")[" + validPreStatementsPool.size() + "], use " + Formatter.formatNS(System.nanoTime() - invokeStart) + " ns"
+                    )));
                 }
             }
         }
