@@ -63,39 +63,37 @@ public class PooledPreparedStatement extends PooledStatement {
         return pstmt;
     }
 
-//    protected String getSqlDoing() {
-//        return toString();
-//    }
-
     protected Object _invoke(Object proxy, Method method, Object[] args) throws Throwable {
         long start = System.nanoTime();
         Object ret = null;
         sqlDoing = null;
         try {
+            String methodDoing = method.getName();
             if (methodDoing.equals("addBatch") && (args == null || args.length == 0)) {
                 real_pstmt.addBatch();
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start));
+                    printSQL(log, methodDoing, (System.nanoTime() - start));
                 }
             } else if (methodDoing.equals("execute") && (args == null || args.length == 0)) {
                 ret = real_pstmt.execute();
+                Object ret4log = onExecuteMethodDone(methodDoing, ret);
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start), "[", ret, "]");
+                    printSQL(log, methodDoing, (System.nanoTime() - start), "[", ret4log, "]");
                 }
             } else if (methodDoing.equals("executeQuery") && (args == null || args.length == 0)) {
                 resultSet = real_pstmt.executeQuery();
                 ret = resultSet;
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start));
+                    printSQL(log, methodDoing, (System.nanoTime() - start));
                 }
             } else if (methodDoing.equals("executeUpdate") && (args == null || args.length == 0)) {
                 ret = real_pstmt.executeUpdate();
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start), "[", ret, "]");
+                    printSQL(log, methodDoing, (System.nanoTime() - start), "[", ret, "]");
                 }
             } else {
                 if (methodDoing.startsWith("set") && args.length >= 2 && args[0] instanceof Integer) {
-                    int idx = ((Integer) args[0]).intValue();
+                    int idx = (Integer) args[0];
                     if (paras.length >= idx) {
                         // myBatis会先调用setBNull 2017.1.18
                         if (methodDoing.equals("setNull")) {

@@ -71,7 +71,12 @@ class PooledStatement implements InvocationHandler {
      */
     private long busying = 0;
 
-    protected String methodDoing;
+    /**
+     * 更新语句影响的记录数
+     */
+    private Long updateCount;
+
+    private String methodBusying;
 
     private String sqlDoing;
 
@@ -97,6 +102,8 @@ class PooledStatement implements InvocationHandler {
                 throw new SQLException(statementName + "已经被"+threadCheckOut.getName()+"检出", "60003");
             }
         }
+        resultSet = null;
+        updateCount = null;
         timeCheckOut = System.currentTimeMillis();
         threadCheckOut = Thread.currentThread();
         return statement;
@@ -125,14 +132,17 @@ class PooledStatement implements InvocationHandler {
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         busying = System.nanoTime();
         sqlDoing = null;
-        methodDoing = method.getName();
-        if ("toString".equals(methodDoing) && (args == null || args.length == 0)) {
+        methodBusying = method.getName();
+        if ("toString".equals(methodBusying) && (args == null || args.length == 0)) {
             return toString();//不代理
         }
+        String methodDoing = methodBusying;
         try {
             Object obj = _invoke(proxy, method, args);
             if (methodDoing.startsWith("execute") && ! methodDoing.startsWith("executeQuery")) {
-                connection.setDirty();
+                if (! methodDoing.equals("execute") || ! (Boolean) obj) {
+                    connection.setDirty();
+                }
             }
             return obj;
         } catch (Exception e) {
@@ -157,6 +167,7 @@ class PooledStatement implements InvocationHandler {
             throw e;
         } finally {
             busying = 0;
+            methodBusying = null;
         }
     }
     
@@ -164,6 +175,7 @@ class PooledStatement implements InvocationHandler {
         long start = System.nanoTime();
         Object ret = null;
         try {
+            String methodDoing = method.getName();
             if (methodDoing.equals("close")) {
                 if (! checkOut.getAndSet(false)) {
                     return null;
@@ -172,9 +184,13 @@ class PooledStatement implements InvocationHandler {
                 if (resultSet != null) {
                     try {
                         resultSet.close();
-                    } catch (SQLException e) {
+                    } catch (SQLException ignored) {
+                    } finally {
+                        resultSet = null;
                     }
-                    resultSet = null;
+                }
+                if (updateCount != null) {
+                    updateCount = null;
                 }
                 if (this instanceof PooledPreparedStatement) {
                     connection.checkIn((PooledPreparedStatement) this);
@@ -188,28 +204,36 @@ class PooledStatement implements InvocationHandler {
                 sqlDoing = (String) args[0];
                 real_statement.addBatch((String) args[0]);
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start));
+                    printSQL(log, methodDoing, (System.nanoTime() - start));
                 }
-            } else if (methodDoing.equals("executeBatch")) {
+            } else if (methodDoing.equals("executeBatch") || methodDoing.equals("executeLargeBatch")) {
                 ret = real_statement.executeBatch();
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start), "[", Array.getLength(ret), "]");
+                    printSQL(log, methodDoing, (System.nanoTime() - start), "[", Array.getLength(ret), "]");
                 }
             } else if (methodDoing.equals("executeQuery") && args != null && args.length == 1) {
                 sqlDoing = (String) args[0];
                 resultSet = real_statement.executeQuery((String) args[0]);
                 ret = resultSet;
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start));
+                    printSQL(log, methodDoing, (System.nanoTime() - start));
                 }
             } else if (methodDoing.startsWith("execute") && args != null && args.length > 0) {
                 sqlDoing = (String) args[0];
                 ret = method.invoke(real_statement, args);
+                Object ret4log = onExecuteMethodDone(methodDoing, ret);
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start), "[", ret, "]");
+                    printSQL(log, methodDoing, (System.nanoTime() - start), "[", ret4log, "]");
                 }
             } else {
-                ret = method.invoke(real_statement, args);
+                if (methodDoing.equals("getResultSet") && resultSet != null) {
+                    // maybe incorrect
+                    ret = resultSet;
+                } else if (methodDoing.equals("getUpdateCount") && updateCount != null) {
+                    ret = updateCount;
+                } else {
+                    ret = method.invoke(real_statement, args);
+                }
                 if (isVerbose()) {
                     log.trace(statementName, ".", methodDoing, "(...) use ", Formatter.formatNS(System.nanoTime() - start), " ns");
                 }
@@ -220,13 +244,41 @@ class PooledStatement implements InvocationHandler {
         return ret;
     }
 
+    protected Object onExecuteMethodDone(String methodDoing, Object ret) throws SQLException {
+//        boolean b = real_statement.execute("");
+//        int n = real_statement.executeUpdate("");
+//        long l = real_statement.executeLargeUpdate("");
+        if (methodDoing.equals("execute")) {
+            // true if the first result is a ResultSet object;
+            // false if it is an update count or there are no results
+            if ((Boolean) ret) {
+                resultSet = real_statement.getResultSet();
+                return "rs=" + (resultSet != null);
+            } else {
+                updateCount = (long) real_statement.getUpdateCount();
+            }
+        } else {
+            if (int.class.isAssignableFrom(ret.getClass())
+                    || Integer.class.isAssignableFrom(ret.getClass())) {
+                updateCount = (long) (int) ret;
+            } else if (long.class.isAssignableFrom(ret.getClass())
+                    || Long.class.isAssignableFrom(ret.getClass())) {
+                updateCount = (long) ret;
+            } else {
+                return ret;
+            }
+        }
+        return updateCount;
+    }
+
     /**
      * 根据执行时间，打印不同级别的SQL日志
      * @param logger
+     * @param methodDoing
      * @param usedNS
      * @param infos
      */
-    protected void printSQL(Logger logger, long usedNS, Object... infos) {
+    protected void printSQL(Logger logger, String methodDoing, long usedNS, Object... infos) {
         if (! isPrintSQL()) {
             return;
         }
@@ -323,11 +375,11 @@ class PooledStatement implements InvocationHandler {
         if (checkOut.get() && busying > 0) {
             long usedNS = System.nanoTime() - busying;
             if (usedNS/1000 <= connection.getInfoSQLThreshold()*1000 && log.isDebugEnabled()) {
-                log.debug(statementName, " invoking ", methodDoing, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
+                log.debug(statementName, " invoking ", methodBusying, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
             } else if (usedNS/1000 <= connection.getWarnSQLThreshold()*1000 && log.isInfoEnabled()) {
-                log.info(statementName, " invoking ", methodDoing, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
+                log.info(statementName, " invoking ", methodBusying, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
             } else if (log.isWarnEnabled()) {
-                log.warn(statementName, " invoking ", methodDoing, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
+                log.warn(statementName, " invoking ", methodBusying, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
             }
             return true;
         }
