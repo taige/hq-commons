@@ -1,5 +1,6 @@
 package io.hqwu.commons.cp;
 
+import com.umpay.commons.util.ExceptionUtil;
 import com.umpay.commons.util.Formatter;
 import com.umpay.commons.util.JMXUtil;
 import com.umpay.commons.util.Logger;
@@ -7,7 +8,6 @@ import io.hqwu.commons.cp.util.JdbcUtil;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.*;
@@ -344,8 +344,8 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                     log.trace(connectionName, ".", mname, "(...) use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
             }
-        } catch (InvocationTargetException ite) {
-            throw ite.getCause();
+        } catch (Throwable t) {
+            throw ExceptionUtil.unwrapThrowable(t);
         }
         return ret;
     }

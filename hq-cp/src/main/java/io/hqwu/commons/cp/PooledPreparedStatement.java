@@ -1,9 +1,9 @@
 package io.hqwu.commons.cp;
 
+import com.umpay.commons.util.ExceptionUtil;
 import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.util.JdbcUtil;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.PreparedStatement;
@@ -81,10 +81,10 @@ public class PooledPreparedStatement extends PooledStatement {
                     printSQL(log, methodDoing, (System.nanoTime() - start), "[", ret4log, "]");
                 }
             } else if (methodDoing.equals("executeQuery") && (args == null || args.length == 0)) {
-                resultSet = real_pstmt.executeQuery();
-                ret = resultSet;
+                LoggableResultSet lrs = LoggableResultSet.newInstance(this, real_pstmt.executeQuery());
+                ret = resultSet = lrs == null ? null : lrs.getResultSet();
                 if (isPrintSQL()) {
-                    printSQL(log, methodDoing, (System.nanoTime() - start));
+                    printSQL(log, methodDoing, (System.nanoTime() - start), "[", (lrs == null ? "rs=null" : "rs=#" + lrs.getRsId()), "]");
                 }
             } else if (methodDoing.equals("executeUpdate") && (args == null || args.length == 0)) {
                 ret = real_pstmt.executeUpdate();
@@ -105,9 +105,9 @@ public class PooledPreparedStatement extends PooledStatement {
                 }
                 ret = super._invoke(proxy, method, args);
             }
-        } catch (InvocationTargetException e) {
-            throw e.getCause();
-        } 
+        } catch (Throwable t) {
+            throw ExceptionUtil.unwrapThrowable(t);
+        }
         return ret;
     }
 
