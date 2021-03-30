@@ -230,6 +230,8 @@ class PooledStatement implements InvocationHandler {
                     // maybe incorrect
                     ret = resultSet;
                 } else if (methodDoing.equals("getUpdateCount") && updateCount != null) {
+                    ret = updateCount.intValue();
+                } else if (methodDoing.equals("getLargeUpdateCount") && updateCount != null) {
                     ret = updateCount;
                 } else {
                     ret = method.invoke(real_statement, args);
