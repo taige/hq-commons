@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 class PooledStatement implements InvocationHandler {
     private static final Logger LOGGER = new Logger();
@@ -220,7 +221,7 @@ class PooledStatement implements InvocationHandler {
             } else if (methodDoing.equals("executeBatch") || methodDoing.equals("executeLargeBatch")) {
                 ret = real_statement.executeBatch();
                 if (isPrintSQL()) {
-                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", Array.getLength(ret), "]");
+                    printSQL(LOGGER, methodDoing, this::getPreparedSql, (System.nanoTime() - start), "[", Array.getLength(ret), "]");
                 }
             } else if (methodDoing.equals("executeQuery") && args != null && args.length == 1) {
                 sqlDoing = (String) args[0];
@@ -293,20 +294,28 @@ class PooledStatement implements InvocationHandler {
      * @param infos
      */
     protected void printSQL(Logger logger, String methodDoing, long usedNS, Object... infos) {
+        printSQL(logger, methodDoing, this::getSqlDoing, usedNS, infos);
+    }
+
+    protected void printSQL(Logger logger, String methodDoing, Supplier<String> sqlSupplier, long usedNS, Object... infos) {
         if (! isPrintSQL()) {
             return;
         }
         if (usedNS/1000 <= connection.getInfoSQLThreshold()*1000) {
             if (logger.isDebugEnabled()) {
-                logger.debug(getStatementName(), ".", methodDoing, "(", getSqlDoing(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns");
+                logger.debug(getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns");
             }
         } else if (usedNS/1000 <= connection.getWarnSQLThreshold()*1000) {
             if (logger.isInfoEnabled()) {
-                logger.info(getStatementName(), ".", methodDoing, "(", getSqlDoing(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns");
+                logger.info(getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns");
             }
         } else if (logger.isWarnEnabled()) {
-            logger.warn(getStatementName(), ".", methodDoing, "(", getSqlDoing(), ")", infos, " use ",  Formatter.formatNS(usedNS), " ns");
+            logger.warn(getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ",  Formatter.formatNS(usedNS), " ns");
         }
+    }
+
+    protected String getPreparedSql() {
+        return "";
     }
 
     protected String getSqlDoing() {
