@@ -1,8 +1,10 @@
 package io.hqwu.commons.mybatisplus.entity;
 
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.hqwu.commons.mybatisplus.annotation.JoinColumn;
+import io.hqwu.commons.mybatisplus.annotation.TableIdPrefix;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -20,11 +22,12 @@ import java.io.Serializable;
 @Data
 @EqualsAndHashCode(callSuper = false)
 @Accessors(chain = true)
-@TableName("t_areas")
+@TableName("gpf_areas")
+@TableIdPrefix("A")
 public class TAreas implements Serializable {
 
-    @TableId
-    private Integer id;
+    @TableId(type = IdType.ASSIGN_UUID)
+    private String id;
 
     private String name;
 

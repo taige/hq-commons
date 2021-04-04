@@ -1,8 +1,10 @@
 package io.hqwu.commons.mybatisplus.config;
 
 import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.core.incrementer.IdentifierGenerator;
 import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
+import io.hqwu.commons.mybatisplus.SnowflakeIdGenerator;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -33,4 +35,10 @@ public class MybatisPlusConfig {
         interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.H2));
         return interceptor;
     }
+
+    @Bean
+    public IdentifierGenerator idGenerator() {
+        return new SnowflakeIdGenerator();
+    }
+
 }

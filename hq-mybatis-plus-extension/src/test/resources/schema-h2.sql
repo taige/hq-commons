@@ -20,7 +20,7 @@ SET MODE MySQL;
 -- table `gpf_areas`
 --
 CREATE TABLE IF NOT EXISTS `gpf_areas` (
-  `id` int NOT NULL,
+  `id` varchar(32) NOT NULL,
   `name` varchar(32) NOT NULL,
   `parent_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
