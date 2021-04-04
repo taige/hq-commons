@@ -28,7 +28,6 @@ public class TAreas implements Serializable {
 
     private String name;
 
-    @JoinColumn("p.id")
     private Integer parentId;
 
     private transient Integer childCount;
@@ -36,4 +35,6 @@ public class TAreas implements Serializable {
     @JoinColumn("p.name")
     private transient String parentName;
 
+    @JoinColumn("p.id")
+    private transient Integer parId;
 }

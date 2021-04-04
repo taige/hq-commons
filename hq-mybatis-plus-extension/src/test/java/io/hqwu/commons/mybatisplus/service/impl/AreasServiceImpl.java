@@ -43,7 +43,7 @@ public class AreasServiceImpl extends ServiceImpl<AreasMapper, TAreas> implement
     @Override
     public IPage<TAreas> getChildAreasByParentId(Integer parentId, Integer startId, AreaQuery queryRequest) {
         MainLambdaQueryWrapper<TAreas> lambdaQueryWrapper = new MainLambdaQueryWrapper<>("c");
-        lambdaQueryWrapper.eq(TAreas::getParentId, parentId);
+        lambdaQueryWrapper.eq(TAreas::getParId, parentId);
         lambdaQueryWrapper.ge(TAreas::getId, startId);
         return this.getBaseMapper().selectPageWithParentName(queryRequest.page("c"), lambdaQueryWrapper);
     }

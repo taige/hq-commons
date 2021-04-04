@@ -1,20 +1,20 @@
 package io.hqwu.commons.mybatisplus;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.umpay.commons.util.StringUtil;
 import org.hibernate.validator.constraints.Range;
 
 import javax.validation.constraints.Min;
 import javax.validation.constraints.Pattern;
-import java.io.Serializable;
 import java.util.StringJoiner;
 
 /**
- * 支持分页和排序的前端查询请求抽象类
- * @param <E> 数据库实体类
- * @param <P> 返回给前端的pojo类
+ * Created with IntelliJ IDEA for hq-mybatis-plus-extension
+ *
+ * @author taige (Wu, Hongqiang)
+ * Date: 2021-04-04
+ * Time: 9:45 a.m.
  */
-public abstract class AbstractQueryRequest<E, P> implements Serializable {
+public abstract class AbstractQueryRequest<E, P> implements PaginationQueryRequest<E, P> {
 
     @Range(min = 1, max = 100)
     private Integer pageSize = 50;
@@ -34,6 +34,7 @@ public abstract class AbstractQueryRequest<E, P> implements Serializable {
      * default order by ascend
      * @return whether order by ascend
      */
+    @Override
     public boolean isAscend() {
         return StringUtil.isBlank(this.sortOrder) || this.sortOrder.equals("ascend");
     }
@@ -58,23 +59,6 @@ public abstract class AbstractQueryRequest<E, P> implements Serializable {
         return this.setSortOrder("descend").setSortField(sortField);
     }
 
-    /**
-     * generate IPage object used to query with pagination
-     * @return IPage object
-     */
-    public IPage<E> page() {
-        return PageHelper.pageHelper(this);
-    }
-
-    /**
-     * generate IPage object used to query with pagination
-     * @param mainTable the left table alias name in sql statement
-     * @return IPage object
-     */
-    public IPage<E> page(String mainTable) {
-        return PageHelper.pageHelper(this, mainTable);
-    }
-
     public <C extends AbstractQueryRequest<E, P>> C setPageSize(@Range(min = 1, max = 100) Integer pageSize) {
         this.pageSize = pageSize;
         return (C) this;
@@ -95,14 +79,17 @@ public abstract class AbstractQueryRequest<E, P> implements Serializable {
         return (C) this;
     }
 
+    @Override
     public @Range(min = 1, max = 100) Integer getPageSize() {
         return this.pageSize;
     }
 
+    @Override
     public @Min(1) Integer getPageNum() {
         return this.pageNum;
     }
 
+    @Override
     public String getSortField() {
         return this.sortField;
     }
@@ -113,7 +100,7 @@ public abstract class AbstractQueryRequest<E, P> implements Serializable {
 
     @Override
     public String toString() {
-        return new StringJoiner(", ", AbstractQueryRequest.class.getSimpleName() + "[", "]")
+        return new StringJoiner(", ", this.getClass().getSimpleName() + "[", "]")
                 .add("pageSize=" + pageSize)
                 .add("pageNum=" + pageNum)
                 .add("sortField='" + sortField + "'")

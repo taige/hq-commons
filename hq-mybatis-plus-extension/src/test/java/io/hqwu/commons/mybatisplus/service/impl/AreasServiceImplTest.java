@@ -93,8 +93,9 @@ public class AreasServiceImplTest {
 
     @Test
     void test_getChildAreasWithStartId() {
-        IPage<TAreas> iPage = areasService.getChildAreasWithStartId(1, 1000,
-                new AreaQuery().setPageSize(5).setAscend("id"));
+        AreaQuery areaQuery = new AreaQuery().setPageSize(5).setAscend("id");
+        LOGGER.debug(areaQuery);
+        IPage<TAreas> iPage = areasService.getChildAreasWithStartId(1, 1000, areaQuery);
         iPage.getRecords().forEach(a -> {
             assertEquals(1, a.getParentId());
             assertEquals("北京", a.getParentName());

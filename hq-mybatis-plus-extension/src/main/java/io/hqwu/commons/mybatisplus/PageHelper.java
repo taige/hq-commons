@@ -30,11 +30,11 @@ public class PageHelper {
      * @param <T>          Table entity class
      * @return             {@link IPage} instance
      */
-    public static <T> IPage<T> pageHelper(AbstractQueryRequest<T, ?> queryRequest) {
+    public static <T> IPage<T> pageHelper(PaginationQueryRequest<T, ?> queryRequest) {
         return pageHelper(queryRequest, null);
     }
 
-    public static <T> IPage<T> pageHelper(AbstractQueryRequest<T, ?> queryRequest, String leftTable) {
+    public static <T> IPage<T> pageHelper(PaginationQueryRequest<T, ?> queryRequest, String leftTable) {
         Page<T> page = new Page<>(queryRequest.getPageNum(), queryRequest.getPageSize());
         if (StringUtil.isNotBlank(queryRequest.getSortField())) {
             String orderColumn = getOrderColumn(queryRequest, leftTable);
@@ -61,7 +61,7 @@ public class PageHelper {
         return null;
     }
 
-    protected static String getOrderColumn(AbstractQueryRequest<?, ?> queryRequest, String leftTable) {
+    protected static String getOrderColumn(PaginationQueryRequest<?, ?> queryRequest, String leftTable) {
         Type[] types = ((ParameterizedType) queryRequest.getClass().getGenericSuperclass()).getActualTypeArguments();
         if (types[0] instanceof Class && types[1] instanceof Class) {
             Class<?> entityClass = (Class<?>) types[0];
