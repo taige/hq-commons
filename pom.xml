@@ -16,6 +16,10 @@
     <commons-io.version>2.6</commons-io.version>
     <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
     <mybatis-plus.version>3.4.1</mybatis-plus.version>
+    <mybatis.version>3.5.6</mybatis.version>
+    <mybatis-boot.version>2.1.4</mybatis-boot.version>
+
+    <hq-cp.version>1.0.1-SNAPSHOT</hq-cp.version>
   </properties>
 
   <scm>

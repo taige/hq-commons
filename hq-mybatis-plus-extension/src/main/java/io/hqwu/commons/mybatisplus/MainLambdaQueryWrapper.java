@@ -1,4 +1,4 @@
-package io.hqwu.commons.mybatisplus.ext;
+package io.hqwu.commons.mybatisplus;
 
 import com.baomidou.mybatisplus.core.conditions.AbstractLambdaWrapper;
 import com.baomidou.mybatisplus.core.conditions.SharedString;

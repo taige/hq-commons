@@ -1,4 +1,4 @@
-package io.hqwu.commons.mybatisplus.ext;
+package io.hqwu.commons.mybatisplus;
 
 import com.umpay.commons.util.StringUtil;
 import org.hibernate.validator.constraints.Range;

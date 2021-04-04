@@ -1,4 +1,4 @@
-package io.hqwu.commons.mybatisplus.ext.annotation;
+package io.hqwu.commons.mybatisplus.annotation;
 
 import java.lang.annotation.*;
 

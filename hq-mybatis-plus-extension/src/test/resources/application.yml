@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    initialization-mode: embedded
+    platform: h2
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:gopayfa;MODE=MySQL
+    username: bp_user
+    password: TTNsJX90tav1gadjezEMHw==
+    hqcp:
+      min-connections: 1
+      verbose: true
+
+
+mybatis-plus:
+  type-aliases-package: io.hqwu.commons.mybatisplus.ext.entity
+
