@@ -19,5 +19,7 @@ public interface AreasService extends IService<TAreas> {
 
     IPage<TAreas> getChildAreasWithStartId(Integer parentId, Integer startId, AreaQuery queryRequest);
 
+    IPage<TAreas> getChildAreasByParentId(Integer parentId, Integer startId, AreaQuery queryRequest);
+
     IPage<TAreas> getChildAreasByParentName(String parentName, Integer startId, AreaQuery queryRequest);
 }

@@ -28,6 +28,7 @@ public class TAreas implements Serializable {
 
     private String name;
 
+    @JoinColumn("p.id")
     private Integer parentId;
 
     private transient Integer childCount;

@@ -111,6 +111,25 @@ public class AreasServiceImplTest {
     }
 
     @Test
+    void test_getChildAreasByParentId() {
+        IPage<TAreas> iPage = areasService.getChildAreasByParentId(1, 1000,
+                new AreaQuery().setPageSize(5).setAscend("id"));
+        iPage.getRecords().forEach(a -> {
+            assertEquals(1, a.getParentId());
+            assertEquals("北京", a.getParentName());
+            LOGGER.debug(a);
+        });
+        assertEquals(5, iPage.getRecords().size());
+        assertEquals(17, iPage.getTotal());
+        Integer[] ids = iPage.getRecords().stream().map(TAreas::getId)
+                .collect(Collectors.toList()).toArray(new Integer[] {});
+        assertArrayEquals(new Integer[] {2800,2801,2802,2803,2804}, ids);
+        String[] names = iPage.getRecords().stream().map(TAreas::getName)
+                .collect(Collectors.toList()).toArray(new String[] {});
+        assertArrayEquals(new String[] {"海淀区", "西城区", "东城区", "崇文区", "宣武区"}, names);
+    }
+
+    @Test
     void test_getChildAreasByParentName() {
         IPage<TAreas> iPage = areasService.getChildAreasByParentName("北京", 1000,
                 new AreaQuery().setPageSize(5).setAscend("id"));

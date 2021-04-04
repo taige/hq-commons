@@ -1,5 +1,6 @@
 package io.hqwu.commons.mybatisplus;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.umpay.commons.util.StringUtil;
 import org.hibernate.validator.constraints.Range;
 
@@ -55,6 +56,14 @@ public abstract class AbstractQueryRequest<E, P> implements Serializable {
      */
     public <C extends AbstractQueryRequest<E, P>> C setDescend(String sortField) {
         return this.setSortOrder("descend").setSortField(sortField);
+    }
+
+    public IPage<E> page() {
+        return PageHelper.pageHelper(this);
+    }
+
+    public IPage<E> page(String mainTable) {
+        return PageHelper.pageHelper(this, mainTable);
     }
 
     public <C extends AbstractQueryRequest<E, P>> C setPageSize(@Range(min = 1, max = 100) Integer pageSize) {

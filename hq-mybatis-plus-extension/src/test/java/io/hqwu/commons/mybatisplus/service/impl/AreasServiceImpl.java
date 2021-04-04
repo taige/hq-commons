@@ -28,7 +28,7 @@ public class AreasServiceImpl extends ServiceImpl<AreasMapper, TAreas> implement
         queryWrapper.eq(parentId != null, TAreas::getParentId, parentId);
         queryWrapper.isNull(parentId == null, TAreas::getParentId);
         queryWrapper.groupBy(TAreas::getId, TAreas::getName, TAreas::getParentId);
-        return this.getBaseMapper().selectPageWithChildCount(PageHelper.pageHelper(queryRequest, "a"), queryWrapper);
+        return this.getBaseMapper().selectPageWithChildCount(queryRequest.page("a"), queryWrapper);
     }
 
     @Override
@@ -41,11 +41,19 @@ public class AreasServiceImpl extends ServiceImpl<AreasMapper, TAreas> implement
     }
 
     @Override
+    public IPage<TAreas> getChildAreasByParentId(Integer parentId, Integer startId, AreaQuery queryRequest) {
+        MainLambdaQueryWrapper<TAreas> lambdaQueryWrapper = new MainLambdaQueryWrapper<>("c");
+        lambdaQueryWrapper.eq(TAreas::getParentId, parentId);
+        lambdaQueryWrapper.ge(TAreas::getId, startId);
+        return this.getBaseMapper().selectPageWithParentName(queryRequest.page("c"), lambdaQueryWrapper);
+    }
+
+    @Override
     public IPage<TAreas> getChildAreasByParentName(String parentName, Integer startId, AreaQuery queryRequest) {
         MainLambdaQueryWrapper<TAreas> lambdaQueryWrapper = new MainLambdaQueryWrapper<>("c");
         lambdaQueryWrapper.eq(TAreas::getParentName, parentName);
         lambdaQueryWrapper.ge(TAreas::getId, startId);
-        return this.getBaseMapper().selectPageWithParentName(PageHelper.pageHelper(queryRequest, "c"), lambdaQueryWrapper);
+        return this.getBaseMapper().selectPageWithParentName(queryRequest.page("c"), lambdaQueryWrapper);
     }
 
 }
