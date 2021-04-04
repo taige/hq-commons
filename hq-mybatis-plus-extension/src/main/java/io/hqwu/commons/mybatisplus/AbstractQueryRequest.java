@@ -58,10 +58,19 @@ public abstract class AbstractQueryRequest<E, P> implements Serializable {
         return this.setSortOrder("descend").setSortField(sortField);
     }
 
+    /**
+     * generate IPage object used to query with pagination
+     * @return IPage object
+     */
     public IPage<E> page() {
         return PageHelper.pageHelper(this);
     }
 
+    /**
+     * generate IPage object used to query with pagination
+     * @param mainTable the left table alias name in sql statement
+     * @return IPage object
+     */
     public IPage<E> page(String mainTable) {
         return PageHelper.pageHelper(this, mainTable);
     }
