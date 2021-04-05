@@ -20,6 +20,7 @@
     <mybatis-boot.version>2.1.4</mybatis-boot.version>
 
     <hq-cp.version>1.0.1-SNAPSHOT</hq-cp.version>
+    <hq-spring-webmvc.version>1.0.0-SNAPSHOT</hq-spring-webmvc.version>
   </properties>
 
   <scm>
@@ -33,6 +34,7 @@
     <module>hq-cp</module>
     <module>hq-cp-boot-starter</module>
     <module>hq-mybatis-plus-extension</module>
+    <module>hq-spring-webmvc</module>
   </modules>
 
   <repositories>

@@ -1,0 +1,32 @@
+package io.hqwu.commons.annotation.constraints.support;
+
+
+import io.hqwu.commons.annotation.constraints.NumbersIn;
+
+import javax.validation.ConstraintValidator;
+import javax.validation.ConstraintValidatorContext;
+import java.util.Arrays;
+
+/**
+ * Created with IntelliJ IDEA for pp-gopay-fa
+ * User: taige
+ * Date: 2020/5/9
+ * Time: 13:23
+ */
+public class NumbersInValidator implements ConstraintValidator<NumbersIn, Number> {
+
+    private long[] values;
+
+    @Override
+    public void initialize(NumbersIn constraintAnnotation) {
+        values = constraintAnnotation.value();
+    }
+
+    @Override
+    public boolean isValid(Number value, ConstraintValidatorContext context) {
+        if (value == null) {
+            return true;
+        }
+        return Arrays.stream(values).anyMatch(v -> v == value.longValue());
+    }
+}
