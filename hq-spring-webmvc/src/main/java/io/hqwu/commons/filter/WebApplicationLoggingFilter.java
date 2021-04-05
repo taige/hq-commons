@@ -3,6 +3,7 @@ package io.hqwu.commons.filter;
 import com.umpay.commons.util.Logger;
 import io.hqwu.commons.servlet.support.CachedBodyHttpServletRequest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.AbstractRequestLoggingFilter;
@@ -189,6 +190,14 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
         }
         // create response log message
         StringBuilder msg = buildMessageHead(request, this.afterMessagePrefix);
+
+        // status code
+        msg.append(", status=");
+        try {
+            msg.append(HttpStatus.valueOf(response.getStatus()));
+        } catch (IllegalArgumentException e) {
+            msg.append(response.getStatus());
+        }
 
         if (isIncludeHeaders()) {
             HttpHeaders headers = new HttpHeaders();
