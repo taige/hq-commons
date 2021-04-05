@@ -35,11 +35,15 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
      * 数据库用户口令
      */
     private String password;
+    /**
+     * 解密的口令
+     */
+    private String decPassword;
 
     /**
      * 池中最小连接数
      */
-    private int minConnections = 0;
+    private int minConnections = 1;
     /**
      * 池中最大连接数
      */
@@ -292,6 +296,9 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         if (StringUtil.isEmpty(this.password)) {
             return null;
         }
+        if (this.decPassword != null) {
+            return this.decPassword;
+        }
         final String password = this.password;
         final boolean isBase64 = Base64.isBase64(password);
         if (isBase64) { // 如果是Base64的尝试解码
@@ -302,7 +309,8 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
                     byte[] decodePwd = this.getSecurityService().decryptByAES(base64DecodedPwd, this.getPasswordKey(), "CBC");
                     String plainPwd = StringUtil.trimToEmpty(new String(decodePwd, StandardCharsets.UTF_8));//明文密码
                     if (plainPwd.matches(PATTERN_COMMONS_CHARS)) { // 解密结果是可见字符
-                        this.password = plainPwd;
+                        this.decPassword = plainPwd;
+                        return this.decPassword;
                     }
                 }
             } catch (Exception e) {
@@ -556,5 +564,29 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
             "jdbc.jmx-level", "jdbc.info-sql-threshold", "jdbc.warn-sql-threshold", "jdbc.use-oracle-implicit-cache", "jdbc.connection-info",
             "jdbc.query-timeout", "jdbc.password-key"
     };
-    
+
+    void printConfig(Logger logger) {
+        if (logger == null) {
+            logger = LOGGER;
+        }
+        getPassword();  // decide if password encrypted
+        logger.info("url                     = '" + url + "'");
+        logger.info("username                = '" + username + "'");
+        logger.info("password                = '" + (decPassword == null ? "******" : password) + "'");
+        logger.info("minConnections          = " + minConnections);
+        logger.info("maxConnections          = " + maxConnections);
+        logger.info("maxStatements           = " + maxStatements);
+        logger.info("maxPreStatements        = " + maxPreStatements);
+        logger.info("idleTimeoutMillisec     = " + idleTimeoutMillisec);
+        logger.info("checkoutTimeoutMillisec = " + checkoutTimeoutMillisec);
+        logger.info("commitOnClose           = " + commitOnClose);
+        logger.info("verbose                 = " + verbose);
+        logger.info("printSql                = " + printSql);
+        logger.info("checkStatement          = '" + checkStatement + "'");
+        logger.info("lazyInit                = " + lazyInit);
+        logger.info("infoSqlThreshold        = " + infoSqlThreshold);
+        logger.info("warnSqlThreshold        = " + warnSqlThreshold);
+        logger.info("queryTimeout            = " + queryTimeout);
+    }
+
 }
