@@ -1,4 +1,4 @@
-package com.umpay.commons.servlet.support;
+package io.hqwu.commons.servlet.support;
 
 import javax.servlet.ReadListener;
 import javax.servlet.ServletInputStream;

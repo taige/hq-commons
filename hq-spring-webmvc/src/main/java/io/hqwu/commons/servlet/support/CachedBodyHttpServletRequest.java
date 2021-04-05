@@ -1,4 +1,4 @@
-package com.umpay.commons.servlet.support;
+package io.hqwu.commons.servlet.support;
 
 import org.springframework.util.StreamUtils;
 
