@@ -579,7 +579,7 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         logger.info("maxPreStatements        = " + maxPreStatements);
         logger.info("idleTimeoutMillisec     = " + idleTimeoutMillisec);
         logger.info("checkoutTimeoutMillisec = " + checkoutTimeoutMillisec);
-        logger.info("commitOnClose           = " + commitOnClose);
+//        logger.info("commitOnClose           = " + commitOnClose);
         logger.info("verbose                 = " + verbose);
         logger.info("printSql                = " + printSql);
         logger.info("checkStatement          = '" + checkStatement + "'");

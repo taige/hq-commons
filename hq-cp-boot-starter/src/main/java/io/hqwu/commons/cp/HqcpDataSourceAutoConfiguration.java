@@ -29,7 +29,7 @@ public class HqcpDataSourceAutoConfiguration {
     @Bean(initMethod = "init")
     @ConditionalOnMissingBean
     public DataSource dataSource(DataSourceProperties basicProperties) {
-        LOGGER.debug("init HqCpDataSource");
+        LOGGER.debug("init HqcpDataSource");
         return new HqcpDataSourceBoot(basicProperties);
     }
 
