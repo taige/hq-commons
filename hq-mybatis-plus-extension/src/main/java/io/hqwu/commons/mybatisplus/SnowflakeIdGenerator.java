@@ -20,6 +20,9 @@ public class SnowflakeIdGenerator extends DefaultIdentifierGenerator {
     @Override
     public String nextUUID(Object entity) {
         Long id = super.nextId(entity);
+        if (entity == null) {
+            return String.valueOf(id);
+        }
         if (entity.getClass().isAnnotationPresent(TableIdPrefix.class)) {
             TableIdPrefix annIdPrefix = entity.getClass().getAnnotation(TableIdPrefix.class);
             String idPrefix = annIdPrefix.value();
