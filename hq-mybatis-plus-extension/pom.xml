@@ -55,7 +55,7 @@
     <dependency>
       <groupId>io.hqwu.commons</groupId>
       <artifactId>hq-cp-boot-starter</artifactId>
-      <version>${hq-cp.version}</version>
+      <version>1.0.1-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>
