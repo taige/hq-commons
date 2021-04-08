@@ -21,7 +21,7 @@
     <dependency>
       <groupId>io.hqwu.commons</groupId>
       <artifactId>hq-spring-webmvc</artifactId>
-      <version>${hq-spring-webmvc.version}</version>
+      <version>1.0.0-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.baomidou</groupId>
@@ -60,7 +60,7 @@
     <dependency>
       <groupId>io.hqwu.commons</groupId>
       <artifactId>hq-cp-boot-starter</artifactId>
-      <version>${hq-cp.version}</version>
+      <version>1.0.2-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>
