@@ -14,7 +14,7 @@ public interface PooledConnectionMBean {
     public int getCachedPreStatementsCount();
     public String[] getCachedPreStatementsSQLs();
 
-    public void doCheck();
+    public void doCheck() throws Exception;
     public void close();
     
 }

@@ -1,9 +1,9 @@
 package io.hqwu.commons.cp;
 
+import com.umpay.commons.util.ExceptionUtil;
 import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.util.JdbcUtil;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.PreparedStatement;
@@ -11,25 +11,29 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 public class PooledPreparedStatement extends PooledStatement {
-    private static final Logger log = new Logger();
+    private static final Logger LOGGER = new Logger();
     
     private PreparedStatement pstmt;
     private PreparedStatement real_pstmt;
     
-    private final String sql;
+    private final String preparedSql;
     private final Object paras[];
 
     private String sqlDoing;
 
-    protected PooledPreparedStatement(PooledConnection conn, PreparedStatement stmt, int stmtId, String sql) throws SQLException {
+    protected PooledPreparedStatement(PooledConnection conn, PreparedStatement stmt, int stmtId, Object[] args) throws SQLException {
         super(conn, stmt, stmtId);
+        if (args.length != 1 && args.length != 3) {
+            super.isDefaultResultSetType = false;
+        }
+        String sql = (String) args[0];
         real_pstmt = (PreparedStatement) getStatement();
-        this.sql = sql == null ? "" : JdbcUtil.removeBreakingWhitespace(sql);
+        this.preparedSql = sql == null ? "" : JdbcUtil.removeBreakingWhitespace(sql);
         this.paras = new Object[getQMCount()];
     }
 
-    public String getPreparedSql() {
-        return sql;
+    protected String getPreparedSql() {
+        return preparedSql;
     }
 
     /*
@@ -59,39 +63,37 @@ public class PooledPreparedStatement extends PooledStatement {
         return pstmt;
     }
 
-//    protected String getSqlDoing() {
-//        return toString();
-//    }
-
     protected Object _invoke(Object proxy, Method method, Object[] args) throws Throwable {
         long start = System.nanoTime();
         Object ret = null;
         sqlDoing = null;
         try {
+            String methodDoing = method.getName();
             if (methodDoing.equals("addBatch") && (args == null || args.length == 0)) {
                 real_pstmt.addBatch();
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start));
+                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start));
                 }
             } else if (methodDoing.equals("execute") && (args == null || args.length == 0)) {
                 ret = real_pstmt.execute();
+                Object ret4log = onExecuteMethodDone(methodDoing, ret);
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start), "[", ret, "]");
+                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", ret4log, "]");
                 }
             } else if (methodDoing.equals("executeQuery") && (args == null || args.length == 0)) {
-                resultSet = real_pstmt.executeQuery();
-                ret = resultSet;
+                LoggableResultSet lrs = LoggableResultSet.newInstance(this, real_pstmt.executeQuery());
+                ret = resultSet = lrs == null ? null : lrs.getResultSet();
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start));
+                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", (lrs == null ? "rs=null" : "rs=#" + lrs.getRsId()), "]");
                 }
             } else if (methodDoing.equals("executeUpdate") && (args == null || args.length == 0)) {
                 ret = real_pstmt.executeUpdate();
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start), "[", ret, "]");
+                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", ret, "]");
                 }
             } else {
                 if (methodDoing.startsWith("set") && args.length >= 2 && args[0] instanceof Integer) {
-                    int idx = ((Integer) args[0]).intValue();
+                    int idx = (Integer) args[0];
                     if (paras.length >= idx) {
                         // myBatis会先调用setBNull 2017.1.18
                         if (methodDoing.equals("setNull")) {
@@ -103,9 +105,9 @@ public class PooledPreparedStatement extends PooledStatement {
                 }
                 ret = super._invoke(proxy, method, args);
             }
-        } catch (InvocationTargetException e) {
-            throw e.getCause();
-        } 
+        } catch (Throwable t) {
+            throw ExceptionUtil.unwrapThrowable(t);
+        }
         return ret;
     }
 
@@ -113,7 +115,7 @@ public class PooledPreparedStatement extends PooledStatement {
         int c = 0;
         int idx = 0;
         while (true) {
-            idx = sql.indexOf("?", idx + 1);
+            idx = preparedSql.indexOf("?", idx + 1);
             if (idx == -1) {
                 break;
             }
@@ -126,14 +128,14 @@ public class PooledPreparedStatement extends PooledStatement {
         if (sqlDoing != null) {
             return sqlDoing;
         }
-        if (paras == null) {
-            return sql;
+        if (paras.length == 0) {
+            return preparedSql;
         }
-        StringBuilder sb = new StringBuilder(sql.length() + paras.length * 16);
+        StringBuilder sb = new StringBuilder(preparedSql.length() + paras.length * 16);
         int idx = 0;
         for (int i = 0; i < paras.length; i++) {
             Object p = paras[i];
-            int idxNext = sql.indexOf("?", idx);
+            int idxNext = preparedSql.indexOf("?", idx);
 //            if (p == null) {
 //                idx = idxNext+1;
 //                continue;
@@ -141,7 +143,7 @@ public class PooledPreparedStatement extends PooledStatement {
             if (idxNext < 0) {
                 break;
             }
-            sb.append(sql.substring(idx, idxNext));
+            sb.append(preparedSql, idx, idxNext);
             if (p instanceof String || p instanceof java.sql.Time || p instanceof java.sql.Timestamp || p instanceof java.sql.Date) {
                 sb.append('\'').append(p).append('\'');
             } else if (p == null) {
@@ -151,7 +153,7 @@ public class PooledPreparedStatement extends PooledStatement {
             }
             idx = idxNext+1;
         }
-        sb.append(sql.substring(idx));
+        sb.append(preparedSql.substring(idx));
         sqlDoing = sb.toString();
         return sqlDoing;
     }

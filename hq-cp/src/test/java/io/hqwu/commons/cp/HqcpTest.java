@@ -105,6 +105,8 @@ public class HqcpTest {
         expect(mockConnection.createStatement()).andReturn(mockStatement).anyTimes();
 //        expect(mockConnection.prepareStatement((String) anyObject())).andReturn(mockPreparedStatement).anyTimes();
         expect(mockConnection.prepareCall((String) anyObject())).andReturn(mockCallableStatement).anyTimes();
+        expect(mockConnection.prepareCall((String) anyObject(), anyInt(), anyInt())).andReturn(mockCallableStatement).anyTimes();
+        expect(mockConnection.prepareCall((String) anyObject(), anyInt(), anyInt(), anyInt())).andReturn(mockCallableStatement).anyTimes();
 
         makeThreadSafe(config, true);
         makeThreadSafe(mockConnection, true);
@@ -252,6 +254,8 @@ public class HqcpTest {
         expect(mockJDBCStatement.executeUpdate((String) anyObject())).andReturn(1).anyTimes();
         expect(mockJDBCStatement.getResultSetType()).andReturn(ResultSet.TYPE_SCROLL_SENSITIVE).anyTimes();
         expect(mockJDBCStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_UPDATABLE).anyTimes();
+        MockResultSet rs = mocksControl.createMock(MockResultSet.class);
+        expect(mockJDBCStatement.getResultSet()).andReturn(rs).anyTimes();
 
         expect(mockConnection.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)).andReturn(mockJDBCStatement).anyTimes();
 
@@ -261,10 +265,45 @@ public class HqcpTest {
         driver = new MockJDBCDriver(answer);
 
         connPool = new Hqcp(config);
+        config.isPrintSql();
         Connection conn = connPool.getConnection();
         try {
             Statement stmt = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
             stmt.execute("stmt ....");
+            stmt.close();
+        } catch (SQLException e) {
+            fail("testStatement fail...");
+        }
+        conn.commit();
+        conn.close();
+    }
+
+    @Test
+    public void testStatementUnnormal_false() throws Exception {
+        MockJDBCStatement mockJDBCStatement = mocksControl.createMock(MockJDBCStatement.class);
+        expect(mockJDBCStatement.execute((String) anyObject())).andReturn(false).anyTimes();
+        expect(mockJDBCStatement.executeUpdate((String) anyObject())).andReturn(1).anyTimes();
+        expect(mockJDBCStatement.executeLargeUpdate((String) anyObject())).andReturn(100L).anyTimes();
+        expect(mockJDBCStatement.getResultSetType()).andReturn(ResultSet.TYPE_SCROLL_SENSITIVE).anyTimes();
+        expect(mockJDBCStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_UPDATABLE).anyTimes();
+        MockResultSet rs = mocksControl.createMock(MockResultSet.class);
+        expect(mockJDBCStatement.getResultSet()).andReturn(rs).anyTimes();
+        expect(mockJDBCStatement.getUpdateCount()).andReturn(10).anyTimes();
+
+        expect(mockConnection.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE)).andReturn(mockJDBCStatement).anyTimes();
+
+        answer = mocksControl.createMock(MockJDBCAnswer.class);
+        expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
+        mocksControl.replay();
+        driver = new MockJDBCDriver(answer);
+
+        connPool = new Hqcp(config);
+        config.isPrintSql();
+        Connection conn = connPool.getConnection();
+        try {
+            Statement stmt = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            stmt.execute("stmt ....");
+            stmt.executeLargeUpdate("stmt ....");
             stmt.close();
         } catch (SQLException e) {
             fail("testStatement fail...");
@@ -379,6 +418,62 @@ public class HqcpTest {
     }
 
     @Test
+    public void testPreparedStatement_2() throws Exception {
+        mockPreparedStatement = mocksControl.createMock(MockPreparedStatement.class);
+        expect(mockPreparedStatement.execute()).andReturn(true).once().andReturn(false).anyTimes();
+//        expect(mockPreparedStatement.executeQuery()).andReturn(rs).anyTimes();
+        expect(mockPreparedStatement.executeUpdate()).andReturn(1).anyTimes();
+        expect(mockPreparedStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockPreparedStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+        expect(mockPreparedStatement.executeBatch()).andReturn(new int[]{1}).anyTimes();
+        MockResultSet rs = mocksControl.createMock(MockResultSet.class);
+        expect(mockPreparedStatement.getResultSet()).andReturn(rs).anyTimes();
+        expect(mockPreparedStatement.getUpdateCount()).andReturn(10).anyTimes();
+
+        expect(mockConnection.prepareStatement((String) anyObject())).andReturn(mockPreparedStatement).anyTimes();
+        expect(mockConnection.prepareStatement((String) anyObject(), (int []) anyObject())).andReturn(mockPreparedStatement).anyTimes();
+        expect(mockConnection.prepareStatement((String) anyObject(), (String []) anyObject())).andReturn(mockPreparedStatement).anyTimes();
+        expect(mockConnection.prepareStatement((String) anyObject(), anyInt())).andReturn(mockPreparedStatement).anyTimes();
+        expect(mockConnection.prepareStatement((String) anyObject(), anyInt(), anyInt())).andReturn(mockPreparedStatement).anyTimes();
+        expect(mockConnection.prepareStatement((String) anyObject(), anyInt(), anyInt(), anyInt())).andReturn(mockPreparedStatement).anyTimes();
+
+        answer = mocksControl.createMock(MockJDBCAnswer.class);
+        expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
+        mocksControl.replay();
+        driver = new MockJDBCDriver(answer);
+
+        connPool = new Hqcp(config);
+        config.isPrintSql();
+        connPool.getConnection().close();
+        Connection conn = connPool.getConnection(false);
+        PreparedStatement pstmt = conn.prepareStatement("prestmt #100");
+        pstmt.executeUpdate();
+        pstmt.execute();
+        pstmt.execute();
+        pstmt.close();
+
+        PreparedStatement pstmt1 = conn.prepareStatement("prestmt #200", new int[] {0, 1});
+        pstmt1.executeUpdate();
+        pstmt1.close();
+
+        PreparedStatement pstmt2 = conn.prepareStatement("prestmt #300", new String[] {"a", "b"});
+        pstmt2.executeUpdate();
+        pstmt2.close();
+
+        PreparedStatement pstmt3 = conn.prepareStatement("prestmt #400", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+        pstmt3.executeUpdate();
+        pstmt3.close();
+
+        PreparedStatement pstmt4 = conn.prepareStatement("prestmt #500", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE, ResultSet.HOLD_CURSORS_OVER_COMMIT);
+        pstmt4.executeUpdate();
+        pstmt4.close();
+
+        PreparedStatement pstmt5 = conn.prepareStatement("prestmt #600", Statement.RETURN_GENERATED_KEYS);
+        pstmt5.executeUpdate();
+        pstmt5.close();
+    }
+
+    @Test
     public void testPreparedStatement() throws Exception {
         mockPreparedStatement = mocksControl.createMock(MockPreparedStatement.class);
         expect(mockPreparedStatement.execute()).andReturn(true).anyTimes();
@@ -454,6 +549,30 @@ public class HqcpTest {
         testCase.setUp();
         testCase.testPreparedStatement();
         testCase.tearDown();
+    }
+
+    @Test
+    public void testCallableStatement_2() throws Exception {
+        answer = mocksControl.createMock(MockJDBCAnswer.class);
+        expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
+        mocksControl.replay();
+        driver = new MockJDBCDriver(answer);
+
+        connPool = new Hqcp(config);
+        connPool.getConnection().close();
+        Connection conn = connPool.getConnection(false);
+
+        CallableStatement pstmt = conn.prepareCall("prestmt #100");
+        pstmt.executeUpdate();
+        pstmt.close();
+
+        CallableStatement pstmt1 = conn.prepareCall("prestmt #200", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE);
+        pstmt1.executeUpdate();
+        pstmt1.close();
+
+        CallableStatement pstmt2 = conn.prepareCall("prestmt #300", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE, ResultSet.HOLD_CURSORS_OVER_COMMIT);
+        pstmt2.executeUpdate();
+        pstmt2.close();
     }
 
     @Test

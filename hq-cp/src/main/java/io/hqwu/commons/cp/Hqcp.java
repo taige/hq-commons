@@ -545,7 +545,16 @@ public class Hqcp implements HqcpMBean {
             Future<?> future = executorService.submit(new Runnable() {
                 @Override
                 public void run() {
-                    pooledConnection.doCheck();
+                    try {
+                        pooledConnection.doCheck();
+                    } catch (Exception e) {
+                        log.warn("exception occurs when doCheck: " + e);
+                        try {
+                            pooledConnection.doCheck();
+                        } catch (Exception ignored) {
+                            log.warn("exception occurs again when doCheck: " + e);
+                        }
+                    }
                 }
             });
             try {

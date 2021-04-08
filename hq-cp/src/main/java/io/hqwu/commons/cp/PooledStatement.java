@@ -1,18 +1,24 @@
 package io.hqwu.commons.cp;
 
 
+import com.umpay.commons.util.ExceptionUtil;
 import com.umpay.commons.util.Formatter;
 import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.util.JdbcUtil;
 
-import java.lang.reflect.*;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.lang.reflect.Array;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.sql.*;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 class PooledStatement implements InvocationHandler {
-    private static final Logger log = new Logger();
+    private static final Logger LOGGER = new Logger();
     
     /**
      * 归属连接
@@ -56,11 +62,17 @@ class PooledStatement implements InvocationHandler {
     /**
      * 是否默认的结果集类型
      */
-    private boolean isDefaultResultSetType = true;
+    protected boolean isDefaultResultSetType = true;
     /**
      * 语句打开的结果集
      */
     protected ResultSet resultSet;
+
+    /**
+     * result set counter
+     */
+    private int resultSetCounter = 0;
+
     /**
      * 连接是否关闭
      */
@@ -71,7 +83,12 @@ class PooledStatement implements InvocationHandler {
      */
     private long busying = 0;
 
-    protected String methodDoing;
+    /**
+     * 更新语句影响的记录数
+     */
+    private Long updateCount;
+
+    private String methodBusying;
 
     private String sqlDoing;
 
@@ -97,6 +114,8 @@ class PooledStatement implements InvocationHandler {
                 throw new SQLException(statementName + "已经被"+threadCheckOut.getName()+"检出", "60003");
             }
         }
+        resultSet = null;
+        updateCount = null;
         timeCheckOut = System.currentTimeMillis();
         threadCheckOut = Thread.currentThread();
         return statement;
@@ -123,23 +142,35 @@ class PooledStatement implements InvocationHandler {
     }
 
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        busying = System.nanoTime();
         sqlDoing = null;
-        methodDoing = method.getName();
+        String methodDoing = method.getName();
         if ("toString".equals(methodDoing) && (args == null || args.length == 0)) {
             return toString();//不代理
         }
         try {
+            busying = System.nanoTime();
+            methodBusying = methodDoing;
             Object obj = _invoke(proxy, method, args);
             if (methodDoing.startsWith("execute") && ! methodDoing.startsWith("executeQuery")) {
-                connection.setDirty();
+                if (! methodDoing.equals("execute") || ! (Boolean) obj) {
+                    connection.setDirty();
+                }
             }
             return obj;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             if (methodDoing.startsWith("execute")) {
-                log.error(e.toString(), "[ErrorCode=", e.getErrorCode(), ";SQLState=", e.getSQLState(), "] on ", methodDoing, "(", getSqlDoing(), ")");
+                if (e instanceof SQLException) {
+                    LOGGER.info(e.toString(), "[ErrorCode=", ((SQLException) e).getErrorCode(), ";SQLState=", ((SQLException) e).getSQLState(), "] on ", methodDoing, "(", getSqlDoing(), ")");
+                } else {
+                    // MySQL unexpected exception with mysql-connector-java:8.0.19:
+                    // java.lang.NullPointerException: null
+                    //	at com.mysql.cj.AbstractQuery.stopQueryTimer(AbstractQuery.java:206)
+                    //	at com.mysql.cj.jdbc.StatementImpl.stopQueryTimer(StatementImpl.java:643)
+                    //	at com.mysql.cj.jdbc.StatementImpl.executeQuery(StatementImpl.java:1182)
+                    LOGGER.error("unexpected exception occurs on ", methodDoing, "(", getSqlDoing(), ")", e);
+                }
             }
-            if (connection.isFetalException(e)) {
+            if (! (e instanceof SQLException) || connection.isFetalException((SQLException) e)) {
                 close();
                 //sql执行失败不新建连接,直接关闭物理链接,等待Connection的close调用,modify by shenjl at 2015-03-09
                 connection.setFatalExceptionHappened(true);
@@ -148,6 +179,7 @@ class PooledStatement implements InvocationHandler {
             throw e;
         } finally {
             busying = 0;
+            methodBusying = null;
         }
     }
     
@@ -155,6 +187,7 @@ class PooledStatement implements InvocationHandler {
         long start = System.nanoTime();
         Object ret = null;
         try {
+            String methodDoing = method.getName();
             if (methodDoing.equals("close")) {
                 if (! checkOut.getAndSet(false)) {
                     return null;
@@ -163,9 +196,13 @@ class PooledStatement implements InvocationHandler {
                 if (resultSet != null) {
                     try {
                         resultSet.close();
-                    } catch (SQLException e) {
+                    } catch (SQLException ignored) {
+                    } finally {
+                        resultSet = null;
                     }
-                    resultSet = null;
+                }
+                if (updateCount != null) {
+                    updateCount = null;
                 }
                 if (this instanceof PooledPreparedStatement) {
                     connection.checkIn((PooledPreparedStatement) this);
@@ -173,65 +210,112 @@ class PooledStatement implements InvocationHandler {
                     connection.checkIn(this);
                 }
                 if (isVerbose()) {
-                    log.trace(statementName, ".close() use ", Formatter.formatNS(System.nanoTime() - start), " ns");
+                    LOGGER.trace(statementName, ".close() use ", Formatter.formatNS(System.nanoTime() - start), " ns");
                 }
             } else if (methodDoing.equals("addBatch") && args != null && args.length == 1) {
                 sqlDoing = (String) args[0];
                 real_statement.addBatch((String) args[0]);
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start));
+                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start));
                 }
-            } else if (methodDoing.equals("executeBatch")) {
+            } else if (methodDoing.equals("executeBatch") || methodDoing.equals("executeLargeBatch")) {
                 ret = real_statement.executeBatch();
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start), "[", Array.getLength(ret), "]");
+                    printSQL(LOGGER, methodDoing, this::getPreparedSql, (System.nanoTime() - start), "[", Array.getLength(ret), "]");
                 }
             } else if (methodDoing.equals("executeQuery") && args != null && args.length == 1) {
                 sqlDoing = (String) args[0];
-                resultSet = real_statement.executeQuery((String) args[0]);
-                ret = resultSet;
+                LoggableResultSet lrs = LoggableResultSet.newInstance(this, real_statement.executeQuery((String) args[0]));
+                ret = resultSet = lrs == null ? null : lrs.getResultSet();
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start));
+                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", (lrs == null ? "rs=null" : "rs=#" + lrs.getRsId()), "]");
                 }
             } else if (methodDoing.startsWith("execute") && args != null && args.length > 0) {
                 sqlDoing = (String) args[0];
                 ret = method.invoke(real_statement, args);
+                Object ret4log = onExecuteMethodDone(methodDoing, ret);
                 if (isPrintSQL()) {
-                    printSQL(log, (System.nanoTime() - start), "[", ret, "]");
+                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", ret4log, "]");
                 }
             } else {
-                ret = method.invoke(real_statement, args);
+                if (methodDoing.equals("getResultSet") && resultSet != null) {
+                    // maybe incorrect
+                    ret = resultSet;
+                } else if (methodDoing.equals("getUpdateCount") && updateCount != null) {
+                    ret = updateCount.intValue();
+                } else if (methodDoing.equals("getLargeUpdateCount") && updateCount != null) {
+                    ret = updateCount;
+                } else {
+                    ret = method.invoke(real_statement, args);
+                }
                 if (isVerbose()) {
-                    log.trace(statementName, ".", methodDoing, "(...) use ", Formatter.formatNS(System.nanoTime() - start), " ns");
+                    LOGGER.trace(statementName, ".", methodDoing, "(...) use ", Formatter.formatNS(System.nanoTime() - start), " ns");
                 }
             }
-        } catch (InvocationTargetException e) {
-            throw e.getCause();
+        } catch (Throwable t) {
+            throw ExceptionUtil.unwrapThrowable(t);
         }
         return ret;
+    }
+
+    protected Object onExecuteMethodDone(String methodDoing, Object ret) throws SQLException {
+//        boolean b = real_statement.execute("");
+//        int n = real_statement.executeUpdate("");
+//        long l = real_statement.executeLargeUpdate("");
+        if (methodDoing.equals("execute")) {
+            // true if the first result is a ResultSet object;
+            // false if it is an update count or there are no results
+            if ((Boolean) ret) {
+                LoggableResultSet lrs = LoggableResultSet.newInstance(this, real_statement.getResultSet());
+                resultSet = lrs == null ? null : lrs.getResultSet();
+                return lrs == null ? "rs=null" : "rs=#" + lrs.getRsId();
+            } else {
+                updateCount = (long) real_statement.getUpdateCount();
+            }
+        } else {
+            if (int.class.isAssignableFrom(ret.getClass())
+                    || Integer.class.isAssignableFrom(ret.getClass())) {
+                updateCount = (long) (int) ret;
+            } else if (long.class.isAssignableFrom(ret.getClass())
+                    || Long.class.isAssignableFrom(ret.getClass())) {
+                updateCount = (long) ret;
+            } else {
+                return ret;
+            }
+        }
+        return updateCount;
     }
 
     /**
      * 根据执行时间，打印不同级别的SQL日志
      * @param logger
+     * @param methodDoing
      * @param usedNS
      * @param infos
      */
-    protected void printSQL(Logger logger, long usedNS, Object... infos) {
+    protected void printSQL(Logger logger, String methodDoing, long usedNS, Object... infos) {
+        printSQL(logger, methodDoing, this::getSqlDoing, usedNS, infos);
+    }
+
+    protected void printSQL(Logger logger, String methodDoing, Supplier<String> sqlSupplier, long usedNS, Object... infos) {
         if (! isPrintSQL()) {
             return;
         }
         if (usedNS/1000 <= connection.getInfoSQLThreshold()*1000) {
             if (logger.isDebugEnabled()) {
-                logger.debug(getStatementName(), ".", methodDoing, "(", getSqlDoing(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns");
+                logger.debug(getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns");
             }
         } else if (usedNS/1000 <= connection.getWarnSQLThreshold()*1000) {
             if (logger.isInfoEnabled()) {
-                logger.info(getStatementName(), ".", methodDoing, "(", getSqlDoing(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns");
+                logger.info(getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns");
             }
         } else if (logger.isWarnEnabled()) {
-            logger.warn(getStatementName(), ".", methodDoing, "(", getSqlDoing(), ")", infos, " use ",  Formatter.formatNS(usedNS), " ns");
+            logger.warn(getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ",  Formatter.formatNS(usedNS), " ns");
         }
+    }
+
+    protected String getPreparedSql() {
+        return "";
     }
 
     protected String getSqlDoing() {
@@ -284,7 +368,7 @@ class PooledStatement implements InvocationHandler {
             real_statement.close();
         } catch (SQLException e) {
         }
-        log.debug(statementName, " real closed.");
+        LOGGER.debug(statementName, " real closed.");
     }
 
     /**
@@ -313,12 +397,12 @@ class PooledStatement implements InvocationHandler {
     public boolean isBusying() {
         if (checkOut.get() && busying > 0) {
             long usedNS = System.nanoTime() - busying;
-            if (usedNS/1000 <= connection.getInfoSQLThreshold()*1000 && log.isDebugEnabled()) {
-                log.debug(statementName, " invoking ", methodDoing, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
-            } else if (usedNS/1000 <= connection.getWarnSQLThreshold()*1000 && log.isInfoEnabled()) {
-                log.info(statementName, " invoking ", methodDoing, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
-            } else if (log.isWarnEnabled()) {
-                log.warn(statementName, " invoking ", methodDoing, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
+            if (usedNS/1000 <= connection.getInfoSQLThreshold()*1000 && LOGGER.isDebugEnabled()) {
+                LOGGER.debug(statementName, " invoking ", methodBusying, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
+            } else if (usedNS/1000 <= connection.getWarnSQLThreshold()*1000 && LOGGER.isInfoEnabled()) {
+                LOGGER.info(statementName, " invoking ", methodBusying, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
+            } else if (LOGGER.isWarnEnabled()) {
+                LOGGER.warn(statementName, " invoking ", methodBusying, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
             }
             return true;
         }
@@ -336,5 +420,116 @@ class PooledStatement implements InvocationHandler {
     public long getTimeCheckIn() {
         return timeCheckIn;
     }
-    
+
+    /**
+     * Created with IntelliJ IDEA for hq-commons-parent
+     *
+     * @author taige (Wu, Hongqiang)
+     * Date: 2021-03-30
+     * Time: 2:33 p.m.
+     */
+    static class LoggableResultSet implements InvocationHandler {
+        private static final Set<Integer> BLOB_TYPES = new HashSet<>();
+        private boolean first = true;
+        private int rows;
+        private final Set<Integer> blobColumns = new HashSet<>();
+
+        private final PooledStatement pooledStatement;
+        private final ResultSet resultSet;
+        private final ResultSet rsProxy;
+        private final int rsId;
+
+        static {
+            BLOB_TYPES.add(Types.BINARY);
+            BLOB_TYPES.add(Types.BLOB);
+            BLOB_TYPES.add(Types.CLOB);
+            BLOB_TYPES.add(Types.LONGNVARCHAR);
+            BLOB_TYPES.add(Types.LONGVARBINARY);
+            BLOB_TYPES.add(Types.LONGVARCHAR);
+            BLOB_TYPES.add(Types.NCLOB);
+            BLOB_TYPES.add(Types.VARBINARY);
+        }
+
+        private LoggableResultSet(PooledStatement pooledStatement, ResultSet resultSet) {
+            this.pooledStatement = pooledStatement;
+            this.resultSet = resultSet;
+            this.rsId = pooledStatement.resultSetCounter++;
+            this.rsProxy =  (ResultSet) Proxy.newProxyInstance(resultSet.getClass().getClassLoader(), new Class[]{ResultSet.class}, this);
+        }
+
+        public static LoggableResultSet newInstance(PooledStatement pooledStatement, ResultSet resultSet) {
+            if (resultSet == null) {
+                return null;
+            }
+            return new LoggableResultSet(pooledStatement, resultSet);
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] params) throws Throwable {
+            try {
+                Object o = method.invoke(resultSet, params);
+                if ("next".equals(method.getName())) {
+                    if ((Boolean) o) {
+                        rows++;
+                        if (pooledStatement.isVerbose() && LOGGER.isTraceEnabled()) {
+                            ResultSetMetaData rsmd = resultSet.getMetaData();
+                            final int columnCount = rsmd.getColumnCount();
+                            if (first) {
+                                first = false;
+                                printColumnHeaders(rsmd, columnCount);
+                            }
+                            printColumnValues(columnCount);
+                        }
+                    } else if (pooledStatement.isVerbose()) {
+                        LOGGER.debug("%s.rs#%d.Total: %d", pooledStatement.getStatementName(), this.rsId, rows);
+                    }
+                }
+                return o;
+            } catch (Throwable t) {
+                throw ExceptionUtil.unwrapThrowable(t);
+            }
+        }
+
+        private void printColumnHeaders(ResultSetMetaData rsmd, int columnCount) throws SQLException {
+            StringJoiner row = new StringJoiner(", ");
+            for (int i = 1; i <= columnCount; i++) {
+                if (BLOB_TYPES.contains(rsmd.getColumnType(i))) {
+                    blobColumns.add(i);
+                }
+                row.add(rsmd.getColumnLabel(i));
+            }
+            LOGGER.trace("%s.rs#%d.Columns: %s", pooledStatement.getStatementName(), this.rsId, row);
+        }
+
+        private void printColumnValues(int columnCount) {
+            StringJoiner row = new StringJoiner(", ");
+            for (int i = 1; i <= columnCount; i++) {
+                try {
+                    if (blobColumns.contains(i)) {
+                        row.add("<<BLOB>>");
+                    } else {
+                        row.add(resultSet.getString(i));
+                    }
+                } catch (SQLException e) {
+                    // generally can't call getString() on a BLOB column
+                    row.add("<<Cannot Display>>");
+                }
+            }
+            LOGGER.trace("%s.rs#%d.Row: %s", pooledStatement.getStatementName(), this.rsId, row);
+        }
+
+        /**
+         * Get the wrapped result set.
+         *
+         * @return the resultSet
+         */
+        public ResultSet getResultSet() {
+            return rsProxy;
+        }
+
+        public int getRsId() {
+            return rsId;
+        }
+
+    }
 }
