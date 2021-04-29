@@ -36,7 +36,7 @@ public class StringTimeValidator implements ConstraintValidator<StringTime, Stri
             SimpleDateFormat fmt = dateFormatThreadLocal.get();
             return fmt.format(fmt.parse(value)).equals(value);
         } catch (RuntimeException | ParseException e) {
-            LOGGER.info(e);
+            LOGGER.trace("illegal datetime format: %s %s %s", pattern, value, e.toString());
             return false;
         }
     }

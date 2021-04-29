@@ -118,7 +118,7 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
                 return length == contentAsByteArray.length ? payload : payload.concat("...");
             }
             catch (UnsupportedEncodingException ex) {
-                return "[unknown]";
+                return "unknown";
             }
         }
         return null;
@@ -208,10 +208,14 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
         }
 
         if (isIncludePayload()) {
-            String payload = getMessagePayload(response);
-            if (payload != null) {
-                msg.append(", payload=").append(payload);
+            String payload;
+            String contentDisposition = response.getHeader(HttpHeaders.CONTENT_DISPOSITION);
+            if (contentDisposition != null && contentDisposition.contains("attachment")) {
+                payload = contentDisposition;
+            } else {
+                payload = getMessagePayload(response);
             }
+            msg.append(", payload=[").append(payload).append("]");
         }
 
         msg.append(this.afterMessageSuffix);

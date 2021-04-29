@@ -1,8 +1,8 @@
 package io.hqwu.commons.annotation.constraints.support;
 
 import io.hqwu.commons.annotation.constraints.NumbersIn;
+import org.hibernate.validator.messageinterpolation.AbstractMessageInterpolator;
 import org.hibernate.validator.messageinterpolation.HibernateMessageInterpolatorContext;
-import org.hibernate.validator.messageinterpolation.ParameterMessageInterpolator;
 
 import java.util.Arrays;
 import java.util.Locale;
@@ -14,7 +14,13 @@ import java.util.Locale;
  * Date: 2020/5/12
  * Time: 12:44
  */
-public class NumbersInMessageInterpolator extends ParameterMessageInterpolator {
+public class NumbersInMessageInterpolator extends AbstractMessageInterpolator {
+
+    private final AbstractMessageInterpolator messageInterpolator;
+
+    public NumbersInMessageInterpolator(AbstractMessageInterpolator messageInterpolator) {
+        this.messageInterpolator = messageInterpolator;
+    }
 
     @Override
     public String interpolate(Context context, Locale locale, String expression) {
@@ -34,11 +40,11 @@ public class NumbersInMessageInterpolator extends ParameterMessageInterpolator {
                 }
             }
             else {
-                resolvedExpression = expression;
+                resolvedExpression = messageInterpolator.interpolate(context, locale, expression);
             }
             return resolvedExpression;
         } else {
-            return super.interpolate(context, locale, expression);
+            return messageInterpolator.interpolate(context, locale, expression);
         }
     }
 

@@ -6,9 +6,11 @@ import io.hqwu.commons.annotation.constraints.support.PatternValidatorForBlank;
 import io.hqwu.commons.annotation.constraints.support.SizeValidatorForBlankCharSequence;
 import org.hibernate.validator.cfg.ConstraintMapping;
 import org.hibernate.validator.internal.engine.ConfigurationImpl;
+import org.hibernate.validator.messageinterpolation.AbstractMessageInterpolator;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import javax.validation.ConstraintValidator;
+import javax.validation.Validation;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
@@ -24,7 +26,8 @@ import java.lang.annotation.Annotation;
 public class EnhancedValidator extends LocalValidatorFactoryBean {
 
     public EnhancedValidator() {
-        setMessageInterpolator(new NumbersInMessageInterpolator());
+        setMessageInterpolator(new NumbersInMessageInterpolator(
+                (AbstractMessageInterpolator) Validation.byDefaultProvider().configure().getDefaultMessageInterpolator()));
     }
 
     @Override

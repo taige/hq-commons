@@ -1,5 +1,6 @@
 package io.hqwu.commons.cp;
 
+import com.umpay.commons.util.ClassUtil;
 import com.umpay.commons.util.ExceptionUtil;
 import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.util.JdbcUtil;
@@ -144,12 +145,12 @@ public class PooledPreparedStatement extends PooledStatement {
                 break;
             }
             sb.append(preparedSql, idx, idxNext);
-            if (p instanceof String || p instanceof java.sql.Time || p instanceof java.sql.Timestamp || p instanceof java.sql.Date) {
-                sb.append('\'').append(p).append('\'');
-            } else if (p == null) {
+            if (p == null) {
                 sb.append("NULL");
-            } else {
+            } else if (ClassUtil.isPrimitiveOrWrapper(p.getClass()) && p.getClass() != char.class && p.getClass() != Character.class) {
                 sb.append(p);
+            } else {
+                sb.append('\'').append(p).append('\'');
             }
             idx = idxNext+1;
         }
