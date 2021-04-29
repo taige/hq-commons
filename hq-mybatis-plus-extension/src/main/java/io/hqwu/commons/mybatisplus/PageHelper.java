@@ -5,9 +5,9 @@ import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.core.toolkit.LambdaUtils;
 import com.baomidou.mybatisplus.core.toolkit.support.ColumnCache;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.umpay.commons.util.BeanConverter;
 import com.umpay.commons.util.Logger;
 import com.umpay.commons.util.StringUtil;
+import io.hqwu.commons.bean.BeanConverter;
 import io.hqwu.commons.mybatisplus.annotation.JoinColumn;
 
 import java.lang.reflect.Field;

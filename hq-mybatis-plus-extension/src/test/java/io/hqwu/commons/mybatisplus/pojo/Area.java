@@ -1,7 +1,7 @@
 package io.hqwu.commons.mybatisplus.pojo;
 
-import com.umpay.commons.annotation.SourceProperty;
-import com.umpay.commons.util.converters.Integer2Boolean;
+import io.hqwu.commons.annotation.SourceProperty;
+import io.hqwu.commons.bean.converters.Integer2Boolean;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;

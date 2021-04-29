@@ -122,6 +122,7 @@ public class Hqcp implements HqcpMBean {
             try {
                 Class.forName(config.getDriverClassName());
                 log.info("load ", config.getDriverClassName(), " ok");
+                config.printConfig(log);
             } catch (ClassNotFoundException e) {
                 throw new SQLException(e.toString(), e);
             }
