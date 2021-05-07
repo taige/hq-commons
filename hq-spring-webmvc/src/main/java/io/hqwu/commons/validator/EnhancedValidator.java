@@ -4,8 +4,9 @@ import io.hqwu.commons.annotation.constraints.support.EmailsValidator;
 import io.hqwu.commons.annotation.constraints.support.NumbersInMessageInterpolator;
 import io.hqwu.commons.annotation.constraints.support.PatternValidatorForBlank;
 import io.hqwu.commons.annotation.constraints.support.SizeValidatorForBlankCharSequence;
+import org.hibernate.validator.HibernateValidator;
+import org.hibernate.validator.HibernateValidatorConfiguration;
 import org.hibernate.validator.cfg.ConstraintMapping;
-import org.hibernate.validator.internal.engine.ConfigurationImpl;
 import org.hibernate.validator.messageinterpolation.AbstractMessageInterpolator;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
@@ -32,19 +33,18 @@ public class EnhancedValidator extends LocalValidatorFactoryBean {
 
     @Override
     protected void postProcessConfiguration(javax.validation.Configuration<?> configuration) {
-        if(configuration instanceof ConfigurationImpl) {
-            customizeConstraintMappings((ConfigurationImpl) configuration);
-        }
+        HibernateValidatorConfiguration config = Validation.byProvider(HibernateValidator.class).configure();
+        customizeConstraintMappings(config);
     }
 
-    private void customizeConstraintMappings(ConfigurationImpl config) {
+    private void customizeConstraintMappings(HibernateValidatorConfiguration config) {
         config.addMapping(createConstraintMapping(config, Size.class, SizeValidatorForBlankCharSequence.class));
         config.addMapping(createConstraintMapping(config, Pattern.class, PatternValidatorForBlank.class));
         config.addMapping(createConstraintMapping(config, Email.class, EmailsValidator.class));
     }
 
     private <A extends Annotation> ConstraintMapping createConstraintMapping(
-            ConfigurationImpl config,
+            HibernateValidatorConfiguration config,
             Class<A> annotationClass,
             Class<? extends ConstraintValidator<A, ?>> validator) {
         ConstraintMapping constraintMapping = config.createConstraintMapping();
