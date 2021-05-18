@@ -6,8 +6,7 @@ import io.hqwu.commons.annotation.constraints.StringTime;
 
 import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Created with IntelliJ IDEA for pp-gopay-fa
@@ -19,8 +18,8 @@ public class StringTimeValidator implements ConstraintValidator<StringTime, Stri
     private static final Logger LOGGER = new Logger();
 
     private String pattern;
-    private ThreadLocal<SimpleDateFormat> dateFormatThreadLocal = ThreadLocal.withInitial(() ->
-            new SimpleDateFormat(pattern));
+    private ThreadLocal<DateTimeFormatter> dateFormatThreadLocal = ThreadLocal.withInitial(() ->
+            DateTimeFormatter.ofPattern(pattern));
 
     @Override
     public void initialize(StringTime constraintAnnotation) {
@@ -33,9 +32,9 @@ public class StringTimeValidator implements ConstraintValidator<StringTime, Stri
             return true;
         }
         try {
-            SimpleDateFormat fmt = dateFormatThreadLocal.get();
+            DateTimeFormatter fmt = dateFormatThreadLocal.get();
             return fmt.format(fmt.parse(value)).equals(value);
-        } catch (RuntimeException | ParseException e) {
+        } catch (RuntimeException e) {
             LOGGER.trace("illegal datetime format: %s %s %s", pattern, value, e.toString());
             return false;
         }
