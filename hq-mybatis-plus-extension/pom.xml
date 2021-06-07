@@ -3,18 +3,23 @@
   <parent>
     <artifactId>hq-commons-parent</artifactId>
     <groupId>io.hqwu.commons</groupId>
-    <version>1.1.4-SNAPSHOT</version>
+    <version>1.2.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
   <artifactId>hq-mybatis-plus-extension</artifactId>
-  <version>1.0.1-SNAPSHOT</version>
+  <version>1.2.0-SNAPSHOT</version>
 
   <dependencies>
     <dependency>
       <groupId>io.hqwu.commons</groupId>
       <artifactId>hq-utils</artifactId>
-      <version>1.1.4-SNAPSHOT</version>
+      <version>1.2.0-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>io.hqwu.commons</groupId>
+      <artifactId>hq-spring-webmvc</artifactId>
+      <version>1.2.0-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>com.baomidou</groupId>
@@ -27,6 +32,13 @@
     <dependency>
       <groupId>org.hibernate.validator</groupId>
       <artifactId>hibernate-validator</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-generator</artifactId>
+      <version>${mybatis-plus.version}</version>
+      <optional>true</optional>
     </dependency>
 
     <dependency>
@@ -53,7 +65,7 @@
     <dependency>
       <groupId>io.hqwu.commons</groupId>
       <artifactId>hq-cp-boot-starter</artifactId>
-      <version>1.0.2-SNAPSHOT</version>
+      <version>1.2.0-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>

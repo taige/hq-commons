@@ -26,10 +26,10 @@ public class HqcpDataSourceAutoConfiguration {
 
     private static final Logger LOGGER = LoggerFactory.getLogger();
 
-    @Bean
+    @Bean(initMethod = "init")
     @ConditionalOnMissingBean
     public DataSource dataSource(DataSourceProperties basicProperties) {
-        LOGGER.debug("init HqCpDataSource");
+        LOGGER.debug("init HqcpDataSource");
         return new HqcpDataSourceBoot(basicProperties);
     }
 

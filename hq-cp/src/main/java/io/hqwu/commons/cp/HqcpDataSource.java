@@ -19,6 +19,8 @@ import java.util.logging.Logger;
 
 public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFactory {
 
+    private boolean initOnStartup = false;
+
     private ReadWriteLock rwl = new ReentrantReadWriteLock();
 
     private Hqcp pool = null;
@@ -84,6 +86,16 @@ public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFact
 
     public Connection getConnection(String username, String password) throws SQLException {
         throw new UnsupportedOperationException("getConnection(username, password) is unsupported.");
+    }
+
+    public void init() throws SQLException {
+        if (this.initOnStartup && this.pool == null) {
+            maybeInit();
+        }
+    }
+
+    public void setInitOnStartup(boolean initOnStartup) {
+        this.initOnStartup = initOnStartup;
     }
 
     private void maybeInit() throws SQLException {
