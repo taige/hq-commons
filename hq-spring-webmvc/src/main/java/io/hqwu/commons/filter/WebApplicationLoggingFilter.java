@@ -200,7 +200,7 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
             msg.append(", headers=").append(headers);
         } else if (StringUtil.isNotBlank(traceIdHeaderName)) {
             String traceId = request.getHeader(traceIdHeaderName);
-            msg.append(", trace-id=").append(traceId);
+            msg.append(", ").append(traceIdHeaderName.toLowerCase()).append("=").append(traceId);
         }
 
         if (isIncludePayload()) {
@@ -235,7 +235,7 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
 
         if (StringUtil.isNotBlank(traceIdHeaderName)) {
             String traceId = request.getHeader(traceIdHeaderName);
-            msg.append(", trace-id=").append(traceId);
+            msg.append(", ").append(traceIdHeaderName.toLowerCase()).append("=").append(traceId);
         }
         if (isIncludeHeaders()) {
             HttpHeaders headers = new HttpHeaders();
