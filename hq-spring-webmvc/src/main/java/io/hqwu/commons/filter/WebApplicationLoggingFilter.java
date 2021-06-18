@@ -46,13 +46,33 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
 
     private boolean enabled = true;
 
-    private final String traceIdHeaderName;
+    private String traceIdHeaderName;
 
-    public WebApplicationLoggingFilter() {
-        this(null);
+    public String getBeforeMessagePrefix() {
+        return beforeMessagePrefix;
     }
 
-    public WebApplicationLoggingFilter(String traceIdHeaderName) {
+    public String getBeforeMessageSuffix() {
+        return beforeMessageSuffix;
+    }
+
+    public String getAfterMessagePrefix() {
+        return afterMessagePrefix;
+    }
+
+    public String getAfterMessageSuffix() {
+        return afterMessageSuffix;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public String getTraceIdHeaderName() {
+        return traceIdHeaderName;
+    }
+
+    public void setTraceIdHeaderName(String traceIdHeaderName) {
         this.traceIdHeaderName = traceIdHeaderName;
     }
 
