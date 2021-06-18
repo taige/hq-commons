@@ -1,6 +1,7 @@
 package io.hqwu.commons.filter;
 
 import com.umpay.commons.util.Logger;
+import com.umpay.commons.util.StringUtil;
 import io.hqwu.commons.servlet.support.CachedBodyHttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -44,6 +45,36 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
     private String afterMessageSuffix = DEFAULT_AFTER_MESSAGE_SUFFIX;
 
     private boolean enabled = true;
+
+    private String traceIdHeaderName;
+
+    public String getBeforeMessagePrefix() {
+        return beforeMessagePrefix;
+    }
+
+    public String getBeforeMessageSuffix() {
+        return beforeMessageSuffix;
+    }
+
+    public String getAfterMessagePrefix() {
+        return afterMessagePrefix;
+    }
+
+    public String getAfterMessageSuffix() {
+        return afterMessageSuffix;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public String getTraceIdHeaderName() {
+        return traceIdHeaderName;
+    }
+
+    public void setTraceIdHeaderName(String traceIdHeaderName) {
+        this.traceIdHeaderName = traceIdHeaderName;
+    }
 
     @Override
     protected boolean shouldLog(HttpServletRequest request) {
@@ -167,6 +198,9 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
                 }
             }
             msg.append(", headers=").append(headers);
+        } else if (StringUtil.isNotBlank(traceIdHeaderName)) {
+            String traceId = request.getHeader(traceIdHeaderName);
+            msg.append(", ").append(traceIdHeaderName.toLowerCase()).append("=").append(traceId);
         }
 
         if (isIncludePayload()) {
@@ -199,6 +233,10 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
             msg.append(response.getStatus());
         }
 
+        if (StringUtil.isNotBlank(traceIdHeaderName)) {
+            String traceId = request.getHeader(traceIdHeaderName);
+            msg.append(", ").append(traceIdHeaderName.toLowerCase()).append("=").append(traceId);
+        }
         if (isIncludeHeaders()) {
             HttpHeaders headers = new HttpHeaders();
             for (String header: response.getHeaderNames()) {
