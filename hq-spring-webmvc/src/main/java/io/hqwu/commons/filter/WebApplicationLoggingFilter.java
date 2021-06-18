@@ -1,6 +1,7 @@
 package io.hqwu.commons.filter;
 
 import com.umpay.commons.util.Logger;
+import com.umpay.commons.util.StringUtil;
 import io.hqwu.commons.servlet.support.CachedBodyHttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -44,6 +45,16 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
     private String afterMessageSuffix = DEFAULT_AFTER_MESSAGE_SUFFIX;
 
     private boolean enabled = true;
+
+    private final String traceIdHeaderName;
+
+    public WebApplicationLoggingFilter() {
+        this(null);
+    }
+
+    public WebApplicationLoggingFilter(String traceIdHeaderName) {
+        this.traceIdHeaderName = traceIdHeaderName;
+    }
 
     @Override
     protected boolean shouldLog(HttpServletRequest request) {
@@ -167,6 +178,9 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
                 }
             }
             msg.append(", headers=").append(headers);
+        } else if (StringUtil.isNotBlank(traceIdHeaderName)) {
+            String traceId = request.getHeader(traceIdHeaderName);
+            msg.append(", trace-id=").append(traceId);
         }
 
         if (isIncludePayload()) {
@@ -199,6 +213,10 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
             msg.append(response.getStatus());
         }
 
+        if (StringUtil.isNotBlank(traceIdHeaderName)) {
+            String traceId = request.getHeader(traceIdHeaderName);
+            msg.append(", trace-id=").append(traceId);
+        }
         if (isIncludeHeaders()) {
             HttpHeaders headers = new HttpHeaders();
             for (String header: response.getHeaderNames()) {
