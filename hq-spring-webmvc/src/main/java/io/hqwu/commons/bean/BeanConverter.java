@@ -279,7 +279,7 @@ public class BeanConverter implements ApplicationContextAware {
             // copy same name properties using `BeanCopier`
             copier.copy(srcBean, targetBean, (origValue, targetClass, targSetterName) -> {
                 Object obj = convert(origValue, targetClass, targSetterName, targetBean, null, srcBean);
-                if (! settersByCopier.contains(targSetterName)) {
+                if (! settersByCopier.contains(targSetterName) && obj != null && obj.equals(origValue)) {
                     synchronized (this) {
                         settersByCopier.add(targSetterName);
                         if (targSetterName instanceof String) {
