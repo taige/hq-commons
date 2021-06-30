@@ -8,6 +8,8 @@ import io.hqwu.commons.bean.converters.DateTime2String;
 import lombok.*;
 import lombok.experimental.Accessors;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.BeanUtils;
+import org.springframework.cglib.beans.BeanCopier;
 
 import javax.validation.constraints.*;
 import java.io.Serializable;
@@ -29,6 +31,80 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  */
 @CustomLog
 public class BeanConverterTest {
+
+    @Data
+    @Accessors(chain = true)
+    public static class Parent {
+        private String surName;
+    }
+
+    @EqualsAndHashCode(callSuper = true)
+    @Data
+    @Accessors(chain = true)
+    @ToString(callSuper = true)
+    public static class Child extends Parent {
+        private String firstName;
+    }
+
+    @Data
+    @Accessors(chain = true)
+    public static class Src {
+        private Child person;
+        private String nickname;
+        private Long number;
+        private String string;
+    }
+
+    @Data
+//    @Accessors(chain = true)
+    public static class Tag {
+        private Parent person;
+        private String nickname;
+        private String number;
+        private String string;
+    }
+
+
+    @Test
+    void test_copier() {
+        {
+            Src src = new Src();
+            src.setPerson((Child) new Child().setFirstName("hongqiang-1").setSurName("w-1"));
+            src.setNickname("taige");
+            src.setNumber(123L);
+            LOGGER.debug(src);
+            BeanCopier copier = BeanCopier.create(Src.class, Tag.class, false);
+            Tag tag = BeanUtils.instantiateClass(Tag.class);
+            copier.copy(src, tag, null);
+            LOGGER.debug(tag);
+//            BeanCopier copier1 = BeanCopier.create(Tag.class, Src.class, false);
+//            Src src1 = BeanUtils.instantiateClass(Src.class);
+//            copier1.copy(tag, src1, null);
+//            LOGGER.debug(src1);
+        }
+        {
+            Src src = new Src();
+            src.setPerson((Child) new Child().setFirstName("hongqiang-2").setSurName("wu-2"));
+            src.setNickname("taige");
+            src.setNumber(124L);
+            LOGGER.debug(src);
+            Tag tag = BeanConverter.convert(src, Tag.class);
+            LOGGER.debug(tag);
+//            Src src1 = BeanConverter.convert(tag, Src.class);
+//            LOGGER.debug(src1);
+        }
+        {
+            Src src = new Src();
+            src.setPerson((Child) new Child().setFirstName("hongqiang-3").setSurName("wu-3"));
+            src.setNickname("taige");
+            src.setNumber(125L);
+            LOGGER.debug(src);
+            Tag tag = BeanConverter.convert(src, Tag.class);
+            LOGGER.debug(tag);
+//            Src src1 = BeanConverter.convert(tag, Src.class);
+//            LOGGER.debug(src1);
+        }
+    }
 
     @Test
     void test_convert_list() {

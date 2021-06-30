@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+  <include
+          resource="org/springframework/boot/logging/logback/defaults.xml" />
+  <property name="CONSOLE_LOG_FMT" value="${CONSOLE_LOG_FMT:-%clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd.HH:mm:ss.SSS}}){faint} %clr([%-22t]){faint} %clr(${LOG_LEVEL_PATTERN:-%-5p}) %clr(%-30logger{0}){cyan} %clr(-){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}}"/>
+  <property name="FILE_LOG_FMT" value="${FILE_LOG_FMT:-%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd.HH:mm:ss.SSS}} [%-22t] ${LOG_LEVEL_PATTERN:-%-5p} %-30logger{0} - %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}}"/>
+  <property name="LOGFILE" value="@logging.output.directory@/@project.artifactId@-detail.log" />
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>${CONSOLE_LOG_FMT}</pattern>
+    </encoder>
+  </appender>
+  <root level="debug">
+    <appender-ref ref="STDOUT"/>
+  </root>
+
+</configuration>
