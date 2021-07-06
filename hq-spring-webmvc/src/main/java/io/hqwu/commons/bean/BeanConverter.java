@@ -251,7 +251,7 @@ public class BeanConverter implements ApplicationContextAware {
     private static class ConvertibleCopier<F, T> {
         private BeanCopier copier;
         // target -> src
-        final Map<PropertyDescriptor, PropertyDescriptor> nameMapping = new HashMap<>();
+        final Map<PropertyDescriptor, PropertyDescriptor> nameMapping = new ConcurrentHashMap<>();
         final Map<String, ParamsValueOf<F, T>> converterMapping = new HashMap<>();
         final Set<Object> settersByCopier = new HashSet<>();
 
