@@ -100,7 +100,19 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
 
         boolean shouldLog = shouldLog(requestToUse);
         if (shouldLog && isIncludePayload() && isFirstRequest && !(request instanceof CachedBodyHttpServletRequest)) {
-            requestToUse = new CachedBodyHttpServletRequest(request);
+            try {
+                requestToUse = new CachedBodyHttpServletRequest(request);
+            } catch (IOException e) {
+                try {
+                    StringBuilder msg = buildMessageHead(request, "cache request body failed: ");
+                    HttpHeaders headers = new ServletServerHttpRequest(request).getHeaders();
+                    msg.append(", headers=").append(headers);
+                    LOGGER.info(msg.toString());
+                } catch (Exception ex) {
+                    LOGGER.info("log `cache request body failed` reason failed: ", ex);
+                }
+                throw e;
+            }
         }
 
         if (shouldLog && isFirstRequest) {
