@@ -1,6 +1,5 @@
 package io.hqwu.commons.servlet.support;
 
-import com.umpay.commons.util.Logger;
 import org.springframework.util.StreamUtils;
 
 import javax.servlet.ServletInputStream;
@@ -18,21 +17,15 @@ import java.util.Map;
  * Time: 23:54
  */
 public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
-    private static final Logger LOGGER = new Logger();
 
-    private final Map<String, String[]> parameterMap;
-    private final byte[] cachedBody;
+    private Map<String, String[]> parameterMap;
+    private byte[] cachedBody;
 
     public CachedBodyHttpServletRequest(HttpServletRequest request) throws IOException {
         super(request);
         this.parameterMap = request.getParameterMap();
         InputStream requestInputStream = request.getInputStream();
-        try {
-            this.cachedBody = StreamUtils.copyToByteArray(requestInputStream);
-        } catch (IOException e) {
-            LOGGER.info("read request body failed. content-type: %s, content-length: %d", request.getContentType(), request.getContentLengthLong());
-            throw e;
-        }
+        this.cachedBody = StreamUtils.copyToByteArray(requestInputStream);
     }
 
     @Override
