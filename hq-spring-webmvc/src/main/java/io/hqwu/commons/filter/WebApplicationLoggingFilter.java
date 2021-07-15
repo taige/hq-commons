@@ -102,14 +102,12 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
         boolean shouldLog = shouldLog(requestToUse);
         if (shouldLog && isIncludePayload() && isFirstRequest && !(request instanceof CachedBodyHttpServletRequest)) {
             try {
-                MediaType mediaType = MediaType.parseMediaType(request.getContentType());
-                if (mediaType.getType().equalsIgnoreCase("text") ||
+                String contentType = request.getHeader(HttpHeaders.CONTENT_TYPE);
+                MediaType mediaType = StringUtil.isNotBlank(contentType) ? MediaType.parseMediaType(contentType) : null;
+                if (mediaType != null && (mediaType.getType().equalsIgnoreCase("text") ||
                         (mediaType.getType().equalsIgnoreCase("application") &&
                                 (mediaType.getSubtype().toLowerCase().contains("json") ||
-                                        mediaType.getSubtype().toLowerCase().contains("xml")
-                                )
-                        )
-                ) {
+                                        mediaType.getSubtype().toLowerCase().contains("xml"))))) {
                     requestToUse = new CachedBodyHttpServletRequest(request);
                 }
             } catch (IllegalArgumentException e) {
