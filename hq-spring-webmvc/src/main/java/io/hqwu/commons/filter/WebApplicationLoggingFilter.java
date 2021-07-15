@@ -151,7 +151,7 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
     protected String getMessagePayload(HttpServletRequest request) {
         CachedBodyHttpServletRequest wrapper =
                 WebUtils.getNativeRequest(request, CachedBodyHttpServletRequest.class);
-        return wrapper == null ? "[not loggable]" : _getMessagePayload(wrapper.getContentAsByteArray(), wrapper.getCharacterEncoding());
+        return wrapper == null ? "[NOT LOGGABLE]" : _getMessagePayload(wrapper.getContentAsByteArray(), wrapper.getCharacterEncoding());
     }
 
     protected String getMessagePayload(HttpServletResponse response) {
