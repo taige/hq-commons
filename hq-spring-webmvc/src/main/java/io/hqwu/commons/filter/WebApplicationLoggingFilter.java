@@ -5,6 +5,7 @@ import com.umpay.commons.util.StringUtil;
 import io.hqwu.commons.servlet.support.CachedBodyHttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.AbstractRequestLoggingFilter;
@@ -101,7 +102,18 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
         boolean shouldLog = shouldLog(requestToUse);
         if (shouldLog && isIncludePayload() && isFirstRequest && !(request instanceof CachedBodyHttpServletRequest)) {
             try {
-                requestToUse = new CachedBodyHttpServletRequest(request);
+                MediaType mediaType = MediaType.parseMediaType(request.getContentType());
+                if (mediaType.getType().equalsIgnoreCase("text") ||
+                        (mediaType.getType().equalsIgnoreCase("application") &&
+                                (mediaType.getSubtype().toLowerCase().contains("json") ||
+                                        mediaType.getSubtype().toLowerCase().contains("xml")
+                                )
+                        )
+                ) {
+                    requestToUse = new CachedBodyHttpServletRequest(request);
+                }
+            } catch (IllegalArgumentException e) {
+                LOGGER.debug("IGNORED cache request body exception: ", e);
             } catch (IOException e) {
                 try {
                     StringBuilder msg = buildMessageHead(request, "cache request body failed: ");
@@ -141,7 +153,7 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
     protected String getMessagePayload(HttpServletRequest request) {
         CachedBodyHttpServletRequest wrapper =
                 WebUtils.getNativeRequest(request, CachedBodyHttpServletRequest.class);
-        return wrapper == null ? null : _getMessagePayload(wrapper.getContentAsByteArray(), wrapper.getCharacterEncoding());
+        return wrapper == null ? "[not loggable]" : _getMessagePayload(wrapper.getContentAsByteArray(), wrapper.getCharacterEncoding());
     }
 
     protected String getMessagePayload(HttpServletResponse response) {
