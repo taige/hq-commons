@@ -308,7 +308,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 if (isFatalExceptionHappened()) {//Statement执行发生错误，需要关闭物理链接，shenjl
                     close();
                 }
-                if (isVerbose()) {
+                if (isPrintSQL() || isVerbose()) {
                     log.debug(connectionName, ".close()[" , isFatalExceptionHappened() ,"] use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
             } else if (mname.equals("createStatement")) {
