@@ -5,11 +5,11 @@
   <parent>
     <groupId>io.hqwu.commons</groupId>
     <artifactId>hq-commons-parent</artifactId>
-    <version>1.2.6-SNAPSHOT</version>
+    <version>1.2.6</version>
   </parent>
 
   <artifactId>hq-utils</artifactId>
-  <version>1.2.6-SNAPSHOT</version>
+  <version>1.2.6</version>
 
   <properties>
   </properties>
