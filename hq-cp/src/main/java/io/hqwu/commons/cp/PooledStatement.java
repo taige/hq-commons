@@ -368,7 +368,9 @@ class PooledStatement implements InvocationHandler {
             real_statement.close();
         } catch (SQLException e) {
         }
-        LOGGER.debug(statementName, " real closed.");
+        if (isVerbose()) {
+            LOGGER.debug(statementName, " real closed.");
+        }
     }
 
     /**
@@ -480,7 +482,7 @@ class PooledStatement implements InvocationHandler {
                             }
                             printColumnValues(columnCount);
                         }
-                    } else if (pooledStatement.isVerbose()) {
+                    } else if (pooledStatement.isVerbose() || pooledStatement.isPrintSQL()) {
                         LOGGER.debug("%s.rs#%d.Total: %d", pooledStatement.getStatementName(), this.rsId, rows);
                     }
                 }
