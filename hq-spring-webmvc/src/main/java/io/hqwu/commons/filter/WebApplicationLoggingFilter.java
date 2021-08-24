@@ -163,6 +163,15 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
     private String _getMessagePayload(byte[] contentAsByteArray, String characterEncoding) {
         if (contentAsByteArray != null && contentAsByteArray.length > 0) {
             int length = Math.min(contentAsByteArray.length, getMaxPayloadLength());
+            int nonChar = 0;
+            for (int i = 0; i < length && i < 20; i++) {
+                if (contentAsByteArray[i] < 32 || contentAsByteArray[i] > 126) {
+                    nonChar ++;
+                }
+            }
+            if (nonChar >= 10 || nonChar >= length/2) {
+                return "[BIN]";
+            }
             try {
                 if (characterEncoding == null) {
                     characterEncoding = StandardCharsets.UTF_8.name();
