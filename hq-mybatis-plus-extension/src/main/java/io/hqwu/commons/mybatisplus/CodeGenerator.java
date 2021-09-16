@@ -1,6 +1,7 @@
 package io.hqwu.commons.mybatisplus;
 
 import com.baomidou.mybatisplus.annotation.DbType;
+import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.generator.AutoGenerator;
 import com.baomidou.mybatisplus.generator.config.*;
 import com.baomidou.mybatisplus.generator.config.builder.ConfigBuilder;
@@ -59,6 +60,8 @@ public class CodeGenerator {
     private String controllerTemplatePath = "controller.java";
 
     private String baseOutputDir;
+
+    private IdType idType;
 
     public CodeGenerator(String basePackge, String moduleName, DataSource dataSource, DbType dbType) {
         this.basePackge = basePackge;
@@ -127,6 +130,7 @@ public class CodeGenerator {
                         .setInclude(table)
                         .setControllerMappingHyphenStyle(true)
                         .setEntitySerialVersionUID(false)
+                        .setChainModel(true)
                         .setTablePrefix(prefix),
                 new TemplateConfig()
                         .setXml(new File(templatesPath, mapperXmlTemplatePath).getPath())
@@ -134,14 +138,15 @@ public class CodeGenerator {
                         .setEntity(new File(templatesPath, entityTemplatePath).getPath())
                         .setService(new File(templatesPath, serviceTemplatePath).getPath())
                         .setServiceImpl(new File(templatesPath, serviceImplTemplatePath).getPath())
-                        .setController(new File(templatesPath, controllerTemplatePath).getPath()),
+                        .setController(controllerTemplatePath == null ? null : new File(templatesPath, controllerTemplatePath).getPath()),
                 new GlobalConfig()
                         .setOutputDir(new File(projectPath, JAVA_PACKAGE_URL).getPath())
                         .setAuthor(author)
                         .setOpen(false)
                         .setFileOverride(fileOverride)
-                        .setServiceName("%sService")
+                        .setServiceName("I%sService")
                         .setEntityName("T%s")
+                        .setIdType(idType)
         );
         ;
         config.getPathInfo().put(ConstVal.XML_PATH,
@@ -168,4 +173,13 @@ public class CodeGenerator {
     public void setAuthor(String author) {
         this.author = author;
     }
+
+    public void setControllerTemplatePath(String controllerTemplatePath) {
+        this.controllerTemplatePath = controllerTemplatePath;
+    }
+
+    public void setIdType(IdType idType) {
+        this.idType = idType;
+    }
+
 }
