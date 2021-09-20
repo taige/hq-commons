@@ -13,5 +13,8 @@
   <root level="debug">
     <appender-ref ref="STDOUT"/>
   </root>
+  <logger name="org" level="WARN"/>
+  <logger name="io" level="WARN"/>
+  <logger name="io.hqwu" level="debug"/>
 
 </configuration>
