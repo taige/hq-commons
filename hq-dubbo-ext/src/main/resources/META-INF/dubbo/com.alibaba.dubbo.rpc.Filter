@@ -1,0 +1,1 @@
+accessLog=io.hqwu.commons.dubbo.filter.AccessLogFilter
