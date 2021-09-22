@@ -1,0 +1,1 @@
+jackson=io.hqwu.commons.dubbo.serialize.JacksonSerialization

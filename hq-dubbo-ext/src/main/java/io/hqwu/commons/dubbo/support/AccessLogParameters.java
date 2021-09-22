@@ -3,6 +3,7 @@ package io.hqwu.commons.dubbo.support;
 import com.umpay.commons.util.Formatter;
 import com.umpay.commons.util.StringUtil;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.stream.Collectors;
@@ -178,13 +179,48 @@ public class AccessLogParameters {
 
     public void setRequestArgs(Object[] requestArgs) {
         if (requestArgs != null) {
-            this.requestArgs = Arrays.stream(requestArgs).map(arg -> {
-                if (arg == null) {
-                    return NULL;
-                } else {
-                    return arg.toString();
+            this.requestArgs = Arrays.stream(requestArgs)
+                    .map(this::objectToString)
+                    .collect(Collectors.joining(",", "[", "]"));
+        }
+    }
+
+    protected String objectToString(Object arg) {
+        if (arg == null) {
+            return NULL;
+        } else if (arg.getClass().isArray()) {
+            Class<?> eleType = arg.getClass().getComponentType();
+            int len = Array.getLength(arg);
+            StringBuilder sb = new StringBuilder();
+            sb.append('[');
+            for (int i = 0; i < len; i++) {
+                if (i > 0) {
+                    sb.append(", ");
                 }
-            }).collect(Collectors.joining(",", "[", "]"));
+                if (boolean.class.equals(eleType)) {
+                    sb.append(Array.getBoolean(arg, i));
+                } else if (double.class.equals(eleType)) {
+                    sb.append(Array.getDouble(arg, i));
+                } else if (float.class.equals(eleType)) {
+                    sb.append(Array.getFloat(arg, i));
+                } else if (char.class.equals(eleType)) {
+                    sb.append(Array.getChar(arg, i));
+                } else if (byte.class.equals(eleType)) {
+                    sb.append(Array.getByte(arg, i));
+                } else if (short.class.equals(eleType)) {
+                    sb.append(Array.getShort(arg, i));
+                } else if (int.class.equals(eleType)) {
+                    sb.append(Array.getInt(arg, i));
+                } else if (long.class.equals(eleType)) {
+                    sb.append(Array.getLong(arg, i));
+                } else {
+                    sb.append(Array.get(arg, i));
+                }
+            }
+            sb.append(']');
+            return sb.toString();
+        } else {
+            return arg.toString();
         }
     }
 

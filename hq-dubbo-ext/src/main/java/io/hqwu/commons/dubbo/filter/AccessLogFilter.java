@@ -103,7 +103,7 @@ public class AccessLogFilter implements Filter {
      */
     protected String getExceptionDesc(Throwable e) {
         Throwable cause = e.getCause();
-        if (cause != null) {
+        if (cause != null && cause != e) {
             return getExceptionDesc(cause);
         } else if (e instanceof RpcException) {
             switch (((RpcException) e).getCode()) {
@@ -240,10 +240,8 @@ public class AccessLogFilter implements Filter {
             } else if (result != null) {
                 if (result.hasException()) {
                     buf.append("EXCEPTION:").append(getExceptionDesc(result.getException())).append(DELIMITER);
-                } else if (result.getValue() == null) {
-                    buf.append(NULL).append(DELIMITER);
                 } else {
-                    buf.append(result.getValue()).append(DELIMITER);
+                    buf.append(objectToString(result.getValue())).append(DELIMITER);
                 }
             } else {
                 buf.append("RESULT:").append(NULL).append(DELIMITER);
