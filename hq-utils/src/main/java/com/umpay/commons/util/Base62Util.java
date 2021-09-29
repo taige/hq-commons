@@ -11,6 +11,10 @@ import java.util.zip.CRC32;
  * Time: 1:14 p.m.
  */
 public class Base62Util {
+    public static final String MAX_VALUE = "AzL8n0Y58m7";
+
+    public static final int MAX_VALUE_LEN = MAX_VALUE.length();
+
     public static final int DEFAULT_MIN_LENGTH = 4;
 
     private static final char[] B62_TABLE = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".toCharArray();
