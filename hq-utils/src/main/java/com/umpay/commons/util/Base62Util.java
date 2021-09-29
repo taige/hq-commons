@@ -95,6 +95,10 @@ public class Base62Util {
      * @return
      */
     public static long decode(String numberString) {
+        if (StringUtil.isBlank(numberString) || numberString.length() > MAX_VALUE_LEN
+                || (numberString.length() == MAX_VALUE_LEN && numberString.compareTo(MAX_VALUE) > 0)) {
+            throw new NumberFormatException(String.format("<%s> is not a Base62 char", numberString));
+        }
         char[] ch = numberString.toCharArray();
         long result = 0;
         long base = 1;
