@@ -1,5 +1,7 @@
 package com.umpay.commons.util;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Formatter;
 
 /**
@@ -9,6 +11,8 @@ import java.util.Formatter;
  * Time: 下午2:39
  */
 public class AmountUtil {
+
+    public static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);
 
     /**
      * 分转元(即小数点左移2位) 1 -> '0.01'
@@ -212,5 +216,15 @@ public class AmountUtil {
         }
     }
 
+    /**
+     * 金额(分) x 百分比(%)，返回 四舍五入的金额(分)
+     * @param amountInCents 金额(分)
+     * @param percentage    百分比(%), 12.5 意思是 12.5%
+     * @return              四舍五入后的金额(分)
+     */
+    public static long multiplyPercentage(long amountInCents, BigDecimal percentage) {
+        return percentage.multiply(BigDecimal.valueOf(amountInCents))
+                .divide(ONE_HUNDRED, 0, RoundingMode.HALF_UP).longValue();
+    }
 
 }

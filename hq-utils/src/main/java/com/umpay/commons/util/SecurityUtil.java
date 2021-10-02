@@ -1,6 +1,7 @@
 package com.umpay.commons.util;
 
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.Validate;
@@ -942,6 +943,15 @@ public class SecurityUtil extends DigestUtils {
     public static byte[] rsaDecrypt(byte[] bcipher, Key rsaKey)
             throws GeneralSecurityException, IllegalArgumentException {
         return rsaDecrypt(bcipher, rsaKey, DEFAULT_MODE, DEFAULT_ASYM_PADDING);
+    }
+
+    /**
+     * 计算md5，返回HEX（大写）
+     * @param data
+     * @return
+     */
+    public static String md5HEX(String data) {
+        return Hex.encodeHexString(md5(data), false);
     }
 
 }
