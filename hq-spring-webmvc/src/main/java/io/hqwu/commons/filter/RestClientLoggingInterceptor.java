@@ -1,7 +1,9 @@
 package io.hqwu.commons.filter;
 
+import com.umpay.commons.util.ClassUtil;
 import com.umpay.commons.util.Formatter;
 import com.umpay.commons.util.Logger;
+import com.umpay.commons.util.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpRequest;
@@ -27,13 +29,15 @@ import java.util.Optional;
  * Time: 10:35
  */
 public class RestClientLoggingInterceptor implements ClientHttpRequestInterceptor {
-    private static final Logger LOGGER = new Logger();
+    private final Logger LOGGER;
 
     private final String logTag;
     private final URI baseUri;
 
-    public RestClientLoggingInterceptor(String logTag, URI baseUri) {
-        this.logTag = logTag;
+
+    public RestClientLoggingInterceptor(String loggerName, URI baseUri) {
+        this.logTag = ClassUtil.getShortClassName(loggerName);
+        this.LOGGER = LoggerFactory.getLogger(loggerName);
         this.baseUri = baseUri;
     }
 
@@ -48,7 +52,7 @@ public class RestClientLoggingInterceptor implements ClientHttpRequestIntercepto
         
         LOGGER.info("[%s]%sing : /%s, Headers: %s", logTag, method, requestUri, request.getHeaders());
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[%s]Request body: ", logTag, new String(body, StandardCharsets.UTF_8));
+            LOGGER.debug("[%s]Request body: %s", logTag, new String(body, StandardCharsets.UTF_8));
         }
 
         long startMS = System.currentTimeMillis();
@@ -61,7 +65,7 @@ public class RestClientLoggingInterceptor implements ClientHttpRequestIntercepto
             Charset contentCharset = Optional.ofNullable(Optional.ofNullable(headers.getContentType())
                     .orElse(MediaType.APPLICATION_JSON).getCharset()).orElse(StandardCharsets.UTF_8);
             String responseBody = StreamUtils.copyToString(response.getBody(), contentCharset);
-            LOGGER.debug("[%s]Response body: ", logTag, responseBody);
+            LOGGER.debug("[%s]Response body: %s", logTag, responseBody);
         }
 
         return response;
