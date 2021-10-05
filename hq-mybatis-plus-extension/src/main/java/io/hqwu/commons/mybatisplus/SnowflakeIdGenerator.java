@@ -23,6 +23,9 @@ public class SnowflakeIdGenerator extends DefaultIdentifierGenerator {
         if (entity == null) {
             return String.valueOf(id);
         }
+        if (entity instanceof String) {
+            return ((String) entity) + id;
+        }
         if (entity.getClass().isAnnotationPresent(TableIdPrefix.class)) {
             TableIdPrefix annIdPrefix = entity.getClass().getAnnotation(TableIdPrefix.class);
             String idPrefix = annIdPrefix.value();
@@ -30,7 +33,7 @@ public class SnowflakeIdGenerator extends DefaultIdentifierGenerator {
                 return idPrefix + id;
             }
         }
-        return entity.getClass().getSimpleName() + id;
+        return entity.getClass().getSimpleName().substring(0, 2) + id;
     }
 
 }
