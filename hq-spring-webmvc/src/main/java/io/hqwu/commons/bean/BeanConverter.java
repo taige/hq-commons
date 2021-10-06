@@ -4,6 +4,7 @@ import com.umpay.commons.util.ClassUtil;
 import com.umpay.commons.util.Logger;
 import com.umpay.commons.util.StringUtil;
 import io.hqwu.commons.annotation.SourceProperty;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.cglib.beans.BeanCopier;
@@ -144,8 +145,13 @@ public class BeanConverter implements ApplicationContextAware {
                                     srcFieldName, srcClass.getName()));
                 }
                 convertibleCopier.converterMapping.put(setterName,
-                        (srcValue, srcBean, srcProperty, targetBean, targetProperty) ->
-                                converter.valueOf(srcValue, srcBean, srcProperty, targetBean, targetProperty, params));
+                        (srcValue, srcBean, srcProperty, targetBean, targetProperty) -> {
+                    T obj = converter.valueOf(srcValue, srcBean, srcProperty, targetBean, targetProperty, params);
+                    if (obj instanceof String && sourceProperty.abbreviate() >= 4) {
+                        return (T) StringUtils.abbreviate((String) obj, sourceProperty.abbreviate());
+                    }
+                    return obj;
+                });
             } else if (srcPropDesc == null) {
                 throw new IntrospectionException(
                         String.format("The source property `%s` is not defined correctly in class `%s`.",

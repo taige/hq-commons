@@ -61,4 +61,12 @@ public @interface SourceProperty {
      */
     boolean ignore() default false;
 
+    /**
+     * String 类型长度限制，默认不限制；
+     * 最小值：4，小于4时不缩略
+     * 超过长度时，调用 {@link org.apache.commons.lang3.StringUtils#abbreviate(String, int)}
+     * @return
+     */
+    int abbreviate() default 0;
+
 }
