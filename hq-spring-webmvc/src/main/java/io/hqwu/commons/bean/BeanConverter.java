@@ -156,6 +156,13 @@ public class BeanConverter implements ApplicationContextAware {
                 throw new IntrospectionException(
                         String.format("The source property `%s` is not defined correctly in class `%s`.",
                                 srcFieldName, srcClass.getName()));
+            } else if (sourceProperty.abbreviate() >=4
+                    && targPropDesc.getPropertyType() == String.class
+                    && srcPropDesc.getPropertyType() == String.class) {
+                convertibleCopier.converterMapping.put(setterName,
+                        (srcValue, srcBean, srcProperty, targetBean, targetProperty) ->
+                                (T) StringUtils.abbreviate((String) srcValue, sourceProperty.abbreviate())
+                );
             }
         } catch (IntrospectionException e) {
             throw new RuntimeIntrospectionException(e);
@@ -303,11 +310,15 @@ public class BeanConverter implements ApplicationContextAware {
                 PropertyDescriptor targProperty = entry.getKey();
                 PropertyDescriptor srcProperty = entry.getValue();
                 Class<?> targetClass = targProperty.getPropertyType();
-                targProperty.getWriteMethod().invoke(targetBean,
-                        convert(srcProperty == null ? null : srcProperty.getReadMethod().invoke(srcBean),
-                                targetClass, targProperty.getWriteMethod().getName(), targetBean,
-                                srcProperty == null ? null : srcProperty.getName(), srcBean)
-                );
+                Object targetValue = convert(srcProperty == null ? null : srcProperty.getReadMethod().invoke(srcBean),
+                        targetClass, targProperty.getWriteMethod().getName(), targetBean,
+                        srcProperty == null ? null : srcProperty.getName(), srcBean);
+                if (targetClass.isPrimitive() && targetValue == null) {
+                    LOGGER.info("skip set primitive property `%s` in %s with NULL value",
+                            targProperty.getName(), targetBean.getClass().getName());
+                } else {
+                    targProperty.getWriteMethod().invoke(targetBean, targetValue);
+                }
             }
         }
 
@@ -355,6 +366,10 @@ public class BeanConverter implements ApplicationContextAware {
             } else if (targetClass.isAssignableFrom(String.class)) {
                 LOGGER.trace("default convert everything to String(%s) for property `%s`", origValue, targFieldName);
                 return origValue.toString();
+            } else if (targetClass.isPrimitive()) {
+                if (ClassUtil.isAssignable(origValue.getClass(), targetClass)) {
+                    return origValue;
+                }
             } else {
                 try {
                     return BeanConverter.convert(origValue, targetClass);
