@@ -1,5 +1,6 @@
 package io.hqwu.commons.bean.converters;
 
+import com.umpay.commons.util.StringUtil;
 import io.hqwu.commons.bean.ValueOf;
 
 import java.time.LocalDateTime;
@@ -20,6 +21,9 @@ public class String2LocalDateTime implements ValueOf<String, LocalDateTime> {
 
     @Override
     public LocalDateTime valueOf(String srcValue, Object srcBean, String srcProperty, Object targetBean, String targetProperty, String... params) {
+        if (StringUtil.isBlank(srcValue)) {
+            return null;
+        }
         String fmt = params.length > 1 ? params[1] : "yyyyMMddHHmmss";
         DateTimeFormatter formatter = dateTimeFormatters.computeIfAbsent(fmt, DateTimeFormatter::ofPattern);
         return LocalDateTime.parse(srcValue, formatter);
