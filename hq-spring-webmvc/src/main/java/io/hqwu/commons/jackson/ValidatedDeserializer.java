@@ -32,13 +32,17 @@ public class ValidatedDeserializer extends BeanDeserializer {
 
     @Override
     public ValidatedJson deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
-        ValidatedJson request = (ValidatedJson) super.deserialize(jp, ctxt);
+        ValidatedJson request = (ValidatedJson) rawDeserialize(jp, ctxt);
         // validate response
         validate(request);
         return request;
     }
 
-    private void validate(ValidatedJson object) {
+    protected Object rawDeserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
+        return super.deserialize(jp, ctxt);
+    }
+
+    protected void validate(ValidatedJson object) {
         if (object instanceof ValidatedJsonResponse) {
             if (((ValidatedJsonResponse) object).hasError()) {
                 // 不成功的response，skip validate
