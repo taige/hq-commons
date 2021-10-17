@@ -24,7 +24,7 @@ public class String2LocalDateTime implements ValueOf<String, LocalDateTime> {
         if (StringUtil.isBlank(srcValue)) {
             return null;
         }
-        String fmt = params.length > 1 ? params[1] : "yyyyMMddHHmmss";
+        String fmt = params.length > 0 ? params[0] : "yyyyMMddHHmmss";
         DateTimeFormatter formatter = dateTimeFormatters.computeIfAbsent(fmt, DateTimeFormatter::ofPattern);
         return LocalDateTime.parse(srcValue, formatter);
     }

@@ -8,4 +8,9 @@ package io.hqwu.commons.jackson;
  * Time: 4:48 p.m.
  */
 public interface ValidatedJson {
+
+    default Class<?>[] validateGroups() {
+        return null;
+    }
+
 }

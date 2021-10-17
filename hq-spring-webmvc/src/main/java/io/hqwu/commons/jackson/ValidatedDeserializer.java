@@ -53,6 +53,13 @@ public class ValidatedDeserializer extends BeanDeserializer {
         if (violations.size() > 0) {
             throw exceptionFactory.newViolationException(violations, object);
         }
+        Class<?>[] groups = object.validateGroups();
+        if (groups != null && groups.length > 0) {
+            violations = validator.validate(object, groups);
+            if (violations.size() > 0) {
+                throw exceptionFactory.newViolationException(violations, object);
+            }
+        }
     }
 
 }
