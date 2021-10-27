@@ -51,7 +51,7 @@ public class RestClientLoggingInterceptor implements ClientHttpRequestIntercepto
         HttpMethod method = request.getMethod();
         
         LOGGER.info("[%s]%sing : /%s, Headers: %s", logTag, method, requestUri, request.getHeaders());
-        if (LOGGER.isDebugEnabled()) {
+        if (LOGGER.isDebugEnabled() && ! HttpMethod.GET.equals(method) && ! HttpMethod.HEAD.equals(method)) {
             LOGGER.debug("[%s]Request body: %s", logTag, new String(body, StandardCharsets.UTF_8));
         }
 
