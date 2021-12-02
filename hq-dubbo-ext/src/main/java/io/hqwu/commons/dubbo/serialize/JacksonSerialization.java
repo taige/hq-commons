@@ -30,10 +30,15 @@ public class JacksonSerialization implements Serialization, ApplicationContextAw
 
     public static final String OBJECT_MAPPER_BEAN = "dubboObjectMapper";
 
+    private static ApplicationContext applicationContext;
+
     private ObjectMapper objectMapper;
 
     public JacksonSerialization() {
-        this.objectMapper = null;
+    }
+
+    public JacksonSerialization(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -48,38 +53,53 @@ public class JacksonSerialization implements Serialization, ApplicationContextAw
 
     @Override
     public ObjectOutput serialize(URL url, OutputStream output) throws IOException {
-        if (this.objectMapper == null) {
+        if (objectMapper == null) {
             initObjectMapper();
         }
-        return new JacksonObjectOutput(output, this.objectMapper);
+        return new JacksonObjectOutput(output, objectMapper);
     }
 
     @Override
     public ObjectInput deserialize(URL url, InputStream input) throws IOException {
-        if (this.objectMapper == null) {
+        if (objectMapper == null) {
             initObjectMapper();
         }
-        return new JacksonObjectInput(input, this.objectMapper);
+        return new JacksonObjectInput(input, objectMapper);
     }
 
     private synchronized void initObjectMapper() {
         if (objectMapper == null) {
             objectMapper = ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension().getExtension(ObjectMapper.class, OBJECT_MAPPER_BEAN);
             if (objectMapper == null) {
-                throw new NoSuchBeanDefinitionException(OBJECT_MAPPER_BEAN);
+                objectMapper = getObjectMapper();
+                if (objectMapper == null) {
+                    throw new NoSuchBeanDefinitionException(OBJECT_MAPPER_BEAN);
+                }
+            } else {
+                LOGGER.debug("get dubboObjectMapper from ExtensionLoader");
             }
         }
     }
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        JacksonSerialization.applicationContext = applicationContext;
+    }
+
+    private ObjectMapper getObjectMapper() {
+        if (applicationContext == null) {
+            return null;
+        }
+        ObjectMapper objectMapper;
         try {
-            this.objectMapper = applicationContext.getBean(OBJECT_MAPPER_BEAN, ObjectMapper.class);
+            objectMapper = applicationContext.getBean(OBJECT_MAPPER_BEAN, ObjectMapper.class);
+            LOGGER.debug("get dubboObjectMapper from ApplicationContext");
         } catch (BeansException e) {
             Map.Entry<String, ObjectMapper> entry = applicationContext.getBeansOfType(ObjectMapper.class).entrySet().stream().findAny()
                     .orElseThrow(() -> e);
-            this.objectMapper = entry.getValue();
+            objectMapper = entry.getValue();
             LOGGER.warn("get ObjectMapper bean %s failed: %s, failover to use %s", OBJECT_MAPPER_BEAN, e.toString(), entry.getKey());
         }
+        return objectMapper;
     }
 }

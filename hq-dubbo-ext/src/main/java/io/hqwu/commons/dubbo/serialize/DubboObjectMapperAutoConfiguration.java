@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.umpay.commons.util.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.jackson.JacksonAutoConfiguration;
@@ -29,9 +31,15 @@ public class DubboObjectMapperAutoConfiguration {
     private static final Logger LOGGER = new Logger();
 
     @Bean
-    public ObjectMapper dubboObjectMapper(
-            Jackson2ObjectMapperBuilder objectMapperBuilder,
-            JsonComponentModule jsonComponentModule) {
+    public static JacksonSerialization jacksonSerialization(
+            @Autowired(required = false) @Qualifier("dubboObjectMapper") ObjectMapper dubboObjectMapper) {
+        return new JacksonSerialization(dubboObjectMapper);
+    }
+
+    @Bean
+    public static ObjectMapper dubboObjectMapper(
+            Jackson2ObjectMapperBuilder objectMapperBuilder) {
+        JsonComponentModule jsonComponentModule = new JsonComponentModule();
         ObjectMapper objectMapper = objectMapperBuilder.build();
         // null不写入
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
