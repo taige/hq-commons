@@ -12,6 +12,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -73,6 +74,12 @@ public class JacksonSerialization implements Serialization, ApplicationContextAw
             if (objectMapper == null) {
                 objectMapper = getObjectMapper();
                 if (objectMapper == null) {
+                    Jackson2ObjectMapperBuilder builder = ExtensionLoader.getExtensionLoader(ExtensionFactory.class).getAdaptiveExtension().getExtension(Jackson2ObjectMapperBuilder.class, "jacksonObjectMapperBuilder");
+                    if (builder != null) {
+                        objectMapper = DubboObjectMapperAutoConfiguration.dubboObjectMapper(builder);
+                    } else {
+                        LOGGER.debug("get dubboObjectMapper buidler is NULL");
+                    }
                     throw new NoSuchBeanDefinitionException(OBJECT_MAPPER_BEAN);
                 }
             } else {
@@ -84,10 +91,12 @@ public class JacksonSerialization implements Serialization, ApplicationContextAw
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         JacksonSerialization.applicationContext = applicationContext;
+        LOGGER.debug("setApplicationContext()");
     }
 
     private ObjectMapper getObjectMapper() {
         if (applicationContext == null) {
+            LOGGER.debug("applicationContext is NULL when getObjectMapper ...");
             return null;
         }
         ObjectMapper objectMapper;
