@@ -4,7 +4,7 @@
 
   <groupId>io.hqwu.commons</groupId>
   <artifactId>hq-commons-parent</artifactId>
-  <version>1.3.0-SNAPSHOT</version>
+  <version>1.3.0</version>
   <packaging>pom</packaging>
 
   <properties>
@@ -38,22 +38,29 @@
 
   <repositories>
     <repository>
-      <id>flash-nexus</id>
-      <name>Flash Nexus Repository</name>
-      <url>https://nexus.flash.ca/nexus/content/groups/public/</url>
+      <id>fof-at-ali-releases</id>
+      <url>https://packages.aliyun.com/maven/repository/2411880-release-NjQP8z/</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+    <repository>
+      <id>fof-at-ali-snapshots</id>
+      <url>https://packages.aliyun.com/maven/repository/2411880-snapshot-ekVOHn/</url>
+      <releases><enabled>false</enabled></releases>
+      <snapshots><enabled>true</enabled></snapshots>
     </repository>
   </repositories>
 
   <distributionManagement>
     <repository>
-      <id>flash-releases</id>
+      <id>fof-at-ali-releases</id>
       <name>Nexus-releases-repositories</name>
-      <url>https://nexus.flash.ca/nexus/content/repositories/releases/</url>
+      <url>https://packages.aliyun.com/maven/repository/2411880-release-NjQP8z/</url>
     </repository>
     <snapshotRepository>
-      <id>flash-nexus</id>
+      <id>fof-at-ali-snapshots</id>
       <name>Nexus-snapshots-repositories</name>
-      <url>https://nexus.flash.ca/nexus/content/repositories/snapshots/</url>
+      <url>https://packages.aliyun.com/maven/repository/2411880-snapshot-ekVOHn/</url>
     </snapshotRepository>
   </distributionManagement>
 
