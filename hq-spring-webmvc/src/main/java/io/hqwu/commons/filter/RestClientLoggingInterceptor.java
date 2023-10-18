@@ -35,6 +35,12 @@ public class RestClientLoggingInterceptor implements ClientHttpRequestIntercepto
     private final URI baseUri;
 
 
+    public RestClientLoggingInterceptor(String loggerName) {
+        this.logTag = ClassUtil.getShortClassName(loggerName);
+        this.LOGGER = LoggerFactory.getLogger(loggerName);
+        this.baseUri = null;
+    }
+
     public RestClientLoggingInterceptor(String loggerName, URI baseUri) {
         this.logTag = ClassUtil.getShortClassName(loggerName);
         this.LOGGER = LoggerFactory.getLogger(loggerName);
@@ -47,7 +53,7 @@ public class RestClientLoggingInterceptor implements ClientHttpRequestIntercepto
             byte[] body,
             ClientHttpRequestExecution execution) throws IOException {
 
-        URI requestUri = baseUri.relativize(request.getURI());
+        URI requestUri = baseUri == null ? request.getURI() : baseUri.relativize(request.getURI());
         HttpMethod method = request.getMethod();
         
         LOGGER.info("[%s]%sing : /%s, Headers: %s", logTag, method, requestUri, request.getHeaders());
