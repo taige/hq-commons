@@ -53,10 +53,10 @@ public class RestClientLoggingInterceptor implements ClientHttpRequestIntercepto
             byte[] body,
             ClientHttpRequestExecution execution) throws IOException {
 
-        URI requestUri = baseUri == null ? request.getURI() : baseUri.relativize(request.getURI());
+        String requestUri = baseUri == null ? request.getURI().toString() : "/" + baseUri.relativize(request.getURI());
         HttpMethod method = request.getMethod();
         
-        LOGGER.info("[%s]%sing : /%s, Headers: %s", logTag, method, requestUri, request.getHeaders());
+        LOGGER.info("[%s]%sing : %s, Headers: %s", logTag, method, requestUri, request.getHeaders());
         if (LOGGER.isDebugEnabled() && ! HttpMethod.GET.equals(method) && ! HttpMethod.HEAD.equals(method)) {
             LOGGER.debug("[%s]Request body: %s", logTag, new String(body, StandardCharsets.UTF_8));
         }
@@ -64,7 +64,7 @@ public class RestClientLoggingInterceptor implements ClientHttpRequestIntercepto
         long startMS = System.currentTimeMillis();
         ClientHttpResponse response = execution.execute(request, body);
         HttpHeaders headers = response.getHeaders();
-        LOGGER.info("[%s]%sed : /%s, Status: %s, Headers: %s, time: %sms", logTag,
+        LOGGER.info("[%s]%sed : %s, Status: %s, Headers: %s, time: %sms", logTag,
                 method, requestUri, response.getStatusCode(), headers, Formatter.formatNS(System.currentTimeMillis() - startMS));
 
         if (LOGGER.isDebugEnabled()) {
