@@ -22,8 +22,8 @@
   </properties>
 
   <scm>
-    <developerConnection>scm:git:https://bitbucket.org/alphapayit/common-utils.git</developerConnection>
-    <url>https://bitbucket.org/alphapayit/common-utils</url>
+    <developerConnection>scm:git:https://codeup.aliyun.com/64ecc463dba61e96ebf63803/io.hqwu/hq-commons.git</developerConnection>
+    <url>https://codeup.aliyun.com/64ecc463dba61e96ebf63803/io.hqwu/hq-commons</url>
     <tag>HEAD</tag>
   </scm>
 
