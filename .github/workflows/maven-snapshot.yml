@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - develop
+      - release-to-github
   pull_request:
     branches:
       - develop
@@ -15,6 +16,9 @@ on:
         description: 'Branch to deploy'
         required: true
         default: 'develop'
+        options:
+          - develop
+          - release-to-github
 
 jobs:
   deploy-snapshot:
