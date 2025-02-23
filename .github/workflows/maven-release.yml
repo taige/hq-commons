@@ -49,6 +49,8 @@ jobs:
         run: |
           echo "GITHUB_ACTOR: $GITHUB_ACTOR"
           echo "GITHUB_TOKEN: $GITHUB_TOKEN"
+          git config --global user.name "taige@Github Actions"
+          git config --global user.email "hongqiang.wu@gmail.com"
           mvn -B -DskipTests release:clean release:prepare release:perform -Dusername=$GITHUB_ACTOR -Dpassword=$GITHUB_TOKEN -DscmCommentPrefix="[skip ci][maven release plugin]"
         env:
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
