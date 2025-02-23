@@ -24,7 +24,7 @@
   </properties>
 
   <scm>
-    <developerConnection>scm:git:git@github.com:taige/hq-commons.git</developerConnection>
+    <developerConnection>scm:git:https://github.com/taige/hq-commons.git</developerConnection>
     <url>https://github.com/taige/hq-commons</url>
     <tag>HEAD</tag>
   </scm>
