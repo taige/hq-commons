@@ -1,4 +1,4 @@
-name: Deploy Maven Snapshot
+name: Deploy Snapshot to Github Packages
 
 # 触发条件：在 develop 分支有推送时自动触发，支持手动触发
 on:
@@ -46,9 +46,20 @@ jobs:
           server-id: github   # 与pom.xml中的id对应
           cache: 'maven'      # 自动缓存 Maven 依赖
 
+      # 新增的调试步骤位置 ▼
+      - name: 打印 Maven 配置
+        run: |
+          echo "Maven 全局配置："
+          cat $HOME/.m2/settings.xml
+          echo "--------------------------------"
+          echo "MAVEN_HOME 配置：$MAVEN_HOME"
+
       # 3. 部署 SNAPSHOT 版本到GitHub Packages
       - name: Deploy SNAPSHOT Artifact
         run: |
-          mvn -DskipTests -B clean deploy
+          echo "GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}"
+          echo "secrets.GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
+          echo "GITHUB_TOKEN: $GITHUB_TOKEN"
+          mvn -B clean deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
