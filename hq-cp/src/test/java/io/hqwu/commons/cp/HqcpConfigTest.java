@@ -267,9 +267,9 @@ public class HqcpConfigTest {
 
     @Test
     public void testRegex(){
-        System.out.println("abc$%#weq*+{}:><?>;';".matches(PATTERN_COMMONS_CHARS));
-        System.out.println(" ".matches(PATTERN_COMMONS_CHARS));
-        System.out.println(new String(new byte[3]).matches(PATTERN_COMMONS_CHARS));
+        assertTrue("abc$%#weq*+{}:><?>;';".matches(PATTERN_COMMONS_CHARS));
+        assertTrue(" ".matches(PATTERN_COMMONS_CHARS));
+        assertFalse(new String(new byte[3]).matches(PATTERN_COMMONS_CHARS));
 
 //        String ss = "abc$%#weq*123(&<>>?()*&^%$#@!\r\n";
 //        ss = "a1(&<>>?()*&^%$#@!\r\n" + new String(new byte[1]);
@@ -350,7 +350,7 @@ public class HqcpConfigTest {
         assertEquals(config.isPrintSql(), true);
         assertEquals(config.isCommitOnClose(), false);
         assertEquals(config.isTransactionMode(), false);
-        assertEquals(0, config.getMinConnections());
+        assertEquals(1, config.getMinConnections());
         assertEquals(10, config.getMaxConnections());
         assertEquals(300, config.getIdleTimeoutSec());
         assertEquals(300000, config.getIdleTimeoutMillisec());
@@ -368,7 +368,7 @@ public class HqcpConfigTest {
         assertEquals(config.isPrintSql(), true);
         assertEquals(config.isCommitOnClose(), false);
         assertEquals(config.isTransactionMode(), false);
-        assertEquals(0, config.getMinConnections());
+        assertEquals(1, config.getMinConnections());
         assertEquals(10, config.getMaxConnections());
         assertEquals(300, config.getIdleTimeoutSec());
         assertEquals(300000, config.getIdleTimeoutMillisec());

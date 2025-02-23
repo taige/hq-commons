@@ -2,6 +2,8 @@ package com.umpay.commons.util;
 
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.text.DecimalFormatSymbols;
 import java.util.HashSet;
@@ -9,7 +11,7 @@ import java.util.Locale;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Created with IntelliJ IDEA for hello-app
@@ -18,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * Time: 下午2:59
  */
 public class AmountUtilLocaleTest {
+    private static final Logger LOGGER = new Logger();
 
     @Test
     public void test_cent2Dollar() throws Exception {
@@ -25,12 +28,12 @@ public class AmountUtilLocaleTest {
         Set<Character> set2 = new HashSet<Character>();
         for (Locale locale: Locale.getAvailableLocales()) {
             DecimalFormatSymbols dfs = DecimalFormatSymbols.getInstance(locale);
-            System.out.printf("%2s-%2s: '%s' '%s'\n", locale.getLanguage(), locale.getCountry(), dfs.getGroupingSeparator(), dfs.getDecimalSeparator());
+            LOGGER.debug("%2s-%2s: '%s' '%s'", locale.getLanguage(), locale.getCountry(), dfs.getGroupingSeparator(), dfs.getDecimalSeparator());
             set1.add(dfs.getGroupingSeparator());
             set2.add(dfs.getDecimalSeparator());
         }
-        System.out.println(set1);
-        System.out.println(set2);
+        LOGGER.debug(set1);
+        LOGGER.debug(set2);
         test_cent2Dollar(AmountUtilLocale.getInstance());
         test_cent2Dollar(AmountUtilLocale.getInstance("us"));
         test_cent2Dollar(AmountUtilLocale.getInstance("zh"));
@@ -91,12 +94,9 @@ public class AmountUtilLocaleTest {
         assertEquals("0.00000001", moneyUtil.cent2Dollar(1, 8));
         assertEquals("0.000000001", moneyUtil.cent2Dollar(1, 9));
 
-        try {
-            moneyUtil.cent2Dollar(1, 10);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
+        assertThrows(IllegalArgumentException.class, () ->
+                moneyUtil.cent2Dollar(1, 10)
+        );
 
     }
 
@@ -156,12 +156,9 @@ public class AmountUtilLocaleTest {
         assertEquals("0,00000001", moneyUtil.cent2Dollar(1, 8));
         assertEquals("0,000000001", moneyUtil.cent2Dollar(1, 9));
 
-        try {
-            moneyUtil.cent2Dollar(1, 10);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
+        assertThrows(IllegalArgumentException.class, () ->
+                moneyUtil.cent2Dollar(1, 10)
+        );
 
     }
 
@@ -235,12 +232,9 @@ public class AmountUtilLocaleTest {
         assertEquals("0.00000001", moneyUtil.cent2Dollar(1, 8));
         assertEquals("0.000000001", moneyUtil.cent2Dollar(1, 9));
 
-        try {
-            moneyUtil.cent2Dollar(1, 10);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
+        assertThrows(IllegalArgumentException.class, () ->
+                moneyUtil.cent2Dollar(1, 10)
+        );
     }
 
     @Test
@@ -283,38 +277,26 @@ public class AmountUtilLocaleTest {
 
         assertEquals(123456780, moneyUtil.dollar2Cent("+1,234,567.8", 2));
 
-        try {
-            moneyUtil.dollar2Cent("12345.67.8", 2);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("123s4567.8", 2);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1234567.8", 10);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1+234567.8");
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1-234567.8");
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-
     }
+
+    @ParameterizedTest
+    @CsvSource(value = {"12345.67.8,2",
+            "123s4567.8,2",
+            "1234567.8,10",
+            "1+234567.8,",
+            "1-234567.8,"})
+    public void test_dollar2Cent_error(String amt, Integer precision) throws Exception {
+        AmountUtilLocale moneyUtil = AmountUtilLocale.getInstance();
+        assertThrows(IllegalArgumentException.class, () -> {
+                    if (precision == null) {
+                        moneyUtil.dollar2Cent(amt);
+                    } else {
+                        moneyUtil.dollar2Cent(amt, precision);
+                    }
+                }
+        );
+    }
+
     private void test_dollar2Cent_de(AmountUtilLocale moneyUtil) throws Exception {
         assertEquals(1234567, moneyUtil.dollar2Cent("1.234.567,8", -1));
         assertEquals(1234567, moneyUtil.dollar2Cent("1234567,8", 0));
@@ -347,38 +329,26 @@ public class AmountUtilLocaleTest {
 
         assertEquals(123456780, moneyUtil.dollar2Cent("+1.234.567,8", 2));
 
-        try {
-            moneyUtil.dollar2Cent("12345,67,8", 2);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("123s4567,8", 2);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1234567,8", 10);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1+234567,8");
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1-234567,8");
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-
     }
+
+    @ParameterizedTest
+    @CsvSource(value = {"12345,67,8#2",
+            "123s4567,8#2",
+            "1234567,8#10",
+            "1+234567,8#",
+            "1-234567,8#"}, delimiter = '#')
+    public void test_dollar2Cent_de_error(String amt, Integer precision) throws Exception {
+        AmountUtilLocale moneyUtil = AmountUtilLocale.getInstance("de");
+        assertThrows(IllegalArgumentException.class, () -> {
+                    if (precision == null) {
+                        moneyUtil.dollar2Cent(amt);
+                    } else {
+                        moneyUtil.dollar2Cent(amt, precision);
+                    }
+                }
+        );
+    }
+
     private void test_dollar2Cent_fr(AmountUtilLocale moneyUtil) throws Exception {
         assertEquals(1234567, moneyUtil.dollar2Cent("1 234 567,8", -1));
         assertEquals(1234567, moneyUtil.dollar2Cent("1234567,8", 0));
@@ -410,39 +380,27 @@ public class AmountUtilLocaleTest {
         assertEquals(123456780, moneyUtil.dollar2Cent("1 234 567,8", 2));
 
         assertEquals(123456780, moneyUtil.dollar2Cent("+1 234 567,8", 2));
+    }
 
-        try {
-            moneyUtil.dollar2Cent("12345,67,8", 2);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("123s4567,8", 2);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1234567,8", 10);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1+234567,8");
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1-234567,8");
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
+    @ParameterizedTest
+    @CsvSource(value = {"12345,67,8#2",
+            "123s4567,8#2",
+            "1234567,8#10",
+            "1+234567,8#",
+            "1-234567,8#"}, delimiter = '#')
+    public void test_dollar2Cent_fr_error(String amt, Integer precision) throws Exception {
+        AmountUtilLocale moneyUtil = AmountUtilLocale.getInstance("fr");
+        assertThrows(IllegalArgumentException.class, () -> {
+                    if (precision == null) {
+                        moneyUtil.dollar2Cent(amt);
+                    } else {
+                        moneyUtil.dollar2Cent(amt, precision);
+                    }
+                }
+        );
 
     }
+
     private void test_dollar2Cent_ch(AmountUtilLocale moneyUtil) throws Exception {
         assertEquals(1234567, moneyUtil.dollar2Cent("1'234'567.8", -1));
         assertEquals(1234567, moneyUtil.dollar2Cent("1234567.8", 0));
@@ -474,37 +432,20 @@ public class AmountUtilLocaleTest {
         assertEquals(123456780, moneyUtil.dollar2Cent("1'234'567.8", 2));
 
         assertEquals(123456780, moneyUtil.dollar2Cent("+1'234'567.8", 2));
+    }
 
-        try {
-            moneyUtil.dollar2Cent("12345.67.8", 2);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("123s4567.8", 2);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1234567.8", 10);
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1+234567.8");
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
-        try {
-            moneyUtil.dollar2Cent("1-234567.8");
-            assertNotNull(null);
-        } catch (RuntimeException e) {
-            e.printStackTrace(System.out);
-        }
+    @ParameterizedTest
+    @CsvSource(value = {"12345.67.8,2", "123s4567.8,2", "1234567.8,10", "1+234567.8,", "1-234567.8,"})
+    public void test_dollar2Cent_ch_error(String amt, Integer precision) throws Exception {
+        AmountUtilLocale moneyUtil = AmountUtilLocale.getInstance("fr", "CH");
+        assertThrows(IllegalArgumentException.class, () -> {
+                    if (precision == null) {
+                        moneyUtil.dollar2Cent(amt);
+                    } else {
+                        moneyUtil.dollar2Cent(amt, precision);
+                    }
+                }
+        );
 
     }
 }

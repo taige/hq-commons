@@ -327,6 +327,7 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
             return;
         }
         this.password = password;
+        this.decPassword = null;
     }
 
     public int getMinConnections() {

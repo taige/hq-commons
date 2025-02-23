@@ -1,0 +1,59 @@
+# This workflow will build a package using Maven and then publish it to GitHub packages when a release is created
+# For more information see: https://github.com/actions/setup-java/blob/main/docs/advanced-usage.md#apache-maven-with-a-settings-path
+
+name: Release to GitHub Packages
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+    types: [merged]  # 只在拉取请求被合并时触发
+  workflow_dispatch: # 允许手动触发
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'master'
+
+jobs:
+  deploy-release:
+
+    runs-on: ubuntu-latest
+
+    # 为工作流程中的每个作业设置权限
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}   # 使用指定的分支
+
+      # 2. 设置 Java 8 环境并启用 Maven 缓存
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          server-id: github   # 与pom.xml中的id对应
+          cache: 'maven'      # 自动缓存 Maven 依赖
+
+      # 3. 部署 RELEASE 版本到GitHub Packages
+      - name: Deploy RELEASE Artifact
+        run: |
+          echo "GITHUB_ACTOR: $GITHUB_ACTOR"
+          echo "GITHUB_TOKEN: $GITHUB_TOKEN"
+          mvn -B -DskipTests release:clean release:prepare release:perform -Dusername=$GITHUB_ACTOR -Dpassword=$GITHUB_TOKEN -DscmCommentPrefix="[skip ci][maven release plugin]"
+        env:
+          GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Successfully Released
+        run: |
+          echo "Successfully Released"
