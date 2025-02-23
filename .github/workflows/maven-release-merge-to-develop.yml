@@ -1,0 +1,40 @@
+
+name: Merge to Develop on Release Success
+
+on:
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  merge-to-develop:
+    runs-on: ubuntu-latest
+
+    # 为工作流程中的每个作业设置权限
+    permissions:
+      contents: write
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 确保获取所有分支和历史记录
+
+      # 2. 配置 Git 用户信息
+      - name: Configure Git
+        run: |
+          git config --global user.name "taige@Github Actions"
+          git config --global user.email "hongqiang.wu@gmail.com"
+
+      # 3. 拉取 develop 分支并合并 master
+      - name: Merge master into develop
+        run: |
+          echo "Merging master into develop..."
+          git fetch origin develop
+          git checkout develop
+          git merge --ff origin/master
+          git push "https://${GITHUB_ACTOR}:${GITHUB_TOKEN}@github.com/taige/hq-commons.git" develop
+        env:
+          GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
