@@ -1,30 +1,32 @@
-name: Deploy Snapshot to Github Packages
+# This workflow will build a package using Maven and then publish it to GitHub packages when a release is created
+# For more information see: https://github.com/actions/setup-java/blob/main/docs/advanced-usage.md#apache-maven-with-a-settings-path
 
-# 触发条件：在 develop 分支有推送时自动触发，支持手动触发
+name: Release to GitHub Packages
+
 on:
   push:
     branches:
-      - develop
+      - master
   pull_request:
     branches:
-      - develop
+      - master
     types: [merged]  # 只在拉取请求被合并时触发
   workflow_dispatch: # 允许手动触发
     inputs:
       branch:
         description: 'Branch to deploy'
         required: true
-        default: 'develop'
+        default: 'master'
 
 jobs:
-  deploy-snapshot:
+  deploy-release:
 
     runs-on: ubuntu-latest
 
     # 为工作流程中的每个作业设置权限
     permissions:
-      contents: read    # 读取仓库内容
-      packages: write   # 写入GitHub Packages
+      contents: write
+      packages: write
 
     steps:
       # 1. 检出代码
@@ -42,10 +44,16 @@ jobs:
           server-id: github   # 与pom.xml中的id对应
           cache: 'maven'      # 自动缓存 Maven 依赖
 
-      # 3. 部署 SNAPSHOT 版本到GitHub Packages
-      - name: Deploy SNAPSHOT Artifact
+      # 3. 部署 RELEASE 版本到GitHub Packages
+      - name: Deploy RELEASE Artifact
         run: |
-          mvn -B clean deploy
+          echo "GITHUB_ACTOR: $GITHUB_ACTOR"
+          echo "GITHUB_TOKEN: $GITHUB_TOKEN"
+          mvn -B -DskipTests release:clean release:prepare release:perform -Dusername=$GITHUB_ACTOR -Dpassword=$GITHUB_TOKEN -DscmCommentPrefix="[skip ci][maven release plugin]"
         env:
           GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Successfully Released
+        run: |
+          echo "Successfully Released"
