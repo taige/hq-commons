@@ -57,9 +57,15 @@ jobs:
       # 3. 部署 SNAPSHOT 版本到GitHub Packages
       - name: Deploy SNAPSHOT Artifact
         run: |
-          echo "GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}"
-          echo "secrets.GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
+          echo "GITHUB_ACTOR: $GITHUB_ACTOR"
+          echo "secrets.GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}"
           echo "GITHUB_TOKEN: $GITHUB_TOKEN"
+          echo "secrets.GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}"
           mvn -B clean deploy
         env:
+          GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: after deploy
+        run: |
+          echo "deploy successful"

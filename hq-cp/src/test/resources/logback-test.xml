@@ -6,7 +6,7 @@
       <pattern>${CONSOLE_LOG_FMT}</pattern>
     </encoder>
   </appender>
-  <root level="trace">
+  <root level="warn">
     <appender-ref ref="STDOUT"/>
   </root>
 </configuration>
