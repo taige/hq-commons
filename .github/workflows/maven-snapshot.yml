@@ -1,0 +1,51 @@
+name: Deploy Snapshot to Github Packages
+
+# 触发条件：在 develop 分支有推送时自动触发，支持手动触发
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - develop
+    types: [merged]  # 只在拉取请求被合并时触发
+  workflow_dispatch: # 允许手动触发
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'develop'
+
+jobs:
+  deploy-snapshot:
+
+    runs-on: ubuntu-latest
+
+    # 为工作流程中的每个作业设置权限
+    permissions:
+      contents: read    # 读取仓库内容
+      packages: write   # 写入GitHub Packages
+
+    steps:
+      # 1. 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}   # 使用指定的分支
+
+      # 2. 设置 Java 8 环境并启用 Maven 缓存
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          server-id: github   # 与pom.xml中的id对应
+          cache: 'maven'      # 自动缓存 Maven 依赖
+
+      # 3. 部署 SNAPSHOT 版本到GitHub Packages
+      - name: Deploy SNAPSHOT Artifact
+        run: |
+          mvn -B clean deploy
+        env:
+          GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

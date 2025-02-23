@@ -1,5 +1,6 @@
 package com.umpay.commons;
 
+import com.umpay.commons.util.Logger;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 import org.junit.jupiter.api.BeforeAll;
@@ -20,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * Time: 上午10:54
  */
 public class SecurityServiceTest {
+    private static final Logger LOGGER = new Logger();
 
     private static SecurityServiceLocalImpl securityService;
     private String aesKey;
@@ -46,22 +48,22 @@ public class SecurityServiceTest {
     @Test
     public void test_genKey() throws Exception {
         String key = securityService.generateKey("AES", 0);
-        System.out.println(Hex.encodeHexString(Base64.decodeBase64(key)));
+        LOGGER.info(Hex.encodeHexString(Base64.decodeBase64(key)));
 
         String key128 = securityService.generateKey("AES", 128);
-        System.out.println(Hex.encodeHexString(Base64.decodeBase64(key128)));
+        LOGGER.info(Hex.encodeHexString(Base64.decodeBase64(key128)));
 
         String key256 = securityService.generateKey("AES", 256);
-        System.out.println(Hex.encodeHexString(Base64.decodeBase64(key256)));
+        LOGGER.info(Hex.encodeHexString(Base64.decodeBase64(key256)));
 
         String keyMd5 = securityService.generateKey("HmacMD5", 0);
-        System.out.println(Hex.encodeHexString(Base64.decodeBase64(keyMd5)));
+        LOGGER.info(Hex.encodeHexString(Base64.decodeBase64(keyMd5)));
 
         String keySha1 = securityService.generateKey("HmacSHA1", 0);
-        System.out.println(Hex.encodeHexString(Base64.decodeBase64(keySha1)));
+        LOGGER.info(Hex.encodeHexString(Base64.decodeBase64(keySha1)));
 
         String keySha256 = securityService.generateKey("HmacSHA256", 0);
-        System.out.println(Hex.encodeHexString(Base64.decodeBase64(keySha256)));
+        LOGGER.info(Hex.encodeHexString(Base64.decodeBase64(keySha256)));
     }
 
     @Test
@@ -71,13 +73,13 @@ public class SecurityServiceTest {
             String plain = "hello world";
             for (int i = 0; i < 3; i++) {
                 String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "ECB");
-                System.out.println(enc);
+                LOGGER.info(enc);
                 byte[] dec = securityService.decryptByAES(enc, aesKey, "ECB");
                 assertArrayEquals(plain.getBytes(), dec);
             }
             for (int i = 0; i < 3; i++) {
                 String enc = securityService.encryptByAES(plain.getBytes(), aesKey, "CBC");
-                System.out.println(enc);
+                LOGGER.info(enc);
                 byte[] dec = securityService.decryptByAES(enc, aesKey, "CBC");
                 assertArrayEquals(plain.getBytes(), dec);
             }
@@ -112,8 +114,8 @@ public class SecurityServiceTest {
     @Test
     public void test_genKeyPairAndEncrypt() throws Exception {
         SecurityService.B64KeyPair keyPair = securityService.generateKeyPair("RSA", 2048);
-        System.out.println(keyPair.getPublicKey());
-        System.out.println(keyPair.getPrivateKey());
+        LOGGER.info(keyPair.getPublicKey());
+        LOGGER.info(keyPair.getPrivateKey());
         String plain = "hello world";
         String enc = securityService.encryptByPublicKey(plain.getBytes(), keyPair.getPublicKey());
         byte[] dec = securityService.decryptByPrivateKey(enc, keyPair.getPrivateKey());
@@ -148,7 +150,7 @@ public class SecurityServiceTest {
 
         String hmac0 = Base64.encodeBase64String(result0);
 
-        System.out.println(hmac0);
+        LOGGER.info(hmac0);
 
         assertEquals(expect, Hex.encodeHexString(result0));
 

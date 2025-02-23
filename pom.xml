@@ -19,11 +19,13 @@
     <mybatis.version>3.5.6</mybatis.version>
     <mybatis-boot.version>2.1.4</mybatis-boot.version>
     <dubbo.version>2.7.12</dubbo.version>
+
+    <test.logger.level>WARN</test.logger.level>
   </properties>
 
   <scm>
-    <developerConnection>scm:git:https://bitbucket.org/alphapayit/common-utils.git</developerConnection>
-    <url>https://bitbucket.org/alphapayit/common-utils</url>
+    <developerConnection>scm:git:git@github.com:taige/hq-commons.git</developerConnection>
+    <url>https://github.com/taige/hq-commons</url>
     <tag>HEAD</tag>
   </scm>
 
@@ -36,31 +38,16 @@
     <module>hq-dubbo-ext</module>
   </modules>
 
-  <repositories>
-    <repository>
-      <id>hqwu-at-ali-releases</id>
-      <url>https://packages.aliyun.com/maven/repository/2411880-release-NjQP8z/</url>
-      <releases><enabled>true</enabled></releases>
-      <snapshots><enabled>false</enabled></snapshots>
-    </repository>
-    <repository>
-      <id>hqwu-at-ali-snapshots</id>
-      <url>https://packages.aliyun.com/maven/repository/2411880-snapshot-ekVOHn/</url>
-      <releases><enabled>false</enabled></releases>
-      <snapshots><enabled>true</enabled></snapshots>
-    </repository>
-  </repositories>
-
   <distributionManagement>
     <repository>
-      <id>hqwu-at-ali-releases</id>
-      <name>Nexus-releases-repositories</name>
-      <url>https://packages.aliyun.com/maven/repository/2411880-release-NjQP8z/</url>
+      <id>github</id>
+      <name>Github Packages</name>
+      <url>https://maven.pkg.github.com/taige/hq-commons</url>
     </repository>
     <snapshotRepository>
-      <id>hqwu-at-ali-snapshots</id>
-      <name>Nexus-snapshots-repositories</name>
-      <url>https://packages.aliyun.com/maven/repository/2411880-snapshot-ekVOHn/</url>
+      <id>github</id>
+      <name>Github Packages</name>
+      <url>https://maven.pkg.github.com/taige/hq-commons</url>
     </snapshotRepository>
   </distributionManagement>
 

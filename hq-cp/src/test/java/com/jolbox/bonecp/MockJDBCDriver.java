@@ -36,18 +36,35 @@ public class MockJDBCDriver  implements Driver {
 	/** called to return. */
 	private volatile MockJDBCAnswer mockJDBCAnswer;
 
+	private static final MockJDBCDriver INSTANCE;
+
+	static {
+		try {
+			INSTANCE = new MockJDBCDriver();
+			DriverManager.registerDriver(INSTANCE);
+		} catch (SQLException e) {
+			throw new RuntimeException("register MockJDBCDriver failed", e);
+		}
+	}
+
+	public static MockJDBCDriver getInstance() {
+		return INSTANCE;
+	}
+
 	/**
 	 * Default constructor
 	 * @throws SQLException
 	 */
-	public MockJDBCDriver() throws SQLException {
+	private MockJDBCDriver() throws SQLException {
 		// default constructor
-		DriverManager.registerDriver(this);
+//		DriverManager.registerDriver(this);
+//		System.err.println("MockJDBCDriver registered -1");
 	}
 
-	public MockJDBCDriver(String url) throws SQLException {
+	private MockJDBCDriver(String url) throws SQLException {
 		acceptURL = url;
 		DriverManager.registerDriver(this);
+		System.err.println("MockJDBCDriver registered -2");
 	}
 
 	/** Stop intercepting requests.
@@ -63,23 +80,25 @@ public class MockJDBCDriver  implements Driver {
 	 * @param mockJDBCAnswer answer class
 	 * @throws SQLException
 	 */
-	public MockJDBCDriver(MockJDBCAnswer mockJDBCAnswer) throws SQLException {
+	private MockJDBCDriver(MockJDBCAnswer mockJDBCAnswer) throws SQLException {
 		this();
 		this.mockJDBCAnswer = mockJDBCAnswer;
+		System.err.println("MockJDBCDriver registered -3");
 	}
 	
 	/** Return the connection when requested.
 	 * @param connection
 	 * @throws SQLException
 	 */
-	public MockJDBCDriver(Connection connection) throws SQLException {
+	private MockJDBCDriver(Connection connection) throws SQLException {
 		this();
 		this.connection = connection;
+		System.err.println("MockJDBCDriver registered");
 	}
 	/** {@inheritDoc}
 	 * @see java.sql.Driver#acceptsURL(java.lang.String)
 	 */
-//	@Override
+	@Override
 	public synchronized boolean acceptsURL(String url) throws SQLException {
 //        return true;
 		return url.startsWith(acceptURL); // accept anything
@@ -88,7 +107,7 @@ public class MockJDBCDriver  implements Driver {
 	/** {@inheritDoc}
 	 * @see java.sql.Driver#connect(java.lang.String, java.util.Properties)
 	 */
-	// @Override
+	 @Override
 	public synchronized Connection connect(String url, Properties info) throws SQLException {
 		if (url.startsWith("invalid") || url.equals("")){
 			throw new SQLException("Mock Driver rejecting invalid URL");
@@ -109,7 +128,7 @@ public class MockJDBCDriver  implements Driver {
 	/** {@inheritDoc}
 	 * @see java.sql.Driver#getMajorVersion()
 	 */
-	// @Override
+	 @Override
 	public int getMajorVersion() {
 		return 1;
 	}
@@ -117,7 +136,7 @@ public class MockJDBCDriver  implements Driver {
 	/** {@inheritDoc}
 	 * @see java.sql.Driver#getMinorVersion()
 	 */
-	// @Override
+	 @Override
 	public int getMinorVersion() {
 		return 0;
 	}
@@ -125,7 +144,7 @@ public class MockJDBCDriver  implements Driver {
 	/** {@inheritDoc}
 	 * @see java.sql.Driver#getPropertyInfo(java.lang.String, java.util.Properties)
 	 */
-	// @Override
+	 @Override
 	public synchronized DriverPropertyInfo[] getPropertyInfo(String url, Properties info)
 			throws SQLException {
 		return new DriverPropertyInfo[0];
@@ -134,7 +153,7 @@ public class MockJDBCDriver  implements Driver {
 	/** {@inheritDoc}
 	 * @see java.sql.Driver#jdbcCompliant()
 	 */
-	// @Override
+	 @Override
 	public boolean jdbcCompliant() {
 		return true;
 	}
@@ -152,7 +171,9 @@ public class MockJDBCDriver  implements Driver {
 	public synchronized void disable() throws SQLException {
 		this.connection = null;
 		this.mockJDBCAnswer = null;
-		DriverManager.deregisterDriver(this);
+		this.acceptURL = MockConstant.MOCK_URL;
+//		DriverManager.deregisterDriver(this);
+//		System.err.println(">>>MockJDBCDriver deregisterDriver<<<");
 	}
 
 	/**
@@ -165,8 +186,9 @@ public class MockJDBCDriver  implements Driver {
 	/**
 	 * @param connection the connection to set
 	 */
-	public synchronized  void setConnection(Connection connection) {
+	public synchronized  MockJDBCDriver setConnection(Connection connection) {
 		this.connection = connection;
+		return this;
 	}
 
 	/** Return the jdbc answer class
@@ -179,7 +201,14 @@ public class MockJDBCDriver  implements Driver {
 	/** Sets the jdbc mock answer.
 	 * @param mockJDBCAnswer the mockJDBCAnswer to set
 	 */
-	public synchronized void setMockJDBCAnswer(MockJDBCAnswer mockJDBCAnswer) {
+	public synchronized MockJDBCDriver setMockJDBCAnswer(MockJDBCAnswer mockJDBCAnswer) {
 		this.mockJDBCAnswer = mockJDBCAnswer;
+		return this;
 	}
+
+	public MockJDBCDriver setAcceptUrl(String url) {
+		this.acceptURL = url;
+		return this;
+	}
+
 }
