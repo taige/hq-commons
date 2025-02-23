@@ -136,7 +136,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).once();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         Connection conn = connPool.getConnection();
@@ -164,7 +164,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).once();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         Connection conn = connPool.getConnection();
@@ -209,7 +209,7 @@ public class HqcpTest {
             }
         };
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         try {
@@ -230,7 +230,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).andReturn(mockConnection2).times(4);
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         Connection[] conns = new Connection[5]; //max connections is 5
@@ -262,7 +262,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         config.isPrintSql();
@@ -295,7 +295,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         config.isPrintSql();
@@ -317,7 +317,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         Connection conn = connPool.getConnection();
@@ -373,7 +373,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         connPool.getConnection().close();
@@ -440,7 +440,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         config.isPrintSql();
@@ -488,7 +488,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         connPool.getConnection().close();
@@ -556,7 +556,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         connPool.getConnection().close();
@@ -580,7 +580,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         connPool.getConnection().close();
@@ -621,7 +621,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).andReturn(mockConnection2).times(4);
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         final Connection conn = connPool.getConnection();
@@ -667,7 +667,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).once().andReturn(mockConnection2).once();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
         connPool = new Hqcp(config);
 
         //create 2 connections
@@ -694,7 +694,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).once();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         Connection conn = connPool.getConnection();
@@ -713,7 +713,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).once();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         Connection conn = connPool.getConnection(true);
@@ -731,7 +731,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).once().andReturn(mockConnection2).once();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
         connPool = new Hqcp(config);
 
         Connection conn1 = connPool.getConnection();
@@ -753,7 +753,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).times(2);
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         Connection conn = connPool.getConnection();
@@ -779,7 +779,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).once().andReturn(mockConnection2).once();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         assertEquals(1, connPool.getActiveConnectionsCount());
@@ -807,7 +807,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).once();
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         connPool.getConnection().close();
@@ -819,7 +819,7 @@ public class HqcpTest {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
         expect(answer.answer()).andReturn(mockConnection).times(2);
         mocksControl.replay();
-        driver = new MockJDBCDriver(answer);
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
         connPool.getConnection().close();

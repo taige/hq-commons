@@ -3,7 +3,6 @@ package io.hqwu.commons.cp;
 import com.jolbox.bonecp.MockConstant;
 import com.jolbox.bonecp.MockJDBCDriver;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 
@@ -47,7 +46,6 @@ public class HqcpConfigTest {
     }
 
     @Test
-    @Disabled
     public void testLoadDriver() throws Exception {
         config.setDriverClassName(MockJDBCDriver.class.getName());
 //        config.setConnUrl(MockConstant.MOCK_URL);
@@ -269,9 +267,9 @@ public class HqcpConfigTest {
 
     @Test
     public void testRegex(){
-        System.out.println("abc$%#weq*+{}:><?>;';".matches(PATTERN_COMMONS_CHARS));
-        System.out.println(" ".matches(PATTERN_COMMONS_CHARS));
-        System.out.println(new String(new byte[3]).matches(PATTERN_COMMONS_CHARS));
+        assertTrue("abc$%#weq*+{}:><?>;';".matches(PATTERN_COMMONS_CHARS));
+        assertTrue(" ".matches(PATTERN_COMMONS_CHARS));
+        assertFalse(new String(new byte[3]).matches(PATTERN_COMMONS_CHARS));
 
 //        String ss = "abc$%#weq*123(&<>>?()*&^%$#@!\r\n";
 //        ss = "a1(&<>>?()*&^%$#@!\r\n" + new String(new byte[1]);

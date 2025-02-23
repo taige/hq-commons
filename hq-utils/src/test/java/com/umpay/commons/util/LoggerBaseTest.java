@@ -134,13 +134,13 @@ public class LoggerBaseTest {
                     }
                     long use = System.nanoTime() - start;
                     totalUse.addAndGet(use);
-                    System.out.println("用时: " + (use));
+                    logger.info("用时: " + (use));
                     cdl.countDown();
                 }
             }.start();
         }
         cdl.await();
-        System.out.println("平均用时: " + (totalUse.get() / tc / count));
+        logger.info("平均用时: " + (totalUse.get() / tc / count));
     }
 
     @Test
@@ -150,13 +150,13 @@ public class LoggerBaseTest {
             TimeUtil.sleepMilliSec(i);
             Logger.timeSpentMillSec("test", startTime, 2);
         }
-        System.out.println("===================================");
+//        System.out.println("===================================");
         for (int i = 0; i < 10; i++) {
             long startTime = System.currentTimeMillis();
             TimeUtil.sleepMilliSec(i);
             Logger.timeSpentMillSec("test", startTime, 2, 2);
         }
-        System.out.println("===================================");
+//        System.out.println("===================================");
     }
 
     @Test
@@ -167,7 +167,7 @@ public class LoggerBaseTest {
             TimeUtil.sleepNanoSec(sleepNanSec);
             Logger.timeSpentNan("test", startTime, sleepNanSec);
         }
-        System.out.println("===================================");
+//        System.out.println("===================================");
         for (int i = 0; i < 10; i++) {
             long startTime = System.nanoTime();
             String s = "";
@@ -179,6 +179,6 @@ public class LoggerBaseTest {
             }
             Logger.timeSpentNan("test", startTime, sleepNanSec, sleepNanSec);
         }
-        System.out.println("===================================");
+//        System.out.println("===================================");
     }
 }

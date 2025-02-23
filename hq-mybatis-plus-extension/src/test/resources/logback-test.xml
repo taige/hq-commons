@@ -6,8 +6,7 @@
       <pattern>${CONSOLE_LOG_FMT}</pattern>
     </encoder>
   </appender>
-  <root level="debug">
+  <root level="${test.logger.level}">
     <appender-ref ref="STDOUT"/>
   </root>
-  <logger name="org.springframework" level="warn"/>
 </configuration>

@@ -20,7 +20,7 @@ public class ConnectionFactoryTest {
 
     @BeforeEach
     public void setUp() throws Exception {
-        driver = new MockJDBCDriver();
+        driver = MockJDBCDriver.getInstance();
     }
 
     @AfterEach

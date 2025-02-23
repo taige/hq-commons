@@ -17,7 +17,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class CPStressTest {
-    private static Logger log = new Logger();
+    private static final Logger LOGGER = new Logger();
 
     private static AtomicInteger loopCount;
     private static CountDownLatch startFlag;
@@ -36,7 +36,7 @@ public class CPStressTest {
      * @param args
      */
     public static void main(String[] args) throws Exception {
-        MockJDBCDriver driver = new MockJDBCDriver();
+        MockJDBCDriver driver = MockJDBCDriver.getInstance();
 
         if (new File("loop_nothing").exists()) {
             nothing = true;
@@ -48,7 +48,7 @@ public class CPStressTest {
         int workerNum = 200; //Integer.parseInt(args[1]);
         int count = 1000000; //Integer.parseInt(args[2]);
 
-        System.out.println("start test: " + test);
+        LOGGER.info("start test: " + test);
         loopCount = new AtomicInteger(count);
         startFlag = new CountDownLatch(workerNum+1);
         doneFlag = new CountDownLatch(workerNum);
@@ -71,9 +71,7 @@ public class CPStressTest {
         doneFlag.await();
         r.shutdown();
         long end = System.currentTimeMillis() - start;
-        log.info("done test: "+test+"(loop:"+count+"/worker:"+workerNum+") use " + end + " ms");
-        System.out.println("done test "+test+"(loop:"+count+"/worker:"+workerNum+") use " + end + " ms\n");
-
+        LOGGER.info("done test: "+test+"(loop:"+count+"/worker:"+workerNum+") use " + end + " ms");
     }
 
     private static class Runner extends Thread {
@@ -102,7 +100,7 @@ public class CPStressTest {
             } catch (InterruptedException e1) {
             }
             try {
-                log.info("start runner #" + idx);
+                LOGGER.info("start runner #" + idx);
                 for (; loopCount.decrementAndGet() >= 0 ; ) {
                     //for (int i = 0; i < count.get() ; i++) {
                     loopit();
@@ -111,7 +109,7 @@ public class CPStressTest {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            log.info("#" + idx + ": cc = " + cc);
+            LOGGER.info("#" + idx + ": cc = " + cc);
             doneFlag.countDown();
         }
 
@@ -121,7 +119,7 @@ public class CPStressTest {
                 doBusiness(conn);
                 conn.close();
             } else {
-                log.error("conn is null");
+                LOGGER.error("conn is null");
             }
         }
 
@@ -204,7 +202,7 @@ public class CPStressTest {
                 doBusiness(conn);
                 conn.close();
             } else {
-                log.error("conn2 is null");
+                LOGGER.error("conn2 is null");
             }
         }
         protected void shutdown() throws SQLException {
@@ -238,7 +236,7 @@ public class CPStressTest {
                 doBusiness(conn);
                 conn.close();
             } else {
-                log.error("conn3 is null");
+                LOGGER.error("conn3 is null");
             }
         }
         protected void shutdown() throws SQLException {

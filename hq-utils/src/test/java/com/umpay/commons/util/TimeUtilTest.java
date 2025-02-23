@@ -148,7 +148,7 @@ public class TimeUtilTest {
             assertTrue(TimeUtil.isSupportTimeZone(tzId));
             String timeString = TimeUtil.getTimeString(ts, pattern, tzId);
             assertEquals(hourOffset(gmtString, pattern, i), timeString);
-            System.out.println("timezone [" + tzId + "] test ok: " + timeString);
+            LOGGER.info("timezone [" + tzId + "] test ok: " + timeString);
         }
     }
 

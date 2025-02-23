@@ -24,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 
 public class IOUtilTest {
+    private static final Logger LOGGER = new Logger();
+
     static String EXIST_CP_FILE_PATH = "com/umpay/commons/util/test.file";
 
     public static byte[] bcd2(String ascii) {
@@ -121,19 +123,14 @@ public class IOUtilTest {
     public void testShortToBuf() {
         short toEncode = 1;
         byte[] buf = null;
-        try {
-            IOUtil.shortToBuf(toEncode, buf, 0);
-        } catch (NullPointerException e) {
-            assertTrue(true);// 异常是正确的
-        }
 
-        buf = new byte[2];
-        try {
-            IOUtil.shortToBuf(toEncode, buf, 1);
-        } catch (IllegalArgumentException e) {
-            System.out.println(e.getMessage());
-            assertTrue(true);// 异常是正确的
-        }
+        assertThrows(NullPointerException.class, () ->
+                IOUtil.shortToBuf(toEncode, null, 0)
+        );
+
+        assertThrows(IllegalArgumentException.class, () ->
+                IOUtil.shortToBuf(toEncode, new byte[2], 1)
+        );
 
         buf = new byte[3];
         IOUtil.shortToBuf((short) 1, buf, 1);
@@ -148,19 +145,14 @@ public class IOUtilTest {
     public void testIntToBuf() {
         int toEncode = 1;
         byte[] buf = null;
-        try {
-            IOUtil.intToBuf(toEncode, buf, 0);
-        } catch (NullPointerException e) {
-            assertTrue(true);// 异常是正确的
-        }
 
-        buf = new byte[4];
-        try {
-            IOUtil.intToBuf(toEncode, buf, 1);
-        } catch (IllegalArgumentException e) {
-            System.out.println(e.getMessage());
-            assertTrue(true);// 异常是正确的
-        }
+        assertThrows(NullPointerException.class, () ->
+                IOUtil.intToBuf(toEncode, null, 0)
+        );
+
+        assertThrows(IllegalArgumentException.class, () ->
+                IOUtil.intToBuf(toEncode, new byte[4], 1)
+        );
 
         buf = new byte[5];
         IOUtil.intToBuf(1, buf, 1);
@@ -175,19 +167,13 @@ public class IOUtilTest {
     public void testLongToBuf() {
         long toEncode = 1L;
         byte[] buf = null;
-        try {
-            IOUtil.longToBuf(toEncode, buf, 0);
-        } catch (NullPointerException e) {
-            assertTrue(true);// 异常是正确的
-        }
+        assertThrows(NullPointerException.class, () ->
+                IOUtil.longToBuf(toEncode, null, 0)
+        );
 
-        buf = new byte[8];
-        try {
-            IOUtil.longToBuf(toEncode, buf, 1);
-        } catch (IllegalArgumentException e) {
-            System.out.println(e.getMessage());
-            assertTrue(true);// 异常是正确的
-        }
+        assertThrows(IllegalArgumentException.class, () ->
+                IOUtil.longToBuf(toEncode, new byte[8], 1)
+        );
 
         buf = new byte[9];
         IOUtil.longToBuf(1, buf, 1);
@@ -213,7 +199,7 @@ public class IOUtilTest {
         try {
             IOUtil.bufToShort(buf, 1);
         } catch (IllegalArgumentException e) {
-            System.out.println(e.getMessage());
+            LOGGER.info(e.getMessage());
             assertTrue(true);// 异常是正确的
         }
 
@@ -237,7 +223,7 @@ public class IOUtilTest {
         try {
             IOUtil.bufToInt(buf, 1);
         } catch (IllegalArgumentException e) {
-            System.out.println(e.getMessage());
+            LOGGER.info(e.getMessage());
             assertTrue(true);// 异常是正确的
         }
 
@@ -261,7 +247,7 @@ public class IOUtilTest {
         try {
             IOUtil.bufToLong(buf, 1);
         } catch (IllegalArgumentException e) {
-            System.out.println(e.getMessage());
+            LOGGER.info(e.getMessage());
             assertTrue(true);// 异常是正确的
         }
 

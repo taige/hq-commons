@@ -2,6 +2,7 @@ package io.hqwu.commons.cp;
 
 import com.jolbox.bonecp.MockJDBCDriver;
 import com.umpay.commons.util.Logger;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -19,12 +20,19 @@ import java.sql.SQLException;
 public class HqcpSpringTest {
     private static final Logger LOGGER = new Logger();
 
+    private static MockJDBCDriver driver;
     private static ClassPathXmlApplicationContext ctx = null;
 
     @BeforeAll //表示在所以测试方法之前执行，且只执行一次。
     public static void onlyOnce() throws SQLException {
-        new MockJDBCDriver("jdbc:mysql");
+        driver = MockJDBCDriver.getInstance().setAcceptUrl("jdbc:mysql");
         ctx = new ClassPathXmlApplicationContext("spring-jdbc.xml");
+    }
+
+    @AfterAll
+    public static void unregister() throws SQLException {
+        driver.disable();
+        ctx.close();
     }
 
 //    @AfterClass

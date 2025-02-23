@@ -147,8 +147,8 @@ public class SecurityUtilTest {
         assertNotNull(pair.getPublic());
         assertEquals("RSA", pair.getPrivate().getAlgorithm());
         assertEquals("RSA", pair.getPublic().getAlgorithm());
-        System.out.println("privateKey:" + Base64.encodeBase64String(pair.getPrivate().getEncoded()));
-        System.out.println("publicKey: " + Base64.encodeBase64String(pair.getPublic().getEncoded()));
+        LOGGER.info("privateKey:" + Base64.encodeBase64String(pair.getPrivate().getEncoded()));
+        LOGGER.info("publicKey: " + Base64.encodeBase64String(pair.getPublic().getEncoded()));
 
         pair = SecurityUtil.genKeyPair("DSA", 1024);
         assertNotNull(pair.getPrivate());

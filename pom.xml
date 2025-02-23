@@ -19,6 +19,8 @@
     <mybatis.version>3.5.6</mybatis.version>
     <mybatis-boot.version>2.1.4</mybatis-boot.version>
     <dubbo.version>2.7.12</dubbo.version>
+
+    <test.logger.level>WARN</test.logger.level>
   </properties>
 
   <scm>
