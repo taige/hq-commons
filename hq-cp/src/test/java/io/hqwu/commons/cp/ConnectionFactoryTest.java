@@ -61,11 +61,11 @@ public class ConnectionFactoryTest {
 
     @Test
     public void testReloadProperties() throws Exception {
-        Hqcp cp = ConnectionFactory.getUmpayCPInstance();
+        Hqcp cp = ConnectionFactory.getHqcpInstance();
         cp.reloadProperties();
         cp.shutdown();
 
-        Hqcp cp2 = ConnectionFactory.getUmpayCPInstance("jdbc2");
+        Hqcp cp2 = ConnectionFactory.getHqcpInstance("jdbc2");
         cp2.reloadProperties();
         cp2.shutdown();
     }

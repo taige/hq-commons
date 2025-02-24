@@ -1,7 +1,7 @@
 package io.hqwu.commons.cp;
 
 import com.jolbox.bonecp.*;
-import com.umpay.commons.util.Logger;
+import io.hqwu.commons.util.Logger;
 import org.easymock.classextension.IMocksControl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,7 +1,7 @@
 package io.hqwu.commons.annotation.constraints.support;
 
-import com.umpay.commons.util.StringUtil;
 import io.hqwu.commons.annotation.constraints.Base64;
+import io.hqwu.commons.util.StringUtil;
 import org.springframework.util.Base64Utils;
 
 import javax.validation.ConstraintValidator;

@@ -6,7 +6,7 @@ import com.jolbox.bonecp.BoneCPConfig;
 import com.jolbox.bonecp.MockJDBCDriver;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import com.mchange.v2.c3p0.DataSources;
-import com.umpay.commons.util.Logger;
+import io.hqwu.commons.util.Logger;
 
 import java.io.File;
 import java.sql.Connection;
@@ -54,7 +54,7 @@ public class CPStressTest {
         doneFlag = new CountDownLatch(workerNum);
         Runner r = null;
         for (int i = 1; i <= workerNum; i++) {
-            if (test.equals("umpaycf")) {
+            if (test.equals("hqcp")) {
                 r = new Runner(i);
             } else if (test.equals("bonecp")) {
                 r = new Runner_bonecp(i);

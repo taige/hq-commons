@@ -8,7 +8,7 @@ import com.baomidou.mybatisplus.generator.config.builder.ConfigBuilder;
 import com.baomidou.mybatisplus.generator.config.rules.FileType;
 import com.baomidou.mybatisplus.generator.config.rules.NamingStrategy;
 import com.baomidou.mybatisplus.generator.engine.FreemarkerTemplateEngine;
-import com.umpay.commons.util.Logger;
+import io.hqwu.commons.util.Logger;
 
 import javax.sql.DataSource;
 import java.io.File;

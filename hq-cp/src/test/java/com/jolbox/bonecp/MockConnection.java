@@ -16,7 +16,7 @@
 
 package com.jolbox.bonecp;
 
-import com.umpay.commons.util.Logger;
+import io.hqwu.commons.util.Logger;
 
 import java.sql.*;
 import java.util.Map;

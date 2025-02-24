@@ -1,9 +1,9 @@
 package io.hqwu.commons.cp.dialect;
 
-import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.PooledConnection;
 import io.hqwu.commons.cp.PooledPreparedStatement;
 import io.hqwu.commons.cp.util.OracleUtil;
+import io.hqwu.commons.util.Logger;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;

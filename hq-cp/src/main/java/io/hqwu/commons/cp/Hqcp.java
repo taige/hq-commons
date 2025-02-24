@@ -1,14 +1,14 @@
 package io.hqwu.commons.cp;
 
 
-import com.umpay.commons.util.Formatter;
-import com.umpay.commons.util.JMXUtil;
-import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.dialect.DB2PooledConnection;
 import io.hqwu.commons.cp.dialect.MySQLPooledConnection;
 import io.hqwu.commons.cp.dialect.OraclePooledConnection;
 import io.hqwu.commons.cp.util.JdbcUtil;
 import io.hqwu.commons.cp.util.OracleUtil;
+import io.hqwu.commons.util.Formatter;
+import io.hqwu.commons.util.JMXUtil;
+import io.hqwu.commons.util.Logger;
 
 import java.io.File;
 import java.io.FileInputStream;

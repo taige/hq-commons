@@ -12,11 +12,11 @@ public class ConnectionFactory {
    
     private static ReadWriteLock rwl = new ReentrantReadWriteLock();
     
-    public static Hqcp getUmpayCPInstance() throws SQLException {
-        return getUmpayCPInstance("jdbc");
+    public static Hqcp getHqcpInstance() throws SQLException {
+        return getHqcpInstance("jdbc");
     }
     
-    public static Hqcp getUmpayCPInstance(String jdbc) throws SQLException {
+    public static Hqcp getHqcpInstance(String jdbc) throws SQLException {
         Hqcp cp = poolCache.get(jdbc);
         if (cp == null) {
             cp = maybeInit(jdbc);
@@ -68,7 +68,7 @@ public class ConnectionFactory {
     }
     
     public static Connection getConnection(String jdbc) throws SQLException {
-        Hqcp cp = getUmpayCPInstance(jdbc);
+        Hqcp cp = getHqcpInstance(jdbc);
         return cp.getConnection();
     }
     
@@ -77,7 +77,7 @@ public class ConnectionFactory {
     }
     
     public static Connection getConnection(String jdbc, boolean autoCommit) throws SQLException {
-        Hqcp cp = getUmpayCPInstance(jdbc);
+        Hqcp cp = getHqcpInstance(jdbc);
         return cp.getConnection(autoCommit);
     }
 

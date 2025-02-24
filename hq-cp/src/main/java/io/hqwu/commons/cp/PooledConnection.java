@@ -1,10 +1,10 @@
 package io.hqwu.commons.cp;
 
-import com.umpay.commons.util.ExceptionUtil;
-import com.umpay.commons.util.Formatter;
-import com.umpay.commons.util.JMXUtil;
-import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.util.JdbcUtil;
+import io.hqwu.commons.util.ExceptionUtil;
+import io.hqwu.commons.util.Formatter;
+import io.hqwu.commons.util.JMXUtil;
+import io.hqwu.commons.util.Logger;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.lang.reflect.InvocationHandler;
@@ -144,7 +144,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
         // use properties instead of username and password to involve some specific properties for oracle10
         //Properties properties = generateConnectionProperties();
-        // conneciton properties 放到 UmpayCPConfig 中统一维护
+        // conneciton properties 放到 HqcpConfig 中统一维护
 
         real_connection = DriverManager.getConnection(connectionPool.getConfig().getUrl(), connectionPool.getConfig().getConnectionProperties());
 

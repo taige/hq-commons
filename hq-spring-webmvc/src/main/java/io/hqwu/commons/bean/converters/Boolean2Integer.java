@@ -1,7 +1,7 @@
 package io.hqwu.commons.bean.converters;
 
-import com.umpay.commons.util.StringUtil;
 import io.hqwu.commons.bean.ValueOf;
+import io.hqwu.commons.util.StringUtil;
 
 /**
  * Created with IntelliJ IDEA for pp-gopay-fa

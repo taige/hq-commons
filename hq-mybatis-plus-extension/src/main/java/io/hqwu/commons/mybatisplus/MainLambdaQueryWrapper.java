@@ -10,7 +10,7 @@ import com.baomidou.mybatisplus.core.toolkit.ArrayUtils;
 import com.baomidou.mybatisplus.core.toolkit.LambdaUtils;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
 import com.baomidou.mybatisplus.core.toolkit.support.SerializedLambda;
-import com.umpay.commons.util.StringUtil;
+import io.hqwu.commons.util.StringUtil;
 import org.apache.ibatis.reflection.property.PropertyNamer;
 import org.springframework.lang.NonNull;
 

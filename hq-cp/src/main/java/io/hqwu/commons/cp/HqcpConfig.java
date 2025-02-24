@@ -1,9 +1,9 @@
 package io.hqwu.commons.cp;
 
-import com.umpay.commons.SecurityService;
-import com.umpay.commons.SecurityServiceLocalImpl;
-import com.umpay.commons.util.Logger;
-import com.umpay.commons.util.StringUtil;
+import io.hqwu.commons.SecurityService;
+import io.hqwu.commons.SecurityServiceLocalImpl;
+import io.hqwu.commons.util.Logger;
+import io.hqwu.commons.util.StringUtil;
 import org.apache.commons.codec.binary.Base64;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
@@ -99,7 +99,7 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
 
     /**
      * lazy init pool
-     * true: init min connections in Monitor thread, else do it in new UmpayCP/getConnection() thread
+     * true: init min connections in Monitor thread, else do it in new Hqcp/getConnection() thread
      */
     private boolean lazyInit = false;
 
