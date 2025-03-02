@@ -14,7 +14,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -113,11 +112,11 @@ public class Hqcp implements HqcpMBean {
             try {
                 Class.forName(config.getDriverClassName());
                 LOGGER.info("load ", config.getDriverClassName(), " ok");
-                config.printConfig(LOGGER);
             } catch (ClassNotFoundException e) {
                 throw new SQLException(e.toString(), e);
             }
         }
+        config.printConfig(LOGGER);
         boolean isOracle10 = config.isOracle() && DriverManager.getDriver(config.getUrl()).getMajorVersion() == 10;
         if (isOracle10 && config.isUseOracleImplicitCache()) {
             config.getConnectionProperties().setProperty(OracleUtil.ORACLE_FREECACHE_PROPERTY_NAME, OracleUtil.ORACLE_FREECACHE_PROPERTY_VALUE_TRUE);
@@ -601,13 +600,14 @@ public class Hqcp implements HqcpMBean {
     }
 
     private static class LinkedStack<E> {
-        private LinkedList<E> stack;
+        // 使用 ConcurrentLinkedDeque 替换 LinkedList，支持无锁并发访问。 suggested by Grok3
+        private final ConcurrentLinkedDeque<E> stack;
         private final ReentrantLock operLock = new ReentrantLock();
         private final Condition notEmpty = operLock.newCondition();
         private final Condition requireMore = operLock.newCondition();
 
         public LinkedStack() {
-            stack = new LinkedList<E>();
+            stack = new ConcurrentLinkedDeque<>();
         }
         
         public int size() {
@@ -617,45 +617,32 @@ public class Hqcp implements HqcpMBean {
         public boolean popFromBottom(E e) {
             operLock.lock();
             try {
-                if (stack.size() == 0) {
+                if (stack.isEmpty()) {
                     return false;
                 }
-                E x = stack.getLast();
-                if (x.equals(e)) {
-                    stack.removeLast();
-                    return true;
-                } else {
-                    return false;
+                E last = stack.peekLast();
+                if (last != null && last.equals(e)) {
+                    return stack.pollLast() != null;
                 }
+                return false;
             } finally {
                 operLock.unlock();
             }
         }
-        
+
         public void push(E e) {
-            int c = -1;
+            stack.offerFirst(e); // 无锁操作，提高并发性
             operLock.lock();
             try {
-                c = stack.size();
-                stack.addFirst(e);
-                if (c == 0) {
-                    notEmpty.signal();
-                }
+                notEmpty.signal(); // 通知有新元素可用
             } finally {
                 operLock.unlock();
             }
         }
-        
+
+
         public E pop() {
-            operLock.lock();
-            try {
-                if (0 == stack.size()) {
-                    return null;
-                }
-                return stack.removeFirst();
-            } finally {
-                operLock.unlock();
-            }
+            return stack.pollFirst(); // 无锁操作，直接返回栈顶元素
         }
 
         /**
@@ -722,9 +709,9 @@ public class Hqcp implements HqcpMBean {
             operLock.lockInterruptibly();
             try {
                 while (true) {
-                    if (stack.size() > 0) {
-                        E x = stack.removeFirst();
-                        if (stack.size() > 0) {
+                    E x = stack.pollFirst();
+                    if (x != null) {
+                        if (! stack.isEmpty()) {
                             notEmpty.signal();
                         }
                         return x;

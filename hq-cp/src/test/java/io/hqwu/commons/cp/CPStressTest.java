@@ -47,8 +47,10 @@ public class CPStressTest {
         }
 
         String[] tests = new String[] {"bonecp", "hqcp" /* ,"c3p0"*/, "hikaricp"};
-        for (String test: tests) {
-            loopit(test);
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++)  {
+                loopit(tests[(i+j) % tests.length]);
+            }
         }
     }
 
