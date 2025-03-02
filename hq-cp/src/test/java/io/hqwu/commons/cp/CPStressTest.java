@@ -6,6 +6,8 @@ import com.jolbox.bonecp.BoneCPConfig;
 import com.jolbox.bonecp.MockJDBCDriver;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
 import com.mchange.v2.c3p0.DataSources;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import io.hqwu.commons.util.Logger;
 
 import java.io.File;
@@ -44,11 +46,17 @@ public class CPStressTest {
             simple = true;
         }
 
-        String test = "bonecp"; //args[0];
-        int workerNum = 200; //Integer.parseInt(args[1]);
-        int count = 1000000; //Integer.parseInt(args[2]);
+        String[] tests = new String[] {"bonecp", "hqcp" /* ,"c3p0"*/, "hikaricp"};
+        for (String test: tests) {
+            loopit(test);
+        }
+    }
 
-        LOGGER.info("start test: " + test);
+    private static void loopit(String test) throws Exception  {
+        int workerNum = 200; //Integer.parseInt(args[1]);
+        int count = 5000000; //Integer.parseInt(args[2]);
+
+        LOGGER.warn("start test: " + test);
         loopCount = new AtomicInteger(count);
         startFlag = new CountDownLatch(workerNum+1);
         doneFlag = new CountDownLatch(workerNum);
@@ -60,6 +68,8 @@ public class CPStressTest {
                 r = new Runner_bonecp(i);
             } else if (test.equals("c3p0")) {
                 r = new Runner_c3p0(i);
+            } else if (test.equals("hikaricp")) {
+                r = new Runner_HikariCP(i);
             } else{
                 System.err.println("unknow conn pool: " + test);
                 return;
@@ -71,7 +81,7 @@ public class CPStressTest {
         doneFlag.await();
         r.shutdown();
         long end = System.currentTimeMillis() - start;
-        LOGGER.info("done test: "+test+"(loop:"+count+"/worker:"+workerNum+") use " + end + " ms");
+        LOGGER.warn("done test: "+test+"(loop:"+count+"/worker:"+workerNum+") use " + end + " ms");
     }
 
     private static class Runner extends Thread {
@@ -246,4 +256,39 @@ public class CPStressTest {
             cpds = null;
         }
     }
+
+    private static class Runner_HikariCP extends Runner {
+        static HikariDataSource connectionPool;
+        public Runner_HikariCP(int idx) throws SQLException {
+            super();
+            super.idx = idx;
+            if (connectionPool != null) {
+                return;
+            }
+            HikariConfig config = new HikariConfig();
+
+            config.setJdbcUrl(jdbcUrl);
+            config.setUsername(username);
+            config.setPassword(passwd);
+            config.setMinimumIdle(minConn);
+            config.setMaximumPoolSize(maxConn);
+            connectionPool = new HikariDataSource(config);
+        }
+        protected void loopit() throws Exception {
+            Connection conn = connectionPool.getConnection(); // fetch a connection
+            if (conn != null) {
+                doBusiness(conn);
+                conn.close();
+            } else {
+                LOGGER.error("conn4 is null");
+            }
+        }
+        protected void shutdown() throws SQLException {
+            Connection conn = connectionPool.getConnection();
+            emptyTable(conn);
+            connectionPool.close();
+            connectionPool = null;
+        }
+    }
+
 }

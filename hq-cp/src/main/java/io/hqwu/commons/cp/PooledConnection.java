@@ -109,6 +109,11 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     private boolean dirty = false;
 
+    /**
+     * 连接建立时间
+     */
+    private long timeConnected;
+
     protected PooledConnection(Hqcp pool, int connId) throws SQLException {
         connectionPool = pool;
         connectionId = connId;
@@ -147,12 +152,33 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         // conneciton properties 放到 HqcpConfig 中统一维护
 
         real_connection = DriverManager.getConnection(connectionPool.getConfig().getUrl(), connectionPool.getConfig().getConnectionProperties());
+        timeConnected = System.currentTimeMillis();
 
         //real_connection.setAutoCommit(autoCommit);
         this.autoCommit = real_connection.getAutoCommit();
         log.info(connectionName, " make new connection to ", connectionPool.getConfig().getUrl(), " use ", Formatter.formatNS(System.nanoTime() - start), " ns");
         closed.set(false);
         setFatalExceptionHappened(false);//默认不关闭链接
+    }
+
+    /**
+     * 根据连接存活时间，计算销毁连接还需要经过的时间(ms)
+     * @param lifetimeMillis 连接最大存活时间<br/>
+     *                       <b>0 表示永久存活</b>
+     * @return 销毁连接需要等待的毫秒
+     */
+    public long millisToDestroy(long lifetimeMillis) {
+        return lifetimeMillis <= 0 ? Long.MAX_VALUE : (timeConnected + lifetimeMillis) - System.currentTimeMillis();
+    }
+
+    /**
+     * 计算连接应该要被检测需要等待的毫秒
+     * @param idleTimeoutMillisec 检测间隔=连接空闲超时时间
+     * @return 需要等待的毫秒
+     */
+    public long millisToCheckIt(long idleTimeoutMillisec) {
+        // 检入时间 + 检测间隔 - 当前时间
+        return timeCheckIn + idleTimeoutMillisec - System.currentTimeMillis();
     }
 
     public boolean recover(SQLException sqle) {
@@ -615,11 +641,6 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
             log.error(connectionName, " real_connection close error: ", e);
             connectionPool.offerUnclosedConnection(real_connection, connectionName);
         }
-        // move to unregisterJMX
-        /**
-        if (connectionPool.getConfig().getJmxLevel() > 1) {
-            JMXUtil.unregister(this.getClass().getPackage().getName() + ":type=pool-" + connectionPool.getPoolName() + ",name=" + getConnectionName());
-        }*/
     }
 
      void unregisterJMX() {
@@ -679,6 +700,14 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     }
 
     /**
+     * Return connection connected time.
+     * @return
+     */
+    public long getTimeConnected() {
+        return timeConnected;
+    }
+
+    /**
      * Return threadCheckOut.
      * @return threadCheckOut
      */
@@ -716,11 +745,4 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         return "";
     }
 
-    public long getInfoSQLThreshold() {
-        return connectionPool.getConfig().getInfoSqlThreshold();
-    }
-
-    public long getWarnSQLThreshold() {
-        return connectionPool.getConfig().getWarnSqlThreshold();
-    }
 }

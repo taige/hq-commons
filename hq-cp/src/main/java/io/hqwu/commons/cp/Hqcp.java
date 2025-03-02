@@ -4,23 +4,18 @@ package io.hqwu.commons.cp;
 import io.hqwu.commons.cp.dialect.DB2PooledConnection;
 import io.hqwu.commons.cp.dialect.MySQLPooledConnection;
 import io.hqwu.commons.cp.dialect.OraclePooledConnection;
-import io.hqwu.commons.cp.util.JdbcUtil;
+import io.hqwu.commons.cp.util.LogUtil;
 import io.hqwu.commons.cp.util.OracleUtil;
 import io.hqwu.commons.util.Formatter;
 import io.hqwu.commons.util.JMXUtil;
 import io.hqwu.commons.util.Logger;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.Properties;
-import java.util.ResourceBundle;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -28,9 +23,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class Hqcp implements HqcpMBean {
-    private static final Logger log = new Logger();
-    
-    private static final String[] classPaths = System.getProperty("java.class.path", "classes").split(System.getProperty("path.separator", ";"));
+    private static final Logger LOGGER = new Logger();
 
     private static final AtomicInteger POOL_ID = new AtomicInteger(0);
 
@@ -56,13 +49,11 @@ public class Hqcp implements HqcpMBean {
     private final AtomicInteger connectionNo = new AtomicInteger(0);
     
     /**
-     * 池中可用连接数
+     * 池中的总连接数（占用+空闲）
      */
     private final AtomicInteger validConnectionNum = new AtomicInteger(0);
     /**
-     * 可用连接
-     * 使用LinkedHashMap，并且用accessOrder，
-     * 确保最近使用的连接在枚举器的最后，而最久使用的连接在最前面
+     * 池中存活的全部连接（占用+空闲）
      */
     private final Map<Integer, PooledConnection> validConnectionsPool = new ConcurrentHashMap<Integer, PooledConnection>();
     
@@ -76,12 +67,12 @@ public class Hqcp implements HqcpMBean {
     /**
      * 关闭标志
      */
-    private AtomicBoolean shutdown = new AtomicBoolean(false);
+    private final AtomicBoolean shutdown = new AtomicBoolean(false);
 
     /**
      * 初始化标志
      */
-    private AtomicBoolean inited = new AtomicBoolean(false);
+    private final AtomicBoolean inited = new AtomicBoolean(false);
 
     /**
      * monitor thread
@@ -89,18 +80,15 @@ public class Hqcp implements HqcpMBean {
     private Thread monitor;
 
     /**
-     * true - config是从properties文件读入的
+     * 保存未实际关闭的raw连接（游离在池外的连接），用于定期尝试close
      */
-    private boolean configFromProperties = false;
-
-    private BlockingQueue<NamedConnection> unclosedConnections = new LinkedBlockingQueue<NamedConnection>();
+    private final BlockingQueue<UnclosedConnection> unclosedConnections = new LinkedBlockingQueue<UnclosedConnection>();
 
     Hqcp(String poolName) throws SQLException {
         this.config = new HqcpConfig();
-        this.config.setProperties(loadProperties(poolName));
+        this.config.loadFromProperties(poolName);
         this.poolId = POOL_ID.getAndIncrement();
         this.poolName = poolName;
-        this.configFromProperties = true;
         initPool();
     }
     
@@ -108,12 +96,15 @@ public class Hqcp implements HqcpMBean {
         this.config = config;
         this.poolId = POOL_ID.getAndIncrement();
         this.poolName = "HQCP#" + this.poolId;
-        this.configFromProperties = false;
         initPool();
     }
 
-    // by wuhongqiang 2014.2.25
-    // change the method name from startMonitor to initPool
+    /**
+     * 初始化连接池
+     * @author wuhongqiang 2014.2.25
+     * change the method name from startMonitor to initPool
+     * @throws SQLException
+     */
     private void initPool() throws SQLException {
         if (this.config == null || this.config.getUrl() == null) {
             throw new SQLException("jdbc.url cannot be NULL");
@@ -121,8 +112,8 @@ public class Hqcp implements HqcpMBean {
         if (config.getDriverClassName() != null) {
             try {
                 Class.forName(config.getDriverClassName());
-                log.info("load ", config.getDriverClassName(), " ok");
-                config.printConfig(log);
+                LOGGER.info("load ", config.getDriverClassName(), " ok");
+                config.printConfig(LOGGER);
             } catch (ClassNotFoundException e) {
                 throw new SQLException(e.toString(), e);
             }
@@ -184,6 +175,7 @@ public class Hqcp implements HqcpMBean {
             return;
         }
         ConnectionFactory.remove(poolName);
+        // 停止维护/监控线程
         if (monitor != null) {
             monitor.interrupt();
             try {
@@ -191,7 +183,8 @@ public class Hqcp implements HqcpMBean {
             } catch (InterruptedException e) {
             }
         }
-        for (int i = 0; i < 10; i++) { //最多检测10次，超过之后强制关闭
+        // 关闭所有连接
+        for (int i = 0; i < 10; i++) { //最多尝试10次，超过之后强制关闭
             Integer[] connIds = idleConnectionsId.toArray();
             for (Integer connId: connIds) {
                 PooledConnection pc = validConnectionsPool.get(connId);
@@ -202,12 +195,12 @@ public class Hqcp implements HqcpMBean {
                 }
                 try {
                     if (pc.isCheckOut()) {
-                        //已经checkout，则停止检测
+                        //已经checkout，则停止本次释放
                         break;
                     }
-                    if (! closeConnection(pc)) {
-                        //连接栈底部不是当前连接
-                        //说明连接正等待被检出
+                    if (! removeConnection(pc, true)) {
+                        //连接栈底部不是当前连接，说明连接正等待被检出，停止本次释放
+                        LOGGER.debug("connection ", pc.getConnectionName(), " is checking out, skip removing for next round");
                         break;
                     }
                 } finally {
@@ -217,13 +210,15 @@ public class Hqcp implements HqcpMBean {
             if (validConnectionNum.get() <= 0) {
                 break;
             }
+            // 如果还有连接，打印信息，并等待1秒
             logVerboseInfo(true);
             idleConnectionsId.awaitNotEmpty(1, TimeUnit.SECONDS);
         }
+        // ！！强制！！关闭所有连接
         for (Map.Entry<Integer, PooledConnection> e: validConnectionsPool.entrySet()) {
             PooledConnection pc = e.getValue();
             if (pc.isCheckOut()) {
-                log.info("force closing ... ", pc.getConnectionName(), " checkout by ", pc.getThreadCheckOut().getName(),
+                LOGGER.info("force closing ... ", pc.getConnectionName(), " checkout by ", pc.getThreadCheckOut().getName(),
                         " for " + pc.getCheckOutTime() + " ms[", (pc.isBusying() ? "BUSYING" : "IDLE"), "]");
             }
             pc.close();
@@ -234,55 +229,10 @@ public class Hqcp implements HqcpMBean {
         JMXUtil.unregister(this.getClass().getPackage().getName() + ":type=pool-" + poolName);
         JMXUtil.unregister(this.getClass().getPackage().getName() + ":type=pool-" + poolName + ",name=config");
     }
-    
-    public void reloadProperties() {
-        if (configFromProperties) {
-            Properties prop = loadProperties(poolName);
-            config.setProperties(prop);
-        }
-    }
-    
+
     /**
-     * 读取配置文件
-     */
-    private Properties loadProperties(String propfile) {
-        Properties prop = new Properties();
-        File pfile = null;
-        for (int i = 0; i <= classPaths.length; i++) {
-            if (i == classPaths.length) {
-                pfile = new File("./" + propfile + ".properties");
-            } else {
-                pfile = new File(classPaths[i] + "/" + propfile + ".properties");
-            }
-            if (pfile.exists()) {
-                break;
-            }
-        }
-        if (pfile != null && pfile.exists()) {
-            FileInputStream fis = null;
-            try {
-                fis = new FileInputStream(pfile);
-                prop.load(fis);
-            } catch (FileNotFoundException e) {
-            } catch (IOException e) {
-                log.warn(e);
-            } finally {
-                // modify by shenjl 修改资源泄露问题
-                JdbcUtil.closeQuietly(fis);
-            }
-        } else {
-            ResourceBundle rb = ResourceBundle.getBundle(propfile);
-            for (String property : HqcpConfig.PROPERTIES) {
-                if (rb.containsKey(property)) {
-                    prop.setProperty(property, rb.getString(property));
-                }
-            }
-        }
-        return prop;
-    }
-    
-    /**
-     * 从池中poll连接
+     * 从池中poll连接 <br/>
+     * <b>注意：autoCommit的值决定于transaction-mode的配置(transaction-mode默认false，即autoCommit默认true)</b>
      * @return
      * @throws java.sql.SQLException
      */
@@ -302,29 +252,31 @@ public class Hqcp implements HqcpMBean {
         }
         long start = System.nanoTime();
         Integer connId = idleConnectionsId.pop();
-        if (connId == null && ! config.isLazyInit()) {
+        if (connId == null && ! config.isLazyInit()) {  // 不是lazy模式，则尝试创建连接（否则由monitor线程创建连接）
             connId = newConnection(true);
         }
         if (connId == null) {
             if (validConnectionNum.get() >= config.getMaxConnections()) {
-                log.info("connections of ", poolName, " to ", config.getUrl(), " exhausted, wait ", config.getCheckoutTimeoutMillisec(), " ms for idle connection");
+                // 在连接池耗尽时，日志告警 todo 可配置日志级别
+                LOGGER.info("connections of {} to {} exhausted, wait {} ms for idle connection", poolName, config.getUrl(),
+                        config.getCheckoutTimeoutMillisec() < 0 ? "INFINITE" : config.getCheckoutTimeoutMillisec());
             }
             try {
                 connId = idleConnectionsId.pop(config.getCheckoutTimeoutMillisec(), TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
-                log.info(e);
+                LOGGER.info(e);
             }
         }
         if (connId == null) {
-            //add by wuhq. 2014.02.19 在连接池耗尽时，打印连接池的状态
+            // 在连接池耗尽 & 等待超时，打印连接池的状态
             logVerboseInfo(true);
-            throw new SQLException("Timeout on waiting for a free available connection of " + poolName + " to " + config.getUrl(), "08001");
+            throw new SQLException("Timeout on waiting for an available connection of " + poolName + " to " + config.getUrl(), "08001");
         }
         PooledConnection pconn = validConnectionsPool.get(connId);
         try {
             Connection conn = pconn.checkOut(autoCommit);
             if (config.isVerbose() || config.isPrintSql()) {
-                log.debug(pconn.getConnectionName(), ".getConnection(", autoCommit, "), use ", Formatter.formatNS(System.nanoTime() - start), " ns");
+                LOGGER.debug(pconn.getConnectionName(), ".getConnection(", autoCommit, "), use ", Formatter.formatNS(System.nanoTime() - start), " ns");
             }
             return conn;
         } catch (SQLException e) {
@@ -335,7 +287,15 @@ public class Hqcp implements HqcpMBean {
     
     void checkIn(PooledConnection pconn) {
         int connId = pconn.getConnectionId();
-        idleConnectionsId.push(connId);
+        if (config.getLifetimeSec() > 0 && pconn.millisToDestroy(config.getLifetimeMillisec()) <= 0) {
+            // destroy the connection
+            removeConnection(pconn, false);
+            if (validConnectionNum.get() < config.getMinConnections()) {
+                idleConnectionsId.requireMoreSignal();
+            }
+        } else {
+            idleConnectionsId.push(connId);
+        }
     }
 
     /**
@@ -374,7 +334,7 @@ public class Hqcp implements HqcpMBean {
                     idleConnectionsId.push(connId);
                 }
                 if (config.isVerbose()) {
-                    log.info(poolName, " +)", validConnectionNum.get(), " connections to ", config.getUrl());
+                    LOGGER.info(poolName, " +)", validConnectionNum.get(), " connections to ", config.getUrl());
                 }
             } catch (SQLException e) {
                 validConnectionNum.decrementAndGet();
@@ -387,13 +347,16 @@ public class Hqcp implements HqcpMBean {
     }
 
     /**
-     * close one pooled connection
+     * destroy the pooled connection
      * @param pc
-     * @return
+     * @param isIdleConn <br/>
+     *      true  - the connection is idle connection, which must be at the bottom of the pool stack, else stop removing <br/>
+     *      false - the connection is waiting for checkin, which ignoring if it is at the bottom of the pool stack
+     * @return if remove success
      */
-    private boolean closeConnection(PooledConnection pc) {
+    private boolean removeConnection(PooledConnection pc, boolean isIdleConn) {
         //移除连接栈底部连接
-        if (! idleConnectionsId.removeStackBottom(pc.getConnectionId())) {
+        if (isIdleConn && ! idleConnectionsId.popFromBottom(pc.getConnectionId())) {
             //连接栈底部不是当前连接
             //说明连接正等待被检出
             //则停止检测
@@ -404,9 +367,17 @@ public class Hqcp implements HqcpMBean {
         pc.close();
         pc.unregisterJMX();
         if (config.isVerbose()) {
-            log.info(poolName, " -)", validConnectionNum.get() ," connections to ", config.getUrl());
+            LOGGER.info(poolName, " -)", validConnectionNum.get() ," connections to ", config.getUrl());
         }
         return true;
+    }
+
+    public long getInfoSQLThreshold() {
+        return config.getInfoSqlThreshold() <= 0 ? Long.MAX_VALUE : config.getInfoSqlThreshold();
+    }
+
+    public long getWarnSQLThreshold() {
+        return config.getWarnSqlThreshold() <= 0 ? Long.MAX_VALUE : config.getWarnSqlThreshold();
     }
 
     /**
@@ -420,59 +391,58 @@ public class Hqcp implements HqcpMBean {
             if (pc.isCheckOut()) {
                 i++;
                 long usedMS = pc.getCheckOutTime();
-                if (usedMS <= pc.getInfoSQLThreshold() && log.isDebugEnabled()) {
-                    log.debug(pc.getConnectionName(), " checkout by ", pc.getThreadCheckOut().getName(), " for " + usedMS + " ms[", (pc.isBusying() ? "BUSYING" : "IDLE"), "]");
-                } else if (usedMS <= pc.getWarnSQLThreshold() && log.isInfoEnabled()) {
-                    log.info(pc.getConnectionName(), " checkout by ", pc.getThreadCheckOut().getName(), " for " + usedMS + " ms[", (pc.isBusying() ? "BUSYING" : "IDLE"), "]");
-                } else if (log.isWarnEnabled()) {
-                    log.warn(pc.getConnectionName(), " checkout by ", pc.getThreadCheckOut().getName(), " for " + usedMS + " ms[", (pc.isBusying() ? "BUSYING" : "IDLE"), "]");
-                }
+                LogUtil.logBasedOnThreshold(
+                        LOGGER, usedMS, getInfoSQLThreshold(), getWarnSQLThreshold(),
+                        pc.getConnectionName(), " checkout by ", pc.getThreadCheckOut().getName(), " for " + usedMS + " ms[", (pc.isBusying() ? "BUSYING" : "IDLE"), "]"
+                );
             }
         }
         if (verbose) {
-            log.info(poolName, ": checkout:", i, "/connected:", validConnectionNum.get(), "/max:", config.getMaxConnections());
+            LOGGER.info(poolName, ": checkout:", i, "/connected:", validConnectionNum.get(), "/max:", config.getMaxConnections());
         } else {
-            log.debug(poolName, ": checkout:", i, "/connected:", validConnectionNum.get(), "/max:", config.getMaxConnections());
+            LOGGER.debug(poolName, ": checkout:", i, "/connected:", validConnectionNum.get(), "/max:", config.getMaxConnections());
         }
     }
 
     void offerUnclosedConnection(Connection connection, String connectionName) {
-        unclosedConnections.offer(new NamedConnection(connection, connectionName));
+        unclosedConnections.offer(new UnclosedConnection(connection, connectionName));
     }
 
     void closeUnclosedConnection() {
         final int c = unclosedConnections.size();
         for (int i = 0; i < c; i++) {
-            NamedConnection namedConnection = unclosedConnections.poll();
-            if (namedConnection == null) {
+            UnclosedConnection unclosedConnection = unclosedConnections.poll();
+            if (unclosedConnection == null) {
                 break;
             }
             try {
-                namedConnection.retryCloseCount++;
+                unclosedConnection.retryCloseCount++;
                 try {
-                    namedConnection.connection.close();
+                    unclosedConnection.connection.close();
                 } catch (SQLException e) {
                     try {
-                        namedConnection.connection.rollback();
+                        unclosedConnection.connection.rollback();
                     } catch (SQLException ignr) {}
-                    namedConnection.connection.close();
+                    unclosedConnection.connection.close();
                 }
-                log.info(namedConnection.connectionName, " finally be closed!");
+                LOGGER.info(unclosedConnection.connectionName, " finally be closed!");
             } catch (SQLException e) {
-                log.error("closeUnclosedConnection(", namedConnection.connectionName, ")[", namedConnection.retryCloseCount, "] error: ", e.toString());
-                if (namedConnection.retryCloseCount < 10) {
-                    unclosedConnections.offer(namedConnection);
+                if (unclosedConnection.retryCloseCount >= 10) {
+                    LOGGER.error("closeUnclosedConnection(", unclosedConnection.connectionName, ")[", unclosedConnection.retryCloseCount, "], stop retrying. error: ", e.toString());
+                } else {
+                    LOGGER.warn("closeUnclosedConnection(", unclosedConnection.connectionName, ")[", unclosedConnection.retryCloseCount, "] error: ", e.toString());
+                    unclosedConnections.offer(unclosedConnection);
                 }
             }
         }
     }
     // to static class to  improve Performance
-    private static class NamedConnection {
+    private static class UnclosedConnection {
         final Connection connection;
         final String connectionName;
         int retryCloseCount = 0;
 
-        private NamedConnection(Connection connection, String connectionName) {
+        private UnclosedConnection(Connection connection, String connectionName) {
             this.connection = connection;
             this.connectionName = connectionName;
         }
@@ -496,6 +466,7 @@ public class Hqcp implements HqcpMBean {
         /**
          * （从堆栈底部的连接开始检查）
          * 空闲连接的检查：
+         *  0、关闭超过lifetime的空闲连接
          *  1、关闭超过minConnections设置的空闲连接
          *  2、对空闲的连接进行存活检测
          * @return 下次检查的时间间隔(ms)（根据保留的堆栈底部的连接的最后check时间计算得出）
@@ -512,26 +483,26 @@ public class Hqcp implements HqcpMBean {
                         //已经checkout，则停止检测
                         break;
                     }
-                    //下次检测时间=检入时间+检测间隔
-                    timeToNextCheck = pc.getTimeCheckIn() + config.getIdleTimeoutMillisec() - System.currentTimeMillis();
-                    if (timeToNextCheck <= 0) {
-                        //达到需要检测或回收的时间
-                        //置下次检测时间=当前时间+最大检测间隔
-                        timeToNextCheck = config.getIdleTimeoutMillisec();
-                        if (validConnectionNum.get() > config.getMinConnections()) {
-                            //当前连接数>最少连接数，则回收该连接
-                            if (! closeConnection(pc)) {
+                    long _timeToNextCheck = pc.millisToCheckIt(config.getIdleTimeoutMillisec()); // 是否该检测
+                    long _timeToDestroy = pc.millisToDestroy(config.getLifetimeMillisec());      // 是否该销毁
+                    if (_timeToNextCheck <= 0 || _timeToDestroy <= 0) {
+                        if (validConnectionNum.get() > config.getMinConnections()
+                                || _timeToDestroy <= 0)  {
+                            //当前连接数>最少连接数 or 到销毁时间，则销毁该连接
+                            if (! removeConnection(pc, true)) {
                                 //连接栈底部不是当前连接
                                 //说明连接正等待被检出
                                 //则停止检测
+                                LOGGER.debug("connection {} is checking out, stop removing {}, {} ", pc.getConnectionName(), _timeToNextCheck, _timeToDestroy);
                                 break;
                             }
                         } else {
-                            //否则，检测该连接
-                            //pc.doCheck();
+                            //否则，（异步）检测该连接
                             asyncCheckConnection(pc);
                         }
                     } else {
+                        //否则，更新下次检测间隔时间（取其中的最小值）
+                        timeToNextCheck = Math.min(_timeToDestroy, Math.min(timeToNextCheck, _timeToNextCheck));
                         //FIXME do break is correct?
                         break;
                     }
@@ -549,11 +520,11 @@ public class Hqcp implements HqcpMBean {
                     try {
                         pooledConnection.doCheck();
                     } catch (Exception e) {
-                        log.warn("exception occurs when doCheck: " + e);
+                        LOGGER.warn("exception occurs when doCheck: " + e);
                         try {
                             pooledConnection.doCheck();
                         } catch (Exception ignored) {
-                            log.warn("exception occurs again when doCheck: " + e);
+                            LOGGER.warn("exception occurs again when doCheck: " + e);
                         }
                     }
                 }
@@ -561,31 +532,31 @@ public class Hqcp implements HqcpMBean {
             try {
                 future.get(config.getIdleTimeoutMillisec(), TimeUnit.MILLISECONDS);
             } catch (Exception e) {
-                log.warn("get connection: ", pooledConnection.getConnectionName(), " check result error: ", e);
+                LOGGER.warn("get connection: ", pooledConnection.getConnectionName(), " check result error: ", e);
                 pooledConnection.close();
             }
         }
 
         /**
-         * 保持最小连接数
+         * 保持最小连接数，并 wait 直到 waitTimeMillis，期间如果有更多连接需求则创建新连接
          */
-        private void newMoreConnections(long waitTime) throws InterruptedException {
+        private void newMoreConnections(long waitTimeMillis) throws InterruptedException {
+            final long timeout = System.currentTimeMillis() + waitTimeMillis;
             try {
                 while (validConnectionNum.get() < config.getMinConnections()) {
                     newConnection(false);
                 }
             } catch (SQLException e) {
-                log.warn(e);
+                LOGGER.warn("exception occurred when maintaining min connections for {} of {}/{} to {}", poolName,
+                        validConnectionNum.get(), config.getMinConnections(), config.getUrl(), e);
             }
-            long nanos = TimeUnit.MILLISECONDS.toNanos(waitTime);
-            final long timeout = System.nanoTime() + nanos;
-            while (timeout- System.nanoTime() > 0) {
-                nanos = idleConnectionsId.awaitRequireMore(timeout- System.nanoTime(), TimeUnit.NANOSECONDS);
-                if (nanos > 0) {
+            while (timeout - System.currentTimeMillis() > 0) {
+                long nanos = idleConnectionsId.awaitRequireMore(timeout - System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+                if (nanos > 0) {  // nanos > 0 表示有更多连接的需求，否则表示已到超时时间
                     try {
                         newConnection(false);
                     } catch (SQLException e) {
-                        log.warn(e);
+                        LOGGER.warn("exception occurred when creating more connections for {} to {}", poolName, config.getUrl(), e);
                     }
                 } else {
                     break;
@@ -594,15 +565,15 @@ public class Hqcp implements HqcpMBean {
         }
 
         public void run() {
-            log.info(getName(), " start!");
+            LOGGER.info(getName(), " start!");
             long idleTimeout = config.getIdleTimeoutMillisec();
             while (! shutdown.get()) {
                 try {
-                    //保持最小连接数
+                    //保持最小连接数（并 wait 直到 idleTimeout）
                     newMoreConnections(idleTimeout);
                     //尝试关闭游离池外的raw connection
                     closeUnclosedConnection();
-                    //检查连接可用性，并关闭额外的连接
+                    //检查连接可用性，并关闭额外的连接（超过lifetime和超过minConnections的idle连接）
                     idleTimeout = idleConnectionCheckOrClose();
                     //log连接池的信息
                     logVerboseInfo(config.isVerbose());
@@ -612,10 +583,10 @@ public class Hqcp implements HqcpMBean {
                     }
                 } catch (Exception e) {
                     idleTimeout = config.getIdleTimeoutMillisec();
-                    log.warn(e);
+                    LOGGER.warn(e);
                 } catch (Throwable t) {
                     idleTimeout = config.getIdleTimeoutMillisec();
-                    log.error(t);
+                    LOGGER.error(t);
                 }
             }
             executorService.shutdown();
@@ -625,7 +596,7 @@ public class Hqcp implements HqcpMBean {
                     executorService.awaitTermination(1, TimeUnit.SECONDS);
                 }
             } catch (InterruptedException ignr) {}
-            log.info(getName(), " quit!");
+            LOGGER.info(getName(), " quit!");
         }
     }
 
@@ -643,15 +614,15 @@ public class Hqcp implements HqcpMBean {
             return stack.size();
         }
         
-        public boolean removeStackBottom(E e) {
+        public boolean popFromBottom(E e) {
             operLock.lock();
             try {
                 if (stack.size() == 0) {
                     return false;
                 }
-                E x = stack.getFirst();
+                E x = stack.getLast();
                 if (x.equals(e)) {
-                    stack.removeFirst();
+                    stack.removeLast();
                     return true;
                 } else {
                     return false;
@@ -666,7 +637,7 @@ public class Hqcp implements HqcpMBean {
             operLock.lock();
             try {
                 c = stack.size();
-                stack.addLast(e);
+                stack.addFirst(e);
                 if (c == 0) {
                     notEmpty.signal();
                 }
@@ -681,7 +652,23 @@ public class Hqcp implements HqcpMBean {
                 if (0 == stack.size()) {
                     return null;
                 }
-                return stack.removeLast();
+                return stack.removeFirst();
+            } finally {
+                operLock.unlock();
+            }
+        }
+
+        /**
+         * signal for more connection
+         */
+        public void requireMoreSignal() {
+            try {
+                operLock.lockInterruptibly();
+            } catch (InterruptedException e) {
+                return;
+            }
+            try {
+                requireMore.signal();
             } finally {
                 operLock.unlock();
             }
@@ -736,7 +723,7 @@ public class Hqcp implements HqcpMBean {
             try {
                 while (true) {
                     if (stack.size() > 0) {
-                        E x = stack.removeLast();
+                        E x = stack.removeFirst();
                         if (stack.size() > 0) {
                             notEmpty.signal();
                         }
@@ -745,11 +732,17 @@ public class Hqcp implements HqcpMBean {
                         //stack is empty, signal for more connection
                         requireMore.signal();
                     }
-                    if (nanos <= 0) {
+                    // timeout >= 0 表示有超时时间 & nanos <= 0 表示已经超时
+                    if (timeout >= 0 && nanos <= 0) {
                         return null;
                     }
                     try {
-                        nanos = notEmpty.awaitNanos(nanos);
+                        if (timeout < 0) {
+                            // no timeout
+                            notEmpty.await();
+                        } else {
+                            nanos = notEmpty.awaitNanos(nanos);
+                        }
                     } catch (InterruptedException ie) {
                         notEmpty.signal(); // propagate to a non-interrupted thread
                         throw ie;
@@ -763,8 +756,13 @@ public class Hqcp implements HqcpMBean {
         public Integer[] toArray() {
             operLock.lock();
             try {
-                Integer[] ret = new Integer[stack.size()];
-                return stack.toArray(ret);
+                Integer[] array = new Integer[stack.size()];
+                Iterator<E> descendingIterator = stack.descendingIterator();
+                int index = 0;
+                while (descendingIterator.hasNext()) {
+                    array[index++] = (Integer) descendingIterator.next();
+                }
+                return array;
             } finally {
                 operLock.unlock();
             }
@@ -789,7 +787,7 @@ public class Hqcp implements HqcpMBean {
     }
 
     public void setPoolName(String poolName) {
-        if (! configFromProperties) {
+        if (! this.config.isLoadFromProperties()) {
             this.poolName = poolName;
             if (this.monitor != null) {
                 this.monitor.setName("CPM:" + poolName);

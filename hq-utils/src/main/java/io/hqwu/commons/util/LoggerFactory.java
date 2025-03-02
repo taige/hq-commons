@@ -18,12 +18,7 @@ public class LoggerFactory {
     }
 
     public static Logger getLogger(String className) {
-        Logger logger = LOGGERS.get(className);
-        if (logger == null) {
-            LOGGERS.putIfAbsent(className, new Logger(className));
-            logger = LOGGERS.get(className);
-        }
-        return logger;
+        return LOGGERS.computeIfAbsent(className, Logger::new);
     }
 
     public static Logger getLogger(Class<?> clazz) {

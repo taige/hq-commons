@@ -52,7 +52,7 @@ public class HqcpTest {
         expect(config.getDriverClassName()).andReturn(null).atLeastOnce();
         expect(config.getIdleTimeoutMillisec()).andReturn(10000L).atLeastOnce(); //回收时间10sec
         expect(config.getCheckoutTimeoutMillisec()).andReturn(5000L).anyTimes(); //获取连接的超时时间5sec
-        expect(config.getCheckStatement()).andReturn("test").anyTimes();
+        expect(config.getCheckStatement()).andReturn("test checking sql").anyTimes();
         expect(config.getJmxLevel()).andReturn(2).atLeastOnce();
         expect(config.getMaxConnections()).andReturn(5).anyTimes(); //最大连接 5
         expect(config.getMinConnections()).andReturn(1).atLeastOnce(); //最小 1
@@ -118,7 +118,7 @@ public class HqcpTest {
             if (! connPool.isShutdown()) {
                 Connection conn = connPool.getConnection();
                 Statement stmt = conn.createStatement();
-                stmt.executeUpdate("ssss");
+                stmt.executeUpdate("tearDown sql");
                 conn.close();
                 connPool.shutdown();
             }
@@ -142,7 +142,7 @@ public class HqcpTest {
         Connection conn = connPool.getConnection();
         assertEquals(conn, mockConnection);
         Statement stmt = conn.createStatement();
-        int n = stmt.executeUpdate("ssss");
+        int n = stmt.executeUpdate("testShutdown sql");
         assertEquals(1, n);
         stmt.close();
         conn.close();
@@ -171,7 +171,7 @@ public class HqcpTest {
         assertEquals(conn, mockConnection);
         //conn.close();
         Statement stmt = conn.createStatement();
-        int n = stmt.executeUpdate("ssss");
+        int n = stmt.executeUpdate("testShutdownForce sql");
         assertEquals(1, n);
         stmt.close();
         assertEquals(1, connPool.getActiveConnectionsCount());
@@ -237,11 +237,11 @@ public class HqcpTest {
         for (int i = 0; i < conns.length; i++) {
             conns[i] = connPool.getConnection();
         }
-        try {
+        SQLException ex = assertThrows(SQLException.class, () -> {
             Connection conn = connPool.getConnection();
-            fail("getConnection exhausted timeout fail...");
-        } catch (SQLException e) {
-        }
+            conn.close();
+        });
+        assertTrue(ex.getMessage().contains("Timeout on waiting for an available connection"));
         for (Connection conn : conns) {
             conn.close();
         }
@@ -355,7 +355,7 @@ public class HqcpTest {
             fail("testStatement fail...");
         }
 
-        //conn.close();
+        conn.close();
     }
 
     @Test
@@ -471,6 +471,8 @@ public class HqcpTest {
         PreparedStatement pstmt5 = conn.prepareStatement("prestmt #600", Statement.RETURN_GENERATED_KEYS);
         pstmt5.executeUpdate();
         pstmt5.close();
+
+        conn.close();
     }
 
     @Test
@@ -573,6 +575,7 @@ public class HqcpTest {
         CallableStatement pstmt2 = conn.prepareCall("prestmt #300", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE, ResultSet.HOLD_CURSORS_OVER_COMMIT);
         pstmt2.executeUpdate();
         pstmt2.close();
+        conn.close();
     }
 
     @Test
@@ -632,18 +635,16 @@ public class HqcpTest {
         final CyclicBarrier cyclicBarrier = new CyclicBarrier(2);
 
         //用于异步的将conn放回连接池的线程
-        new Thread() {
-            public void run() {
-                try {
-                    cyclicBarrier.await();
-                    LOGGER.debug("sleep 3000ms");
-                    Thread.sleep(3000); //timeout is 5 sec
-                    conn.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+        new Thread(() -> {
+            try {
+                cyclicBarrier.await();
+                LOGGER.debug("sleep 3000ms");
+                Thread.sleep(3000); //timeout is 5 sec
+                conn.close();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        }.start();
+        }).start();
         cyclicBarrier.await();
         Connection conn6 = connPool.getConnection();
         assertEquals(conn6, mockConnection);
@@ -705,7 +706,6 @@ public class HqcpTest {
         assertEquals(conn1, mockConnection);
         conn1.close();
 
-        connPool.reloadProperties();
     }
 
     @Test
@@ -758,7 +758,7 @@ public class HqcpTest {
         connPool = new Hqcp(config);
         Connection conn = connPool.getConnection();
         Statement stmt = conn.createStatement();
-        int n = stmt.executeUpdate("ssss");
+        int n = stmt.executeUpdate("testGetPoolName sql");
         assertEquals(1, n);
         stmt.close();
         conn.close();
