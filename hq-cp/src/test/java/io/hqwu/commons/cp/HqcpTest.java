@@ -6,6 +6,8 @@ import org.easymock.classextension.IMocksControl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.lang.reflect.Field;
 import java.sql.*;
@@ -1009,7 +1011,7 @@ public class HqcpTest {
 
         Field idleTimeoutField = HqcpConfig.class.getDeclaredField("idleTimeoutSec");
         idleTimeoutField.setAccessible(true);
-        idleTimeoutField.set(realConfig, 2);
+        idleTimeoutField.set(realConfig, 2);   // 强制 monitor 检查间隔：2s
 
         Hqcp pool = new Hqcp(realConfig);
 
@@ -1066,6 +1068,62 @@ public class HqcpTest {
         conn.close(); // 释放连接，使等待线程能够拿到连接
         waitingThread.join(3000);
         assertTrue(gotConnection[0], "释放连接后，等待线程应能拿到连接");
+
+        pool.shutdown();
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {-1, 10_000})     // -1 表示一直等待
+    public void testDynamicIncreaseMaxConnections(long checkoutTimeout) throws Exception {
+        answer = mocksControl.createMock(MockJDBCAnswer.class);
+        expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
+        mocksControl.replay();
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
+        {  // 为了兼容其他测试用例，需要执行这段
+            this.connPool = new Hqcp(config);
+            Connection conn = this.connPool.getConnection();
+            conn.createStatement().executeUpdate("lalalal");
+            conn.close();
+            this.connPool.shutdown();
+        }
+
+        // 构造配置：最大连接数为 1，checkoutTimeoutMillisec 为 -1 表示一直等待
+        HqcpConfig realConfig = new HqcpConfig();
+        realConfig.setUrl("jdbc:mock:test");
+        realConfig.setMaxConnections(1);
+        realConfig.setMinConnections(0);
+        realConfig.setVerbose(true);
+        realConfig.setCheckoutTimeoutMillisec(checkoutTimeout);
+
+        Field idleTimeoutField = HqcpConfig.class.getDeclaredField("idleTimeoutSec");
+        idleTimeoutField.setAccessible(true);
+        idleTimeoutField.set(realConfig, 3);  // 强制 monitor 检查间隔：3s
+
+        Hqcp pool = new Hqcp(realConfig);
+
+        Connection conn = pool.getConnection(); // 取得唯一连接
+
+        final boolean[] gotConnection = new boolean[1];
+        Thread waitingThread = new Thread(() -> {
+            try {
+                Connection c = pool.getConnection();
+                gotConnection[0] = true;
+                c.close();
+            } catch (SQLException e) {
+                fail("getConnection 出错: " + e.getMessage());
+            }
+        });
+        waitingThread.start();
+        Thread.sleep(2000);
+        assertFalse(gotConnection[0], "在未增加连接数前，等待线程不应能拿到连接");
+
+        LOGGER.info("increase max connections to 2");
+        realConfig.setMaxConnections(2);
+
+        waitingThread.join(3000);
+        assertTrue(gotConnection[0], "增加连接数后，等待线程应能拿到连接");
+
+        conn.close();   // 释放连接
 
         pool.shutdown();
     }

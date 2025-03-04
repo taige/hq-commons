@@ -4,12 +4,14 @@ package io.hqwu.commons.cp;
 import io.hqwu.commons.cp.dialect.DB2PooledConnection;
 import io.hqwu.commons.cp.dialect.MySQLPooledConnection;
 import io.hqwu.commons.cp.dialect.OraclePooledConnection;
+import io.hqwu.commons.cp.util.DynamicSemaphore;
 import io.hqwu.commons.cp.util.LogUtil;
 import io.hqwu.commons.cp.util.OracleUtil;
 import io.hqwu.commons.util.Formatter;
 import io.hqwu.commons.util.JMXUtil;
 import io.hqwu.commons.util.Logger;
 
+import java.lang.reflect.Array;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -83,11 +85,17 @@ public class Hqcp implements HqcpMBean {
      */
     private final BlockingQueue<UnclosedConnection> unclosedConnections = new LinkedBlockingQueue<UnclosedConnection>();
 
+    /**
+     * 使用 Semaphore 控制最大连接数
+     */
+    private final DynamicSemaphore maxConnectionSemaphore;
+
     Hqcp(String poolName) throws SQLException {
         this.config = new HqcpConfig();
         this.config.loadFromProperties(poolName);
         this.poolId = POOL_ID.getAndIncrement();
         this.poolName = poolName;
+        this.maxConnectionSemaphore = new DynamicSemaphore(config.getMaxConnections());
         initPool();
     }
     
@@ -95,6 +103,7 @@ public class Hqcp implements HqcpMBean {
         this.config = config;
         this.poolId = POOL_ID.getAndIncrement();
         this.poolName = "HQCP#" + this.poolId;
+        this.maxConnectionSemaphore = new DynamicSemaphore(config.getMaxConnections());
         initPool();
     }
 
@@ -184,7 +193,7 @@ public class Hqcp implements HqcpMBean {
         }
         // 释放所有连接
         for (int i = 0; i < 10; i++) { //最多尝试10次，超过之后强制关闭
-            Integer[] connIds = idleConnectionsId.toArray();
+            Integer[] connIds = idleConnectionsId.toArray(Integer.class);
             for (Integer connId: connIds) {
                 PooledConnection pc = validConnectionsPool.get(connId);
                 try {
@@ -222,6 +231,7 @@ public class Hqcp implements HqcpMBean {
             }
             pc.close();
             validConnectionNum.decrementAndGet();
+            maxConnectionSemaphore.release();
             pc.unregisterJMX();
         }
         validConnectionsPool.clear();
@@ -312,35 +322,37 @@ public class Hqcp implements HqcpMBean {
      * @throws SQLException
      */
     private Integer newConnection(boolean directReturn) throws SQLException {
-        if (validConnectionNum.incrementAndGet() <= config.getMaxConnections()) {
-            //当前连接数 < 最大连接数，则创建连接
-            Integer connId = connectionNo.getAndIncrement();
-            try {
-                PooledConnection pconn;
-                if (config.isOracle()) {
-                    pconn = new OraclePooledConnection(Hqcp.this, connId);
-                } else if (config.isMySQL()) {
-                    pconn = new MySQLPooledConnection(Hqcp.this, connId);
-                } else if (config.isDB2()) {
-                    pconn = new DB2PooledConnection(Hqcp.this, connId);
-                } else {
-                    pconn = new PooledConnection(Hqcp.this, connId);
-                }
-                if (config.isVerbose()) {
-                    LOGGER.info(poolName, " +)", validConnectionNum.get(), " connections to ", config.getUrl());
-                }
-                validConnectionsPool.put(connId, pconn);
-                if (directReturn) {
-                    return connId;
-                } else {
-                    idleConnectionsId.push(connId);
-                }
-            } catch (SQLException e) {
-                validConnectionNum.decrementAndGet();
-                throw e;
+        // 尝试获取Semaphore许可，如果失败表示已达最大连接数，直接返回null
+        if (! maxConnectionSemaphore.tryAcquire()) {
+            return null;
+        }
+        //当前连接数 < 最大连接数，则创建连接
+        Integer connId = connectionNo.getAndIncrement();
+        try {
+            PooledConnection pconn;
+            if (config.isOracle()) {
+                pconn = new OraclePooledConnection(Hqcp.this, connId);
+            } else if (config.isMySQL()) {
+                pconn = new MySQLPooledConnection(Hqcp.this, connId);
+            } else if (config.isDB2()) {
+                pconn = new DB2PooledConnection(Hqcp.this, connId);
+            } else {
+                pconn = new PooledConnection(Hqcp.this, connId);
             }
-        } else {
-            validConnectionNum.decrementAndGet();
+            validConnectionNum.incrementAndGet();
+            if (config.isVerbose()) {
+                LOGGER.info(poolName, " +)", validConnectionNum.get(), " connections to ", config.getUrl());
+            }
+            validConnectionsPool.put(connId, pconn);
+            if (directReturn) {
+                return connId;
+            } else {
+                idleConnectionsId.push(connId);
+            }
+        } catch (SQLException e) {
+            // 创建连接失败时，必须释放之前占用的Semaphore许可，保证计数一致
+            maxConnectionSemaphore.release();
+            throw e;
         }
         return null;
     }
@@ -363,6 +375,8 @@ public class Hqcp implements HqcpMBean {
         }
         validConnectionNum.decrementAndGet();
         validConnectionsPool.remove(pc.getConnectionId());
+        // 销毁连接后释放Semaphore许可
+        maxConnectionSemaphore.release();
         pc.close();
         pc.unregisterJMX();
         if (config.isVerbose()) {
@@ -473,7 +487,7 @@ public class Hqcp implements HqcpMBean {
          */
         private long idleConnectionCheckOrClose() throws InterruptedException {
             long timeToNextCheck = config.getIdleTimeoutMillisec();
-            Integer[] connIds = idleConnectionsId.toArray();
+            Integer[] connIds = idleConnectionsId.toArray(Integer.class);
             for (Integer connId: connIds) {
                 PooledConnection pc = validConnectionsPool.get(connId);
                 pc.lock(); //锁住连接，不允许checkout
@@ -588,6 +602,8 @@ public class Hqcp implements HqcpMBean {
                     closeUnclosedConnection();
                     //检查连接可用性，并关闭额外的连接（超过lifetime和超过minConnections的idle连接）
                     idleTimeout = idleConnectionCheckOrClose();
+                    //更新最大连接数控制
+                    maxConnectionSemaphore.updatePermits(config.getMaxConnections());
                     //log连接池的信息
                     logVerboseInfo(config.isVerbose());
                 } catch (InterruptedException e) {
@@ -688,7 +704,6 @@ public class Hqcp implements HqcpMBean {
             operLock.lockInterruptibly();
             try {
                 try {
-//                    log.info("wait ", unit.toMillis(timeout), " ms...");
                     return requireMore.awaitNanos(unit.toNanos(timeout));
                 } catch (InterruptedException e) {
                     requireMore.signal();
@@ -720,7 +735,7 @@ public class Hqcp implements HqcpMBean {
             }
         }
 
-        public E pop(long timeout, TimeUnit unit) throws InterruptedException, SQLException {
+        public E pop(long timeout, TimeUnit unit) throws InterruptedException {
             long nanos = unit.toNanos(timeout);
             operLock.lockInterruptibly();
             try {
@@ -742,9 +757,17 @@ public class Hqcp implements HqcpMBean {
                     try {
                         if (timeout < 0) {
                             // no timeout
-                            notEmpty.await();
+                        if (! notEmpty.await(1, TimeUnit.SECONDS)) {
+                            LOGGER.trace("wait for connection INFINITELY, wakeup to see if there is a connection available");
+                        }
                         } else {
-                            nanos = notEmpty.awaitNanos(nanos);
+                        // 超时场景下改为按1秒周期等待
+                        long waitTime = Math.min(nanos, TimeUnit.SECONDS.toNanos(1));
+                        long before = System.nanoTime();
+                        if (notEmpty.awaitNanos(waitTime) <= 0) {
+                            LOGGER.trace("wait connection for {}ms, wakeup to see if there is a connection available", timeout);
+                        }
+                        nanos -= System.nanoTime() - before;
                         }
                     } catch (InterruptedException ie) {
                         notEmpty.signal(); // propagate to a non-interrupted thread
@@ -756,14 +779,15 @@ public class Hqcp implements HqcpMBean {
             }
         }
         
-        public Integer[] toArray() {
+    public E[] toArray(Class<E> clazz) {
             operLock.lock();
             try {
-                Integer[] array = new Integer[stack.size()];
+            @SuppressWarnings("unchecked")
+            E[] array = (E[]) Array.newInstance(clazz, stack.size());
                 Iterator<E> descendingIterator = stack.descendingIterator();
                 int index = 0;
                 while (descendingIterator.hasNext()) {
-                    array[index++] = (Integer) descendingIterator.next();
+                array[index++] = descendingIterator.next();
                 }
                 return array;
             } finally {
