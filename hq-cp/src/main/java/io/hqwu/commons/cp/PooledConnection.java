@@ -163,22 +163,21 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     /**
      * 根据连接存活时间，计算销毁连接还需要经过的时间(ms)
-     * @param lifetimeMillis 连接最大存活时间<br/>
-     *                       <b>0 表示永久存活</b>
      * @return 销毁连接需要等待的毫秒
      */
-    public long millisToDestroy(long lifetimeMillis) {
-        return lifetimeMillis <= 0 ? Long.MAX_VALUE : (timeConnected + lifetimeMillis) - System.currentTimeMillis();
+    public long millisToDestroy() {
+        return this.connectionPool.getConfig().getLifetimeSec() <= 0
+                ? Long.MAX_VALUE
+                : (timeConnected + this.connectionPool.getConfig().getLifetimeMillisec()) - System.currentTimeMillis();
     }
 
     /**
      * 计算连接应该要被检测需要等待的毫秒
-     * @param idleTimeoutMillisec 检测间隔=连接空闲超时时间
      * @return 需要等待的毫秒
      */
-    public long millisToCheckIt(long idleTimeoutMillisec) {
+    public long millisToCheckIt() {
         // 检入时间 + 检测间隔 - 当前时间
-        return timeCheckIn + idleTimeoutMillisec - System.currentTimeMillis();
+        return timeCheckIn + this.connectionPool.getConfig().getIdleTimeoutMillisec() - System.currentTimeMillis();
     }
 
     public boolean recover(SQLException sqle) {
@@ -630,7 +629,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 real_connection.close();
             } catch (SQLException e) {
                 //add by wuhq 2010.11.10
-                log.error("close real_connection[", connectionName, "] error: ", e);
+                log.info("close real_connection[", connectionName, "] error: ", e);
                 try {
                     real_connection.rollback();
                 } catch (SQLException ignr) {}
@@ -638,7 +637,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
             }
             log.info(connectionName, " real closed.");
         } catch (SQLException e) {
-            log.error(connectionName, " real_connection close error: ", e);
+            log.warn(connectionName, " real_connection close error: ", e);
             connectionPool.offerUnclosedConnection(real_connection, connectionName);
         }
     }

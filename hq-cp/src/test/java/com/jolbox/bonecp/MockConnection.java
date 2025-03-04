@@ -41,6 +41,10 @@ public class MockConnection implements Connection {
 
 	private boolean queryTimeout = false;
 
+	private String connectThread = null;
+	private String closeThread = null;
+	private int connId;
+
 	public boolean isQueryTimeout() {
 		return queryTimeout;
 	}
@@ -55,8 +59,10 @@ public class MockConnection implements Connection {
 //	}
 
 	public void connect() {
-		int n = count.incrementAndGet();
-		LOGGER.info("+MockConnection.connect(): " + n);
+		int n = count.getAndIncrement();
+		this.connId = n;
+		this.connectThread = Thread.currentThread().getName();
+		LOGGER.debug("+MockConnection.connect(): " + n);
 
 	}
 
@@ -76,8 +82,21 @@ public class MockConnection implements Connection {
 			queryTimeout = false;
 			throw new SQLNonTransientConnectionException("Communications link failure during rollback(). Transaction resolution unknown.");
 		}
-		int n = count.decrementAndGet();
-		LOGGER.info("-MockConnection.close(): " + n);
+//		int n = count.decrementAndGet();
+		this.closeThread = Thread.currentThread().getName();
+		LOGGER.info("-MockConnection.close(): " + connId);
+	}
+
+	public String getConnectThread() {
+		return connectThread;
+	}
+
+	public String getCloseThread() {
+		return closeThread;
+	}
+
+	public int getConnId() {
+		return connId;
 	}
 
 	/** {@inheritDoc}

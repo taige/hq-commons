@@ -182,7 +182,7 @@ public class Hqcp implements HqcpMBean {
             } catch (InterruptedException e) {
             }
         }
-        // 关闭所有连接
+        // 释放所有连接
         for (int i = 0; i < 10; i++) { //最多尝试10次，超过之后强制关闭
             Integer[] connIds = idleConnectionsId.toArray();
             for (Integer connId: connIds) {
@@ -286,7 +286,7 @@ public class Hqcp implements HqcpMBean {
     
     void checkIn(PooledConnection pconn) {
         int connId = pconn.getConnectionId();
-        if (config.getLifetimeSec() > 0 && pconn.millisToDestroy(config.getLifetimeMillisec()) <= 0) {
+        if (config.getLifetimeSec() > 0 && pconn.millisToDestroy() <= 0) {
             // destroy the connection
             removeConnection(pconn, false);
             if (validConnectionNum.get() < config.getMinConnections()) {
@@ -326,14 +326,14 @@ public class Hqcp implements HqcpMBean {
                 } else {
                     pconn = new PooledConnection(Hqcp.this, connId);
                 }
+                if (config.isVerbose()) {
+                    LOGGER.info(poolName, " +)", validConnectionNum.get(), " connections to ", config.getUrl());
+                }
                 validConnectionsPool.put(connId, pconn);
                 if (directReturn) {
                     return connId;
                 } else {
                     idleConnectionsId.push(connId);
-                }
-                if (config.isVerbose()) {
-                    LOGGER.info(poolName, " +)", validConnectionNum.get(), " connections to ", config.getUrl());
                 }
             } catch (SQLException e) {
                 validConnectionNum.decrementAndGet();
@@ -354,11 +354,11 @@ public class Hqcp implements HqcpMBean {
      * @return if remove success
      */
     private boolean removeConnection(PooledConnection pc, boolean isIdleConn) {
-        //移除连接栈底部连接
+        // 移除连接栈底部的<b>空闲</b>连接
         if (isIdleConn && ! idleConnectionsId.popFromBottom(pc.getConnectionId())) {
             //连接栈底部不是当前连接
             //说明连接正等待被检出
-            //则停止检测
+            //则停止销毁
             return false;
         }
         validConnectionNum.decrementAndGet();
@@ -479,20 +479,32 @@ public class Hqcp implements HqcpMBean {
                 pc.lock(); //锁住连接，不允许checkout
                 try {
                     if (pc.isCheckOut()) {
-                        //已经checkout，则停止检测
+                        // 已经checkout，则停止检测（池中连接按使用时间排序，后续连接肯定也是checkout状态，故停止检测）
                         break;
                     }
-                    long _timeToNextCheck = pc.millisToCheckIt(config.getIdleTimeoutMillisec()); // 是否该检测
-                    long _timeToDestroy = pc.millisToDestroy(config.getLifetimeMillisec());      // 是否该销毁
-                    if (_timeToNextCheck <= 0 || _timeToDestroy <= 0) {
-                        if (validConnectionNum.get() > config.getMinConnections()
-                                || _timeToDestroy <= 0)  {
-                            //当前连接数>最少连接数 or 到销毁时间，则销毁该连接
+                    long _timeToDestroy = pc.millisToDestroy();      // 是否该销毁
+                    long _timeToNextCheck = pc.millisToCheckIt(); // 是否该检测
+                    LOGGER.trace("idleConnectionCheckOrClose is checking out connection {}, _timeToDestroy={}, _timeToNextCheck={}",
+                            pc.getConnectionName(), config.getLifetimeMillisec() <= 0 ? "INFINITE" : _timeToDestroy, _timeToNextCheck);
+                    if (_timeToDestroy <= 0) {
+                        //到销毁时间，则销毁该连接
+                        if (idleConnectionsId.remove(connId)) { // 从空闲池中拿出（池中连接按使用时间排序，非创建时间，所以不能保证是在池底）
+                            removeConnection(pc, false);        // 从池中删除（false - 非idle/池底模式）
+                            continue;                           // 继续检查下一个连接
+                        }
+                    } else {
+                        //否则，更新下次检测间隔时间（取其中的最小值）
+                        timeToNextCheck = Math.min(_timeToDestroy, timeToNextCheck);
+                    }
+                    if (_timeToNextCheck <= 0) {
+                        if (validConnectionNum.get() > config.getMinConnections())  {
+                            //当前连接数>最少连接数，则销毁该连接
                             if (! removeConnection(pc, true)) {
                                 //连接栈底部不是当前连接
                                 //说明连接正等待被检出
-                                //则停止检测
-                                LOGGER.debug("connection {} is checking out, stop removing {}, {} ", pc.getConnectionName(), _timeToNextCheck, _timeToDestroy);
+                                //（池中连接按使用时间排序，后续连接肯定也是checkout状态，故）停止检测
+                                LOGGER.debug("connection {} is checking out, stop removing {}, {} ",
+                                        pc.getConnectionName(), _timeToNextCheck, _timeToDestroy);
                                 break;
                             }
                         } else {
@@ -501,9 +513,11 @@ public class Hqcp implements HqcpMBean {
                         }
                     } else {
                         //否则，更新下次检测间隔时间（取其中的最小值）
-                        timeToNextCheck = Math.min(_timeToDestroy, Math.min(timeToNextCheck, _timeToNextCheck));
-                        //FIXME do break is correct?
-                        break;
+                        timeToNextCheck = Math.min(timeToNextCheck, _timeToNextCheck);
+                        // DON'T break if `lifetime` is set. 2025.03.04 by Hongqiang W. 为了检查下一个连接是否到生命周期该销毁
+                        if (config.getLifetimeMillisec() <= 0) {
+                            break;
+                        }
                     }
                 } finally {
                     pc.unlock();
@@ -594,7 +608,9 @@ public class Hqcp implements HqcpMBean {
                     executorService.shutdownNow();
                     executorService.awaitTermination(1, TimeUnit.SECONDS);
                 }
-            } catch (InterruptedException ignr) {}
+            } catch (InterruptedException ignr) {
+                executorService.shutdownNow();
+            }
             LOGGER.info(getName(), " quit!");
         }
     }
@@ -754,7 +770,10 @@ public class Hqcp implements HqcpMBean {
                 operLock.unlock();
             }
         }
-        
+
+        public boolean remove(E connId) {
+            return stack.remove(connId);
+        }
     }
     
     public int getActiveConnectionsCount() {
