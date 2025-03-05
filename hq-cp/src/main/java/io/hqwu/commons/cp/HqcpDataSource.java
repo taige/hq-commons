@@ -94,6 +94,13 @@ public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFact
         }
     }
 
+    public void shutdown() {
+        if (this.pool != null) {
+            this.pool.shutdown();
+            this.pool = null;
+        }
+    }
+
     public void setInitOnStartup(boolean initOnStartup) {
         this.initOnStartup = initOnStartup;
     }

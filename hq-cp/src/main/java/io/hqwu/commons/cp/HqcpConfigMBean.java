@@ -53,4 +53,8 @@ public interface HqcpConfigMBean {
     public boolean isLazyInit();
     public void setLazyInit(boolean lazyInit);
 
+    long getLifetimeSec();
+    void setLifetimeSec(long lifetimeSec);
+
+    void reloadProperties();
 }

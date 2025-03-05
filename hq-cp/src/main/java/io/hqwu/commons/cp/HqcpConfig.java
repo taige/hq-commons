@@ -2,6 +2,7 @@ package io.hqwu.commons.cp;
 
 import io.hqwu.commons.SecurityService;
 import io.hqwu.commons.SecurityServiceLocalImpl;
+import io.hqwu.commons.cp.util.JdbcUtil;
 import io.hqwu.commons.util.Logger;
 import io.hqwu.commons.util.StringUtil;
 import org.apache.commons.codec.binary.Base64;
@@ -9,15 +10,22 @@ import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.Map;
+import java.util.MissingResourceException;
 import java.util.Properties;
+import java.util.ResourceBundle;
 
 public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     private static final Logger LOGGER = new Logger();
+
+    private static final String PATTERN_COMMONS_CHARS =  "[\u0020-\u007E]+";
+
+    private static final String[] classPaths = System.getProperty("java.class.path", "classes").split(System.getProperty("path.separator", ";"));
+
     /**
      * 连接URL
      */
@@ -41,75 +49,112 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     private String decPassword;
 
     /**
-     * 池中最小连接数
+     * 池中最小连接数<br/>
+     * 取值范围 0 - 100<br/>
+     * 默认 1<br/>
      */
     private int minConnections = 1;
     /**
-     * 池中最大连接数
+     * 池中最大连接数<br/>
+     * 取值范围 1 - 1000<br/>
+     * 默认 10<br/>
      */
     private int maxConnections = 10;
     /**
-     * 池中最大语句数
+     * 池中最多缓存的Statement数<br/>
+     * 超过该值的话会抛SQLException，说明程序存在极不合理的实现，即一个过程中同时创建了太多Statement且没有及时close<br/>
+     * 取值范围 10 - 1000<br/>
+     * 默认 100<br/>
      */
     private int maxStatements = 100;
     /**
-     * 池中最大语句数
+     * 池中最多缓存的PreparedStatement数 <br/>
+     * 超过该值的话会close最早未使用的PreparedStatement <br/>
+     * 取值范围 5 - 200<br/>
+     * 默认 10<br/>
      */
     private int maxPreStatements = 10;
     /**
-     * 连接最大空闲时间(milli sec)(空闲超过该时间的连接将被检测或回收)
+     * 连接最大空闲时间(单位：秒seconds)，空闲超过该时间的连接将被检测或回收<br/>
+     * 取值范围 10s - 3600s
+     * 默认 5 * 60s<br/>
      */
-    private long idleTimeoutMillisec = 300 * 1000;
+    private long idleTimeoutSec = 5 * 60;
     /**
-     * 等待空闲连接时的超时时间(ms)
+     * 等待空闲连接时的超时时间(单位：milliseconds)<br/>
+     * <0 一直等待，直到有空闲连接 <b>危险！如果程序有bug可能导致一直等待</b> available v1.4 <br/>
+     * =0 不等待，立刻抛SQLException <br/>
+     * 最大值 600 * 1000ms<br/>
+     * 默认 10 * 1000ms<br/>
      */
     private long checkoutTimeoutMillisec = 10000;
+    /**
+     * 连接存活时间(单位：秒seconds)，存活超过这个时间的连接将被回收 available v1.4 <br/>
+     * <=0 不回收<br/>
+     * 最大值 24 * 3600s<br/>
+     * 默认：0 不回收<br/>
+     */
+    private long lifetimeSec = 0;
 
     /**
-     * 关闭连接时自动提交事务
+     * 关闭连接时自动提交事务<br/>
+     * 默认 false
      */
     private boolean commitOnClose = false;
 
     /**
-     * 记录除SQL语句及执行时间外的其他信息
+     * 记录除SQL语句及执行时间外的其他信息<br/>
+     * 默认 false
      */
     private boolean verbose = false;
 
     /**
-     * 记录SQL语句及执行时间 //add by wuhq 2011.09.02
+     * 记录SQL语句及执行时间<br/>
+     * 默认 true
      */
     private boolean printSql = true;
 
     /**
-     * 检测连接是否可用的查询语句
+     * 检测连接是否可用的查询语句<br/>
+     * 会根据数据库类型自动配置：<br/>
+     * oracle - select systimestamp from dual <br/>
+     * mysql - select now() <br/>
+     * db2 - values(current timestamp) <br/>
      */
     private String checkStatement;
 
     /**
-     * 0 - no jmx
-     * 1 - manage ConnectionFactory instance
+     * 0 - [default] no jmx <br/>
+     * 1 - manage ConnectionFactory instance <br/>
      * 2 - manage PooledConnection instance
      */
     private int jmxLevel = 0;
 
     /**
-     * 默认获取的连接的事务模式（true-事务模式，即autocommit=false）
+     * 默认获取的连接的事务模式 <br/>
+     * true: 事务模式，即autocommit=false <br/>
+     * false: <b>[默认值]</b> 非事务模式，即autocommit=true <br/>
      */
     private boolean transactionMode = false;
 
     /**
-     * lazy init pool
-     * true: init min connections in Monitor thread, else do it in new Hqcp/getConnection() thread
+     * lazy init pool <br/>
+     * true: init min connections in Monitor thread, else init in new Hqcp/getConnection() thread, i.e. client thread. <br/>
+     * 默认 false
      */
     private boolean lazyInit = false;
 
     /**
-     * printSQL == true时，打印INFO级别的SQL的耗时阈值(ms)
+     * printSQL == true时，打印INFO级别的SQL的耗时阈值(ms) <br/>
+     * <=0 - 不打印INFO级别SQL <br/>
+     * 默认 10ms
      */
     private long infoSqlThreshold = 10;
 
     /**
-     * printSQL == true时，打印WARN级别的SQL的耗时阈值(ms)
+     * printSQL == true时，打印WARN级别的SQL的耗时阈值(ms) <br/>
+     * <=0 - 不打印 WARN 级别SQL <br/>
+     * 默认 100ms
      */
     private long warnSqlThreshold = 100;
 
@@ -140,10 +185,20 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     private Properties connectionProperties = new Properties();
 
     /**
-     * query timeout (seconds)
+     * query timeout (seconds) <br/>
+     * <= 0 - no timeout <br/>
+     * 默认 60s
      */
     private int queryTimeout = 60;
 
+    /**
+     *  config是从properties文件读入的文件名
+     */
+    private String properties = null;
+
+    /**
+     * 解密password的密钥
+     */
     private String passwordKey = null;
 
     private SecurityService securityService;
@@ -253,7 +308,7 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     }
 
     public long getWarnSqlThreshold() {
-        return warnSqlThreshold;
+        return warnSqlThreshold <= 0 ? warnSqlThreshold : Math.max(warnSqlThreshold, infoSqlThreshold);
     }
 
     public void setWarnSqlThreshold(long warnSqlThreshold) {
@@ -292,6 +347,11 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         this.applicationContext = applicationContext;
     }
 
+    /**
+     * 获取密码，若已解密则返回解密后的密码，否则返回初始密码。
+     * 若密码为空，则返回 null。
+     * @return 解密后的密码或初始密码
+     */
     String getPassword() {
         if (StringUtil.isEmpty(this.password)) {
             return null;
@@ -299,35 +359,49 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         if (this.decPassword != null) {
             return this.decPassword;
         }
-        final String password = this.password;
-        final boolean isBase64 = Base64.isBase64(password);
-        if (isBase64) { // 如果是Base64的尝试解码
-            try {
-                byte[] base64DecodedPwd = Base64.decodeBase64(password);
-                boolean isBlock16 = (base64DecodedPwd.length % 16 == 0);  //对称加密数据一定是16的倍数(AES128)
-                if (isBlock16 && !new String(base64DecodedPwd, StandardCharsets.UTF_8).matches(PATTERN_COMMONS_CHARS)) { //不可见字符，是加密密码
-                    byte[] decodePwd = this.getSecurityService().decryptByAES(base64DecodedPwd, this.getPasswordKey(), "CBC");
-                    String plainPwd = StringUtil.trimToEmpty(new String(decodePwd, StandardCharsets.UTF_8));//明文密码
-                    if (plainPwd.matches(PATTERN_COMMONS_CHARS)) { // 解密结果是可见字符
-                        this.decPassword = plainPwd;
-                        return this.decPassword;
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.debug(e);
-                LOGGER.info("使用明文密码: ", e.getMessage());
-            }
-        }
         return this.password;
     }
 
-    private static final String PATTERN_COMMONS_CHARS =  "[\u0020-\u007E]+";
+    /**
+     * 解密 Base64 编码的密码，若非加密数据或解密失败，返回初始密码。
+     * @param password 输入的密码字符串
+     * @return 解密后的密码或初始密码
+     */
+    private String decryptPassword(String password) {
+        if (!Base64.isBase64(password)) {
+            return password;
+        }
+        try {
+            byte[] base64DecodedPwd = Base64.decodeBase64(password);
+            boolean isBlock16 = (base64DecodedPwd.length % 16 == 0);  //对称加密数据一定是16的倍数(AES128)
+            if (isBlock16 && !new String(base64DecodedPwd, StandardCharsets.UTF_8).matches(PATTERN_COMMONS_CHARS)) { //不可见字符，是加密密码
+                byte[] decodePwd = this.getSecurityService().decryptByAES(base64DecodedPwd, this.getPasswordKey(), "CBC");
+                String plainPwd = StringUtil.trimToEmpty(new String(decodePwd, StandardCharsets.UTF_8));
+                // 解密结果需为可见字符，否则视为无效解密
+                if (plainPwd.matches(PATTERN_COMMONS_CHARS)) {
+                    return plainPwd;
+                }
+            }
+            // Base64 解码后非加密数据，返回初始 password
+        } catch (Exception e) {
+            LOGGER.debug(e);
+            LOGGER.info("使用明文密码: ", e.getMessage());
+        }
+        return password;
+    }
+
+    /**
+     * 设置加密或未加密的密码，并在初始化时进行解密处理。
+     * 如果密码为空，则直接返回，不进行后续处理。
+     * @param password 用户提供的密码，可能为加密或明文形式
+     */
     public void setPassword(String password) {
         if (StringUtil.isEmpty(password)) {
             return;
         }
         this.password = password;
-        this.decPassword = null;
+        // 调用解密方法，初始化时完成解密，确保后续调用直接返回结果
+        this.decPassword = decryptPassword(password);
     }
 
     public int getMinConnections() {
@@ -335,6 +409,9 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     }
 
     public void setMinConnections(int minConnections) {
+        if (minConnections < 0 || minConnections > 100)  {
+            throw new IllegalArgumentException("minConnections must be between 0 and 100");
+        }
         this.minConnections = minConnections;
     }
 
@@ -343,6 +420,9 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     }
 
     public void setMaxConnections(int maxConnections) {
+        if (maxConnections > 1000 || maxConnections < 1)  {
+            throw new IllegalArgumentException("maxConnections must be between 1 and 1000");
+        }
         this.maxConnections = maxConnections;
     }
 
@@ -371,15 +451,18 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     }
 
     public long getIdleTimeoutSec() {
-        return idleTimeoutMillisec / 1000;
-    }
-
-    public long getIdleTimeoutMillisec() {
-        return idleTimeoutMillisec;
+        return idleTimeoutSec;
     }
 
     public void setIdleTimeoutSec(long idleTimeoutSec) {
-        this.idleTimeoutMillisec = idleTimeoutSec * 1000;
+        if (idleTimeoutSec < 10 || idleTimeoutSec > 3600)  {
+            throw new IllegalArgumentException("idleTimeoutSec must be between 10 and 3600");
+        }
+        this.idleTimeoutSec = idleTimeoutSec;
+    }
+
+    long getIdleTimeoutMillisec() {
+        return idleTimeoutSec * 1000;
     }
 
     public long getCheckoutTimeoutMillisec() {
@@ -387,6 +470,9 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     }
 
     public void setCheckoutTimeoutMillisec(long checkoutTimeoutMilliSec) {
+        if (checkoutTimeoutMilliSec > 600 * 1000)  {
+            throw new IllegalArgumentException("checkoutTimeoutMilliSec must be <= 600000 or 0");
+        }
         this.checkoutTimeoutMillisec = checkoutTimeoutMilliSec;
     }
 
@@ -395,6 +481,9 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     }
 
     public void setMaxStatements(int maxStatements) {
+        if (maxStatements > 1000 || maxStatements < 10)   {
+            throw new IllegalArgumentException("maxStatements must be between 10 and 1000");
+        }
         this.maxStatements = maxStatements;
     }
 
@@ -403,6 +492,9 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     }
 
     public void setMaxPreStatements(int maxPreStatements) {
+        if (maxPreStatements > 200 || maxPreStatements < 5)  {
+            throw new IllegalArgumentException("maxPreStatements must be between 5 and 200");
+        }
         this.maxPreStatements = maxPreStatements;
     }
 
@@ -411,7 +503,9 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     }
 
     public void setCheckStatement(String checkStatement) {
-        this.checkStatement = checkStatement;
+        if (StringUtil.isNotBlank(checkStatement)) {
+            this.checkStatement = checkStatement;
+        }
     }
 
     public boolean isTransactionMode() {
@@ -427,6 +521,9 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     }
 
     public void setJmxLevel(int jmxLevel) {
+        if (jmxLevel < 0 || jmxLevel > 2)  {
+            throw new IllegalArgumentException("jmxLevel must be between 0 and 2");
+        }
         this.jmxLevel = jmxLevel;
     }
 
@@ -436,6 +533,23 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
 
     public void setLazyInit(boolean lazyInit) {
         this.lazyInit = lazyInit;
+    }
+
+    public long getLifetimeMillisec() {
+        return getLifetimeSec() * 1000;
+    }
+
+    @Override
+    public long getLifetimeSec() {
+        return lifetimeSec > 0 ? Math.max(lifetimeSec, idleTimeoutSec) : 0;
+    }
+
+    @Override
+    public void setLifetimeSec(long lifetimeSec) {
+        if (lifetimeSec > 24 * 3600)  {
+            throw new IllegalArgumentException("lifetimeSec must be <= 86,400 or 0");
+        }
+        this.lifetimeSec = lifetimeSec;
     }
 
     public boolean isMySQL() {
@@ -514,6 +628,69 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
 //        this.poolName = poolName;
     }
 
+    public boolean isLoadFromProperties() {
+        return properties != null;
+    }
+
+    /**
+     * 从properties文件读取配置
+     */
+    public void loadFromProperties(String prop) throws SQLException {
+        try {
+            this.setProperties(_loadProperties(prop));
+            this.properties = prop;
+        } catch (MissingResourceException e) {
+            throw new SQLException("Invalid jdbc properties: " + prop, e);
+        }
+    }
+
+    @Override
+    public void reloadProperties() {
+        if (this.properties != null) {
+            try {
+                this.loadFromProperties(this.properties);
+            } catch (SQLException e) {
+                LOGGER.warn("loadProperties {} error: ", this.properties, e);
+            }
+        }
+    }
+
+    private Properties _loadProperties(String prop) {
+        Properties _prop = new Properties();
+        File pfile = null;
+        for (int i = 0; i <= classPaths.length; i++) {
+            if (i == classPaths.length) {
+                pfile = new File("./" + prop + ".properties");
+            } else {
+                pfile = new File(classPaths[i] + "/" + prop + ".properties");
+            }
+            if (pfile.exists()) {
+                break;
+            }
+        }
+        if (pfile != null && pfile.exists()) {
+            FileInputStream fis = null;
+            try {
+                fis = new FileInputStream(pfile);
+                _prop.load(fis);
+            } catch (FileNotFoundException e) {
+            } catch (IOException e) {
+                LOGGER.warn(e);
+            } finally {
+                // modify by shenjl 修改资源泄露问题
+                JdbcUtil.closeQuietly(fis);
+            }
+        } else {
+            ResourceBundle rb = ResourceBundle.getBundle(prop);
+            for (String property : HqcpConfig.PROPERTIES) {
+                if (rb.containsKey(property)) {
+                    _prop.setProperty(property, rb.getString(property));
+                }
+            }
+        }
+        return _prop;
+    }
+
     /**
      * Set the location of the jdbc properties file.
      */
@@ -525,45 +702,53 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         is.close();
     }
 
-    public void setProperties(Properties prop) {
-        setUrl(prop.getProperty("jdbc.url"));
-        setUsername(prop.getProperty("jdbc.username", null));
-        setPassword(prop.getProperty("jdbc.password", null));
-        driverClassName = prop.getProperty("jdbc.driver", driverClassName);
-        driverClassName = prop.getProperty("jdbc.driver-class-name", driverClassName);
-        verbose = Boolean.parseBoolean(prop.getProperty("jdbc.verbose", String.valueOf(verbose)));
-        printSql = Boolean.parseBoolean(prop.getProperty("jdbc.print-sql", String.valueOf(printSql)));
-        commitOnClose = Boolean.parseBoolean(prop.getProperty("jdbc.commit-on-close", String.valueOf(commitOnClose)));
-        minConnections = Integer.parseInt(prop.getProperty("jdbc.min-connections", String.valueOf(minConnections)));
-        maxConnections = Integer.parseInt(prop.getProperty("jdbc.max-connections", String.valueOf(maxConnections)));
-        idleTimeoutMillisec = Long.parseLong(prop.getProperty("jdbc.idle-timeout-sec", String.valueOf(idleTimeoutMillisec / 1000))) * 1000;
-        checkoutTimeoutMillisec = Long.parseLong(prop.getProperty("jdbc.checkout-timeout-millisec", String.valueOf(checkoutTimeoutMillisec)));
-        checkStatement = prop.getProperty("jdbc.check-statement", checkStatement);
-        maxStatements = Integer.parseInt(prop.getProperty("jdbc.max-statements", String.valueOf(maxStatements)));
-        maxPreStatements = Integer.parseInt(prop.getProperty("jdbc.max-pre-statements", String.valueOf(maxPreStatements)));
-        jmxLevel = Integer.parseInt(prop.getProperty("jdbc.jmx-level", String.valueOf(jmxLevel)));
-        transactionMode = Boolean.parseBoolean(prop.getProperty("jdbc.transaction-mode", String.valueOf(transactionMode)));
-        lazyInit = Boolean.parseBoolean(prop.getProperty("jdbc.lazy-init", String.valueOf(lazyInit)));
-        infoSqlThreshold = Long.parseLong(prop.getProperty("jdbc.info-sql-threshold", String.valueOf(infoSqlThreshold)));
-        warnSqlThreshold = Long.parseLong(prop.getProperty("jdbc.warn-sql-threshold", String.valueOf(warnSqlThreshold)));
-        useOracleImplicitCache = Boolean.parseBoolean(prop.getProperty("jdbc.use-oracle-implicit-cache", String.valueOf(useOracleImplicitCache)));
-//        setLoginTimeout(Integer.parseInt(prop.getProperty("jdbc.login-timeout", String.valueOf(0))));
-        setQueryTimeout(Integer.parseInt(prop.getProperty("jdbc.query-timeout", String.valueOf(queryTimeout))));
-        setConnectionInfo(prop.getProperty("jdbc.connection-info"));
-        setPasswordKey(prop.getProperty("jdbc.password-key", null));
-        //set isOracle in setConnUrl method.
-//        if (connUrl != null) {
-//            isOracle = JdbcUtil.checkOracle(connUrl);
-//        }
+    private boolean getBoolean(Properties prop, String key, boolean defaultValue) {
+        return Boolean.parseBoolean(prop.getProperty(key, Boolean.toString(defaultValue)));
     }
 
-    static final String[] PROPERTIES = new String[]{
-            "jdbc.driver-class-name", "jdbc.url", "jdbc.username", "jdbc.password", "jdbc.check_statement",
-            "jdbc.verbose", "jdbc.print-sql", "jdbc.commit-on-close", "jdbc.transaction-mode", "jdbc.lazy-init",
-            "jdbc.min-connections", "jdbc.max-connections", "jdbc.max-statements", "jdbc.max-pre-statements",
-            "jdbc.idle-timeout-sec", "jdbc.checkout-timeout-millisec",
-            "jdbc.jmx-level", "jdbc.info-sql-threshold", "jdbc.warn-sql-threshold", "jdbc.use-oracle-implicit-cache", "jdbc.connection-info",
-            "jdbc.query-timeout", "jdbc.password-key"
+    private int getInt(Properties prop, String key, int defaultValue) {
+        return Integer.parseInt(prop.getProperty(key, String.valueOf(defaultValue)));
+    }
+
+    private long getLong(Properties prop, String key, long defaultValue) {
+        return Long.parseLong(prop.getProperty(key, String.valueOf(defaultValue)));
+    }
+
+    public void setProperties(Properties prop) {
+        setUrl(prop.getProperty("jdbc.url"));
+        setUsername(prop.getProperty("jdbc.username"));
+        setPassword(prop.getProperty("jdbc.password"));
+        driverClassName = prop.getProperty("jdbc.driver", driverClassName);
+        driverClassName = prop.getProperty("jdbc.driver-class-name", driverClassName);
+        verbose = getBoolean(prop, "jdbc.verbose", verbose);
+        printSql = getBoolean(prop, "jdbc.print-sql", printSql);
+        commitOnClose = getBoolean(prop, "jdbc.commit-on-close", commitOnClose);
+        setMinConnections(getInt(prop, "jdbc.min-connections", minConnections));
+        setMaxConnections(getInt(prop, "jdbc.max-connections", maxConnections));
+        setIdleTimeoutSec(getLong(prop, "jdbc.idle-timeout-sec", idleTimeoutSec));
+        setCheckoutTimeoutMillisec(getLong(prop, "jdbc.checkout-timeout-millisec", checkoutTimeoutMillisec));
+        setLifetimeSec(getLong(prop, "jdbc.lifetime-sec", lifetimeSec));
+        setCheckStatement(prop.getProperty("jdbc.check-statement", checkStatement));
+        setMaxStatements(getInt(prop, "jdbc.max-statements", maxStatements));
+        setMaxPreStatements(getInt(prop, "jdbc.max-pre-statements", maxPreStatements));
+        setJmxLevel(getInt(prop, "jdbc.jmx-level", jmxLevel));
+        transactionMode = getBoolean(prop, "jdbc.transaction-mode", transactionMode);
+        lazyInit = getBoolean(prop, "jdbc.lazy-init", lazyInit);
+        setInfoSqlThreshold(getLong(prop, "jdbc.info-sql-threshold", infoSqlThreshold));
+        setWarnSqlThreshold(getLong(prop, "jdbc.warn-sql-threshold", warnSqlThreshold));
+        useOracleImplicitCache = getBoolean(prop, "jdbc.use-oracle-implicit-cache", useOracleImplicitCache);
+        setQueryTimeout(getInt(prop, "jdbc.query-timeout", queryTimeout));
+        setConnectionInfo(prop.getProperty("jdbc.connection-info"));
+        setPasswordKey(prop.getProperty("jdbc.password-key"));
+    }
+
+    private static final String[] PROPERTIES = new String[] {
+            "jdbc.url", "jdbc.username", "jdbc.password", "jdbc.driver", "jdbc.driver-class-name",
+            "jdbc.verbose", "jdbc.print-sql", "jdbc.commit-on-close", "jdbc.min-connections", "jdbc.max-connections",
+            "jdbc.idle-timeout-sec", "jdbc.checkout-timeout-millisec", "jdbc.lifetime-sec",
+            "jdbc.check-statement", "jdbc.max-statements", "jdbc.max-pre-statements", "jdbc.jmx-level", "jdbc.transaction-mode", "jdbc.lazy-init",
+            "jdbc.info-sql-threshold", "jdbc.warn-sql-threshold", "jdbc.use-oracle-implicit-cache",
+            "jdbc.query-timeout","jdbc.connection-info", "jdbc.password-key",
     };
 
     void printConfig(Logger logger) {
@@ -578,16 +763,23 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         logger.info("maxConnections          = " + maxConnections);
         logger.info("maxStatements           = " + maxStatements);
         logger.info("maxPreStatements        = " + maxPreStatements);
-        logger.info("idleTimeoutMillisec     = " + idleTimeoutMillisec);
-        logger.info("checkoutTimeoutMillisec = " + checkoutTimeoutMillisec);
-//        logger.info("commitOnClose           = " + commitOnClose);
+        logger.info("idleTimeoutSec          = " + idleTimeoutSec);
+        if (checkoutTimeoutMillisec <= 0) {
+            logger.warn("checkoutTimeoutMillisec = " + checkoutTimeoutMillisec);
+        } else {
+            logger.info("checkoutTimeoutMillisec = " + checkoutTimeoutMillisec);
+        }
+        logger.info("lifetimeSec             = " + getLifetimeSec());
+        logger.info("commitOnClose           = " + commitOnClose);
         logger.info("verbose                 = " + verbose);
         logger.info("printSql                = " + printSql);
         logger.info("checkStatement          = '" + checkStatement + "'");
         logger.info("lazyInit                = " + lazyInit);
         logger.info("infoSqlThreshold        = " + infoSqlThreshold);
-        logger.info("warnSqlThreshold        = " + warnSqlThreshold);
+        logger.info("warnSqlThreshold        = " + getWarnSqlThreshold());
         logger.info("queryTimeout            = " + queryTimeout);
+        logger.info("jmxLevel                = " + jmxLevel);
+        logger.info("transactionMode         = " + transactionMode);
     }
 
 }
