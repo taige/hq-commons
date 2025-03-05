@@ -4,6 +4,8 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import javax.annotation.PreDestroy;
+
 /**
  * Created with IntelliJ IDEA for hq-cp-boot-starter
  *
@@ -36,6 +38,12 @@ public class HqcpDataSourceBoot extends HqcpDataSource implements InitializingBe
         if (super.getUrl() == null) {
             super.setUrl(basicProperties.determineUrl());
         }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        // 关闭数据源，资源释放
+        super.shutdown();
     }
 
 }
