@@ -1,6 +1,6 @@
 package io.hqwu.commons.cp.util;
 
-import com.umpay.commons.util.Logger;
+import io.hqwu.commons.util.Logger;
 import oracle.jdbc.internal.OraclePreparedStatement;
 
 import java.sql.SQLException;

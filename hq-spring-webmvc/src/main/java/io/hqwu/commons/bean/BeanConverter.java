@@ -1,9 +1,9 @@
 package io.hqwu.commons.bean;
 
-import com.umpay.commons.util.ClassUtil;
-import com.umpay.commons.util.Logger;
-import com.umpay.commons.util.StringUtil;
 import io.hqwu.commons.annotation.SourceProperty;
+import io.hqwu.commons.util.ClassUtil;
+import io.hqwu.commons.util.Logger;
+import io.hqwu.commons.util.StringUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.BeansException;

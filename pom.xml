@@ -4,7 +4,7 @@
 
   <groupId>io.hqwu.commons</groupId>
   <artifactId>hq-commons-parent</artifactId>
-  <version>1.3.3-SNAPSHOT</version>
+  <version>1.4.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <properties>

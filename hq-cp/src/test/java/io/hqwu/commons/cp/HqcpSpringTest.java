@@ -1,7 +1,7 @@
 package io.hqwu.commons.cp;
 
 import com.jolbox.bonecp.MockJDBCDriver;
-import com.umpay.commons.util.Logger;
+import io.hqwu.commons.util.Logger;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;

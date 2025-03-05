@@ -1,10 +1,10 @@
 package io.hqwu.commons.cp;
 
-import com.umpay.commons.util.ExceptionUtil;
-import com.umpay.commons.util.Formatter;
-import com.umpay.commons.util.JMXUtil;
-import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.util.JdbcUtil;
+import io.hqwu.commons.util.ExceptionUtil;
+import io.hqwu.commons.util.Formatter;
+import io.hqwu.commons.util.JMXUtil;
+import io.hqwu.commons.util.Logger;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.lang.reflect.InvocationHandler;
@@ -109,6 +109,11 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     private boolean dirty = false;
 
+    /**
+     * 连接建立时间
+     */
+    private long timeConnected;
+
     protected PooledConnection(Hqcp pool, int connId) throws SQLException {
         connectionPool = pool;
         connectionId = connId;
@@ -144,15 +149,35 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
         // use properties instead of username and password to involve some specific properties for oracle10
         //Properties properties = generateConnectionProperties();
-        // conneciton properties 放到 UmpayCPConfig 中统一维护
+        // conneciton properties 放到 HqcpConfig 中统一维护
 
         real_connection = DriverManager.getConnection(connectionPool.getConfig().getUrl(), connectionPool.getConfig().getConnectionProperties());
+        timeConnected = System.currentTimeMillis();
 
         //real_connection.setAutoCommit(autoCommit);
         this.autoCommit = real_connection.getAutoCommit();
         log.info(connectionName, " make new connection to ", connectionPool.getConfig().getUrl(), " use ", Formatter.formatNS(System.nanoTime() - start), " ns");
         closed.set(false);
         setFatalExceptionHappened(false);//默认不关闭链接
+    }
+
+    /**
+     * 根据连接存活时间，计算销毁连接还需要经过的时间(ms)
+     * @return 销毁连接需要等待的毫秒
+     */
+    public long millisToDestroy() {
+        return this.connectionPool.getConfig().getLifetimeSec() <= 0
+                ? Long.MAX_VALUE
+                : (timeConnected + this.connectionPool.getConfig().getLifetimeMillisec()) - System.currentTimeMillis();
+    }
+
+    /**
+     * 计算连接应该要被检测需要等待的毫秒
+     * @return 需要等待的毫秒
+     */
+    public long millisToCheckIt() {
+        // 检入时间 + 检测间隔 - 当前时间
+        return timeCheckIn + this.connectionPool.getConfig().getIdleTimeoutMillisec() - System.currentTimeMillis();
     }
 
     public boolean recover(SQLException sqle) {
@@ -604,7 +629,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 real_connection.close();
             } catch (SQLException e) {
                 //add by wuhq 2010.11.10
-                log.error("close real_connection[", connectionName, "] error: ", e);
+                log.info("close real_connection[", connectionName, "] error: ", e);
                 try {
                     real_connection.rollback();
                 } catch (SQLException ignr) {}
@@ -612,14 +637,9 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
             }
             log.info(connectionName, " real closed.");
         } catch (SQLException e) {
-            log.error(connectionName, " real_connection close error: ", e);
+            log.warn(connectionName, " real_connection close error: ", e);
             connectionPool.offerUnclosedConnection(real_connection, connectionName);
         }
-        // move to unregisterJMX
-        /**
-        if (connectionPool.getConfig().getJmxLevel() > 1) {
-            JMXUtil.unregister(this.getClass().getPackage().getName() + ":type=pool-" + connectionPool.getPoolName() + ",name=" + getConnectionName());
-        }*/
     }
 
      void unregisterJMX() {
@@ -679,6 +699,14 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     }
 
     /**
+     * Return connection connected time.
+     * @return
+     */
+    public long getTimeConnected() {
+        return timeConnected;
+    }
+
+    /**
      * Return threadCheckOut.
      * @return threadCheckOut
      */
@@ -716,11 +744,4 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         return "";
     }
 
-    public long getInfoSQLThreshold() {
-        return connectionPool.getConfig().getInfoSqlThreshold();
-    }
-
-    public long getWarnSQLThreshold() {
-        return connectionPool.getConfig().getWarnSqlThreshold();
-    }
 }

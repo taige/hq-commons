@@ -1,8 +1,8 @@
 package io.hqwu.commons.mybatisplus;
 
 import com.baomidou.mybatisplus.core.incrementer.DefaultIdentifierGenerator;
-import com.umpay.commons.util.StringUtil;
 import io.hqwu.commons.mybatisplus.annotation.TableIdPrefix;
+import io.hqwu.commons.util.StringUtil;
 
 /**
  * Created with IntelliJ IDEA for hq-commons-parent

@@ -4,6 +4,8 @@ import com.jolbox.bonecp.MockConstant;
 import com.jolbox.bonecp.MockJDBCDriver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.core.io.ClassPathResource;
 
 import java.sql.SQLException;
@@ -31,7 +33,6 @@ public class HqcpConfigTest {
     @Test
     public void testBaseSetterGetter() throws Exception {
         config.setDriverClassName(MockJDBCDriver.class.getName());
-//        config.setConnUrl(MockConstant.MOCK_URL);
         config.setUrl(MockConstant.MOCK_URL);
         config.setUsername("mockuser");
         config.setPassword("mockpasword");
@@ -48,12 +49,86 @@ public class HqcpConfigTest {
     @Test
     public void testLoadDriver() throws Exception {
         config.setDriverClassName(MockJDBCDriver.class.getName());
-//        config.setConnUrl(MockConstant.MOCK_URL);
         config.setUrl(MockConstant.MOCK_URL);
 
         Hqcp cp = new Hqcp(config);
         assertEquals(config, cp.getConfig());
         cp.shutdown();
+    }
+
+    // 测试有严格最小值和最大值限制的属性
+    @ParameterizedTest
+    @CsvSource({
+            "minConnections, 0, 100, -1",
+            "minConnections, 0, 100, 101",
+            "maxConnections, 1, 1000, 0",
+            "maxConnections, 1, 1000, 1001",
+            "maxStatements, 10, 1000, 9",
+            "maxStatements, 10, 1000, 1001",
+            "maxPreStatements, 5, 200, 4",
+            "maxPreStatements, 5, 200, 201",
+            "idleTimeoutSec, 10, 3600, 9",
+            "idleTimeoutSec, 10, 3600, 3601",
+            "jmxLevel, 0, 2, -1",
+            "jmxLevel, 0, 2, 3"
+    })
+
+    public void testPropertyBoundaryValues(String property, long min, long max, long invalidValue) {
+        try {
+            switch (property) {
+                case "minConnections": config.setMinConnections((int) invalidValue); break;
+                case "maxConnections": config.setMaxConnections((int) invalidValue); break;
+                case "maxStatements": config.setMaxStatements((int) invalidValue); break;
+                case "maxPreStatements": config.setMaxPreStatements((int) invalidValue); break;
+                case "idleTimeoutSec": config.setIdleTimeoutSec(invalidValue); break;
+                case "jmxLevel": config.setJmxLevel((int) invalidValue); break;
+            }
+            fail("Expected IllegalArgumentException for " + property + " with value " + invalidValue);
+        } catch (IllegalArgumentException e) {
+            String message = e.getMessage();
+            assertTrue(message.contains(String.valueOf(min)) || message.contains(String.valueOf(max)),
+                    "Exception message should contain min or max value: " + message);
+        }
+    }
+
+    // 测试 checkoutTimeoutMillisec 的边界值（仅最大值限制）
+    @Test
+    public void testCheckoutTimeoutMillisecBoundaryValues() {
+        // 测试合法值
+        config.setCheckoutTimeoutMillisec(-1); // 一直等待
+        assertEquals(-1, config.getCheckoutTimeoutMillisec());
+        config.setCheckoutTimeoutMillisec(0); // 不等待
+        assertEquals(0, config.getCheckoutTimeoutMillisec());
+        config.setCheckoutTimeoutMillisec(600000); // 最大值
+        assertEquals(600000, config.getCheckoutTimeoutMillisec());
+
+        // 测试超出最大值
+        try {
+            config.setCheckoutTimeoutMillisec(600001);
+            fail("Expected IllegalArgumentException for checkoutTimeoutMillisec > 600000");
+        } catch (IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("600000"), "Exception message should contain max value");
+        }
+    }
+
+    // 测试 lifetimeSec 的边界值（仅最大值限制）
+    @Test
+    public void testLifetimeSecBoundaryValues() {
+        // 测试合法值
+        config.setLifetimeSec(-1); // 不回收
+        assertEquals(0, config.getLifetimeSec());
+        config.setLifetimeSec(0); // 不回收
+        assertEquals(0, config.getLifetimeSec());
+        config.setLifetimeSec(86400); // 最大值
+        assertEquals(86400, config.getLifetimeSec());
+
+        // 测试超出最大值
+        try {
+            config.setLifetimeSec(86401);
+            fail("Expected IllegalArgumentException for lifetimeSec > 86400");
+        } catch (IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("86,400"), "Exception message should contain max value");
+        }
     }
 
     @Test
@@ -68,6 +143,22 @@ public class HqcpConfigTest {
         } catch (SQLException e) {
 
         }
+    }
+
+    @Test
+    public void test_loadFromProperties() throws Exception {
+        HqcpConfig cp = new HqcpConfig();
+        cp.loadFromProperties("jdbc");
+        assertTrue(cp.isLoadFromProperties());
+        assertEquals("com.jolbox.bonecp.MockJDBCDriver", cp.getDriverClassName());
+        assertEquals("jdbc:mysql:url", cp.getUrl());
+        cp.reloadProperties();
+
+        HqcpConfig cp2 = new HqcpConfig();
+        cp.loadFromProperties("jdbc2");
+        assertEquals("com.jolbox.bonecp.MockJDBCDriver", cp.getDriverClassName());
+        assertEquals("jdbc:mock:url", cp.getUrl());
+        cp2.reloadProperties();
     }
 
     @Test
@@ -284,12 +375,16 @@ public class HqcpConfigTest {
 
     @Test
     public void testSetProperties() throws Exception {
+        // 设置所有属性
+        prop.setProperty("jdbc.url", "jdbc:mysql://localhost:3306/testdb");
+        prop.setProperty("jdbc.username", "testUser");
+        prop.setProperty("jdbc.password", "testPass");
+        prop.setProperty("jdbc.driver-class-name", "com.mysql.cj.jdbc.Driver");
         prop.setProperty("jdbc.verbose", "false");
         prop.setProperty("jdbc.print-sql", "false");
         prop.setProperty("jdbc.commit-on-close", "false");
         prop.setProperty("jdbc.transaction-mode", "false");
         prop.setProperty("jdbc.lazy-init", "false");
-
         prop.setProperty("jdbc.min-connections", "100");
         prop.setProperty("jdbc.max-connections", "200");
         prop.setProperty("jdbc.idle-timeout-sec", "1234");
@@ -298,14 +393,29 @@ public class HqcpConfigTest {
         prop.setProperty("jdbc.max-statements", "120");
         prop.setProperty("jdbc.max-pre-statements", "139");
         prop.setProperty("jdbc.jmx-level", "2");
+        prop.setProperty("jdbc.lifetime-sec", "666");
+        prop.setProperty("jdbc.info-sql-threshold", "210");
+        prop.setProperty("jdbc.warn-sql-threshold", "200");
+        prop.setProperty("jdbc.use-oracle-implicit-cache", "false");
+        prop.setProperty("jdbc.query-timeout", "20");
+        prop.setProperty("jdbc.connection-info", "abc=ABC&cc=CC");
+        prop.setProperty("jdbc.password-key", "customKey");
+
         config.setProperties(prop);
 
-        assertEquals(false, config.isVerbose());
-        assertEquals(false, config.isPrintSql());
-        assertEquals(false, config.isCommitOnClose());
-        assertEquals(false, config.isTransactionMode());
-        assertEquals(false, config.isLazyInit());
-
+        // 验证所有属性 - 第一阶段（false 和常规值）
+        assertEquals("jdbc:mysql://localhost:3306/testdb", config.getUrl());
+        assertTrue(config.isMySQL());
+        assertFalse(config.isOracle());
+        assertFalse(config.isDB2());
+        assertEquals("testUser", config.getUsername());
+        assertEquals("testPass", config.getPassword());
+        assertEquals("com.mysql.cj.jdbc.Driver", config.getDriverClassName());
+        assertFalse(config.isVerbose());
+        assertFalse(config.isPrintSql());
+        assertFalse(config.isCommitOnClose());
+        assertFalse(config.isTransactionMode());
+        assertFalse(config.isLazyInit());
         assertEquals(100, config.getMinConnections());
         assertEquals(200, config.getMaxConnections());
         assertEquals(1234, config.getIdleTimeoutSec());
@@ -315,44 +425,59 @@ public class HqcpConfigTest {
         assertEquals(120, config.getMaxStatements());
         assertEquals(139, config.getMaxPreStatements());
         assertEquals(2, config.getJmxLevel());
+        assertEquals(1234, config.getLifetimeSec());
+        assertEquals(210, config.getInfoSqlThreshold());
+        assertEquals(210, config.getWarnSqlThreshold());
+        assertFalse(config.isUseOracleImplicitCache());
+        assertEquals(20, config.getQueryTimeout());
+        Properties connProps = config.getConnectionProperties();
+        assertEquals("ABC", connProps.getProperty("abc"));
+        assertEquals("CC", connProps.getProperty("cc"));
+        assertEquals("testPass", connProps.getProperty("password"));
+        assertEquals("customKey", config.getPasswordKey());
 
+        // 修改布尔值为 true 并重新设置
+        prop.setProperty("jdbc.lifetime-sec", "6666");
+        prop.setProperty("jdbc.warn-sql-threshold", "2000");
         prop.setProperty("jdbc.verbose", "true");
         prop.setProperty("jdbc.print-sql", "true");
         prop.setProperty("jdbc.commit-on-close", "true");
         prop.setProperty("jdbc.transaction-mode", "true");
         prop.setProperty("jdbc.lazy-init", "true");
         config.setProperties(prop);
-        assertEquals(true, config.isVerbose());
-        assertEquals(true, config.isPrintSql());
-        assertEquals(true, config.isCommitOnClose());
-        assertEquals(true, config.isTransactionMode());
-        assertEquals(true, config.isLazyInit());
 
-        prop.setProperty("jdbc.info-sql-threshold", "20");
-        prop.setProperty("jdbc.warn-sql-threshold", "200");
-        prop.setProperty("jdbc.use-oracle-implicit-cache", "false");
-        prop.setProperty("jdbc.connection-info", "abc=ABC&cc=CC");
-//        prop.setProperty("jdbc.login_timeout", "10");
-        prop.setProperty("jdbc.query-timeout", "20");
+        // 验证布尔值 - 第二阶段（true）
+        assertEquals(1234, config.getIdleTimeoutSec());
+        assertEquals(6666, config.getLifetimeSec());
+        assertEquals(210, config.getInfoSqlThreshold());
+        assertEquals(2000, config.getWarnSqlThreshold());
+        assertTrue(config.isVerbose());
+        assertTrue(config.isPrintSql());
+        assertTrue(config.isCommitOnClose());
+        assertTrue(config.isTransactionMode());
+        assertTrue(config.isLazyInit());
+
+        // 验证其他属性未受影响
+        assertEquals("jdbc:mysql://localhost:3306/testdb", config.getUrl());
+        assertEquals("testUser", config.getUsername());
+        assertEquals("testPass", config.getPassword());
+
+        prop.setProperty("jdbc.warn-sql-threshold", "0");
         config.setProperties(prop);
-        assertEquals(20, config.getInfoSqlThreshold());
-        assertEquals(200, config.getWarnSqlThreshold());
-        assertEquals(false, config.isUseOracleImplicitCache());
-        assertEquals("ABC", config.getConnectionProperties().getProperty("abc"));
-        assertEquals("CC", config.getConnectionProperties().getProperty("cc"));
-//        assertEquals(10, config.getLoginTimeout());
-        assertEquals(20, config.getQueryTimeout());
+        assertEquals(210, config.getInfoSqlThreshold());
+        assertEquals(0, config.getWarnSqlThreshold());
     }
 
     @Test
     public void testDefault() throws Exception {
-        assertEquals(config.isVerbose(), false);
-        assertEquals(config.isPrintSql(), true);
-        assertEquals(config.isCommitOnClose(), false);
-        assertEquals(config.isTransactionMode(), false);
+        assertFalse(config.isVerbose());
+        assertTrue(config.isPrintSql());
+        assertFalse(config.isCommitOnClose());
+        assertFalse(config.isTransactionMode());
         assertEquals(1, config.getMinConnections());
         assertEquals(10, config.getMaxConnections());
         assertEquals(300, config.getIdleTimeoutSec());
+        assertEquals(0, config.getLifetimeSec());
         assertEquals(300000, config.getIdleTimeoutMillisec());
         assertEquals(10000, config.getCheckoutTimeoutMillisec());
         assertNull(config.getCheckStatement());
@@ -364,13 +489,14 @@ public class HqcpConfigTest {
     @Test
     public void testEmptyProp() throws Exception {
         config.setProperties(prop);
-        assertEquals(config.isVerbose(), false);
-        assertEquals(config.isPrintSql(), true);
-        assertEquals(config.isCommitOnClose(), false);
-        assertEquals(config.isTransactionMode(), false);
+        assertFalse(config.isVerbose());
+        assertTrue(config.isPrintSql());
+        assertFalse(config.isCommitOnClose());
+        assertFalse(config.isTransactionMode());
         assertEquals(1, config.getMinConnections());
         assertEquals(10, config.getMaxConnections());
         assertEquals(300, config.getIdleTimeoutSec());
+        assertEquals(0, config.getLifetimeSec());
         assertEquals(300000, config.getIdleTimeoutMillisec());
         assertEquals(10000, config.getCheckoutTimeoutMillisec());
         assertNull(config.getCheckStatement());
@@ -386,20 +512,21 @@ public class HqcpConfigTest {
         assertEquals("jdbc:mysql:url", config.getUrl());
         assertEquals("mockuser", config.getUsername());
 //        assertEquals("mockpassword", config.getPassword());
-        assertEquals(true, config.isVerbose());
-        assertEquals(true, config.isPrintSql());
-        assertEquals(true, config.isCommitOnClose());
+        assertTrue(config.isVerbose());
+        assertTrue(config.isPrintSql());
+        assertTrue(config.isCommitOnClose());
         assertEquals(1, config.getMinConnections());
         assertEquals(2, config.getMaxConnections());
         assertEquals(20000, config.getIdleTimeoutMillisec());
         assertEquals(20, config.getIdleTimeoutSec());
+        assertEquals(210, config.getLifetimeSec());
         assertEquals(60000, config.getCheckoutTimeoutMillisec());
         assertEquals("test", config.getCheckStatement());
         assertEquals(10, config.getMaxStatements());
         assertEquals(5, config.getMaxPreStatements());
         assertEquals(2, config.getJmxLevel());
-        assertEquals(false, config.isTransactionMode());
-        assertEquals(false, config.isLazyInit());
+        assertFalse(config.isTransactionMode());
+        assertFalse(config.isLazyInit());
     }
 
 //    @Test

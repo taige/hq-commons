@@ -1,6 +1,6 @@
 package io.hqwu.commons.annotation.constraints.support;
 
-import com.umpay.commons.util.StringUtil;
+import io.hqwu.commons.util.StringUtil;
 import org.hibernate.validator.internal.constraintvalidators.bv.PatternValidator;
 
 import javax.validation.ConstraintValidatorContext;

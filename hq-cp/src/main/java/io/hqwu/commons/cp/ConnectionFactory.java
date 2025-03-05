@@ -2,56 +2,46 @@ package io.hqwu.commons.cp;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
+/**
+ * 早期非spring管理模式下的连接池工厂实现，已不推荐使用
+ *
+ * @deprecated
+ */
 public class ConnectionFactory {
-    private static Map<String, Hqcp> poolCache = new HashMap<String, Hqcp>();
-   
-    private static ReadWriteLock rwl = new ReentrantReadWriteLock();
-    
-    public static Hqcp getUmpayCPInstance() throws SQLException {
-        return getUmpayCPInstance("jdbc");
+    private static ConcurrentMap<String, Hqcp> poolCache = new ConcurrentHashMap<>();
+
+    public static Hqcp getHqcpInstance() throws SQLException {
+        return getHqcpInstance("jdbc");
     }
-    
-    public static Hqcp getUmpayCPInstance(String jdbc) throws SQLException {
-        Hqcp cp = poolCache.get(jdbc);
-        if (cp == null) {
-            cp = maybeInit(jdbc);
-        }
-        return cp;
-    }
-    
-    private static Hqcp maybeInit(String jdbc) throws SQLException {
-        rwl.readLock().lock();
-        Hqcp cp = poolCache.get(jdbc);
+
+    public static Hqcp getHqcpInstance(String jdbc) throws SQLException {
         try {
-
-            if (cp == null) { // this.pool is protected in getConnection
-                rwl.readLock().unlock();
-                rwl.writeLock().lock();
-                cp = poolCache.get(jdbc);
-                try {
-                    if (cp == null) { // read might have passed, write
-                        // might not
-                        cp = new Hqcp(jdbc);
-                        poolCache.put(jdbc, cp);
+            return poolCache.computeIfAbsent(jdbc, j ->
+                    {
+                        try {
+                            return newHqcpInstance(j);
+                        } catch (SQLException e) {
+                            throw new ConnectionFactoryInitialException(e);
+                        }
                     }
-                } finally {
-                    rwl.readLock().lock();
-                    rwl.writeLock().unlock();
-                }
-            }
-        } finally {
-            rwl.readLock().unlock();
+            );
+        } catch (ConnectionFactoryInitialException e) {
+            throw e.sqlException;
         }
-
-
-        return cp;
     }
-    
+
+    static Hqcp newHqcpInstance(String jdbc) throws SQLException {
+        return new Hqcp(jdbc);
+    }
+
+    /**
+     * 获取默认的连接池
+     * @return
+     * @throws SQLException
+     */
     public static Connection getConnection() throws SQLException {
         return getConnection("jdbc" /*, false*/);
     }
@@ -68,7 +58,7 @@ public class ConnectionFactory {
     }
     
     public static Connection getConnection(String jdbc) throws SQLException {
-        Hqcp cp = getUmpayCPInstance(jdbc);
+        Hqcp cp = getHqcpInstance(jdbc);
         return cp.getConnection();
     }
     
@@ -77,7 +67,7 @@ public class ConnectionFactory {
     }
     
     public static Connection getConnection(String jdbc, boolean autoCommit) throws SQLException {
-        Hqcp cp = getUmpayCPInstance(jdbc);
+        Hqcp cp = getHqcpInstance(jdbc);
         return cp.getConnection(autoCommit);
     }
 
@@ -103,4 +93,10 @@ public class ConnectionFactory {
         return poolCache.remove(jdbc);
     }
 
+    private static class ConnectionFactoryInitialException extends RuntimeException {
+        final SQLException sqlException;
+        public ConnectionFactoryInitialException(SQLException e) {
+            sqlException = e;
+        }
+    }
 }

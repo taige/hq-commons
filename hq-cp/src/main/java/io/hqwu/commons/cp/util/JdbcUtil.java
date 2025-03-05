@@ -1,6 +1,6 @@
 package io.hqwu.commons.cp.util;
 
-import com.umpay.commons.util.Logger;
+import io.hqwu.commons.util.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -106,7 +106,7 @@ public class JdbcUtil {
         return str3;
     }
 
-    //以下方法copy from org.apache.commons.lang3.StringUtils，为了让umpaycp减少依赖
+    //以下方法copy from org.apache.commons.lang3.StringUtils，为了让Hqcp减少依赖
 
     public static String replace(String text, String searchString, String replacement) {
         return replace(text, searchString, replacement, -1);
