@@ -303,7 +303,7 @@ class PooledStatement implements InvocationHandler {
             return;
         }
         LogUtil.logBasedOnThreshold(
-                LOGGER, usedNS/1000000, connection.getConnectionPool().getInfoSQLThreshold(), connection.getConnectionPool().getWarnSQLThreshold(),
+                logger, usedNS/1000000, connection.getConnectionPool().getInfoSQLThreshold(), connection.getConnectionPool().getWarnSQLThreshold(),
                 getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns"
         );
     }

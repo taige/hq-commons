@@ -2,6 +2,31 @@
 
 本文档介绍了 hq-cp 模块的简要介绍、如何通过 Maven 与 Gradle 引入依赖、HqcpConfig 中各配置参数的说明以及在 单体应用、Spring、Spring Boot 环境下的使用示例。
 
+-  [1. 简要介绍](#1-简要介绍)
+-  [2. 依赖引入](#2-依赖引入)
+    - [Maven 引入示例](#maven-引入示例)
+    - [Gradle 引入示例](#gradle-引入示例)
+-  [3. HqcpConfig 配置参数说明](#3-hqcpconfig-配置参数说明)
+-  [4. 在 Spring 环境下的使用示例](#4-在-spring-环境下的使用示例)
+    - [4.1 传统 XML 配置方式](#41-传统-xml-配置方式)
+    - [4.2 注解配置方式](#42-注解配置方式)
+-  [5. 在非 Spring 应用中的手工装配数据源示例](#5-在非-spring-应用中的手工装配数据源示例)
+-  [6. 在 Spring Boot 应用中自动装配数据源](#6-在-spring-boot-应用中自动装配数据源)
+    - [6.1 Maven 配置](#61-maven-配置)
+    - [6.2 Gradle 配置](#62-gradle-配置)
+    - [6.3 application.yml 示例配置](#63-applicationyml-示例配置)
+-  [7. 相关日志说明](#7-相关日志说明)
+    - [7.1 连接池状态日志](#71-连接池状态日志)
+      - [7.1.1 配置信息输出](#711-配置信息输出)
+      - [7.1.2 连接创建与销毁](#712-连接创建与销毁)
+      - [7.1.3 连接检出与回收](#713-连接检出与回收)
+      - [7.1.4 Connection 对象方法的调用](#714-Connection-对象方法的调用)
+      - [7.1.5 连接池状态信息](#715-连接池状态信息)
+      - [7.1.6 其他常见告警信息](#716-其他常见告警信息)
+- [7.2 SQL执行日志](#72-SQL执行日志)
+- [总结](#总结)
+
+
 ---
 
 ## 1. 简要介绍
@@ -272,6 +297,128 @@ spring:
 ```
 
 通过以上配置，Spring Boot 应用在启动时即可自动装配 HqcpDataSource，实现数据源的高效管理，简化了业务开发中的环境配置工作。
+
+---
+
+## 7. 相关日志说明
+
+hq-cp提供了丰富的日志，用以监控、调优连接池、连接的使用情况、配置情况等。
+
+### 7.1 连接池状态日志
+
+#### 7.1.1 配置信息输出
+在连接池初始化时，会依次打印各个配置项，日志示例如下：
+```
+[INFO] url                     = 'jdbc:oracle:thin:@localhost:1521:orcl'
+[INFO] username                = 'testuser'
+[INFO] password                = '******'
+[INFO] minConnections          = 1
+[INFO] maxConnections          = 10
+[INFO] maxStatements           = 100
+[INFO] maxPreStatements        = 10
+[INFO] idleTimeoutSec          = 300
+[INFO] checkoutTimeoutMillisec = 10000
+[INFO] lifetimeSec             = 0
+[INFO] commitOnClose           = false
+[INFO] verbose                 = true
+[INFO] printSql                = false
+[INFO] checkStatement          = 'select systimestamp from dual'
+[INFO] lazyInit                = false
+[INFO] infoSqlThreshold        = 10
+[INFO] warnSqlThreshold        = 100
+[INFO] queryTimeout            = 60
+[INFO] jmxLevel                = 2
+[INFO] transactionMode         = false
+```
+
+#### 7.1.2 连接创建与销毁
+与数据库服务器的物理连接被创建和断开时，会记录相关信息：
+```
+[INFO] HQCP#0#0 make new connection to jdbc:oracle:thin:@localhost:1521:orcl use 1,304,500 ns
+[INFO] HQCP#0 +)4 connections to jdbc:oracle:thin:@localhost:1521:orcl
+
+其他日志...
+
+[INFO] HQCP#0#0 real closed.
+[INFO] HQCP#0 -)3 connections to jdbc:oracle:thin:@localhost:1521:orcl
+```
+其中：
+- `HQCP#0` 表示连接池唯一ID。
+- `HQCP#0#0` 表示连接唯一ID，可用于上下文追踪。
+- `+)4` 表示连接池新增了一条连接，当前连接总数为 4
+- `-)3` 表示连接池销毁了一条连接，当前连接总数为 3
+- 连接池 `HQCP#0` 的 `+|-)` 日志输出依赖于 `verbose` 打开
+
+#### 7.1.3 连接检出与回收
+`verbose` 或 `printSql` 打开时，连接被检出 `DataSource.getConnection()` 和回收 `conn.close()` 会记录相关信息（配合日志格式的线程名，可以定位连接泄露问题等）。<br/>
+示例如下：
+```
+[BusinessThread-0 ] [DEBUG] HQCP#1#0.getConnection(true), use 152 ns
+
+其他日志...
+
+[BusinessThread-0 ] [DEBUG] HQCP#1#0.close()[false] use 152 ns
+```
+其中： 
+- `getConnection(true)` 的 `true` 表示返回连接的 `autoCommit` 属性为 `true`。
+- `close()[false]` 的 `false` 表示连接没有真实关闭（仅回收到连接池），否则表示连接真实断开与数据库服务器的连接。
+
+#### 7.1.4 `Connection` 对象方法的调用 
+**当 `verbose` 打开时**，`Connection` 对象方法的调用会输出不同级别的日志。示例如下：
+```
+[BusinessThread-0 ] [DEBUG] HQCP#0#0.setAutoCommit(true) use 491,583 ns
+[BusinessThread-0 ] [INFO ] HQCP#0#0 * createStatement()[1], use 25,453,708 ns
+...
+[BusinessThread-0 ] [INFO ] HQCP#0#0 * prepareStatement(select * from db1.table1 where id=?)[1], use 64,320,583 ns
+...
+[BusinessThread-0 ] [DEBUG] HQCP#0#0.commit() use 38,084 ns
+...
+[BusinessThread-0 ] [DEBUG] HQCP#0#0.rollback() use 87,750 ns
+```
+- hq-cp 连接池缓存了 `Statement` `PreparedStatement` `CallableStatement`，因此有新的对象创建时，会输出 `INFO` 级别以 `*` 开头的日志；否则直接返回缓存对象的话，输出 `TRACE` 级别的日志（通常不会输出）。
+- `* createStatement()[1]` 中的 `[1]` 表示当前连接创建了1个 `Statement` 对象，`* prepareStatement(...)` `* prepareCall(...)` 的日志同理。
+- 其他方法调用默认是 `DEBUG` 级别日志。
+          
+#### 7.1.5 连接池状态信息
+以下场景，hq-cp 连接池会打印连接池的状态信息，以供问题排查或配置优化：
+- 连接池监控线程定时
+- 当连接耗尽，业务线程获取连接失败时
+
+示例如下：
+```
+1: [DEBUG] HQCP#0#0 checkout by BusinessThread-0 for 5 ms[IDLE]
+2: [INFO ] HQCP#0#1.STMT#3 invoking execute(SELECT * FROM demo) use 25,453,708 ns
+3: [INFO ] HQCP#0#1 checkout by BusinessThread-1 for 30 ms[BUSYING]
+4: [WARN ] HQCP#0#2.STMT#2 invoking executeUpdate(UPDATE demo SET name='zhangsan' WHERE id=123) use 125,453,708 ns
+5: [WARN ] HQCP#0#2 checkout by BusinessThread-2 for 150 ms[BUSYING]
+6: [INFO ] HQCP#0: checkout:3/connected:5/max:10
+```
+##### 状态日志的详细说明：
+- 活跃（被检出的）连接状态<br/>
+第1行日志显示：连接 `HQCP#0#0` 被线程 `BusinessThread-0` 检出了 `5 ms`，处于空闲 `IDLE` 状态，没有在执行SQL语句 <br/>
+第2-3行日志显示：连接 `HQCP#0#1` 被线程 `BusinessThread-1` 检出了 `30 ms`，并且当前其 `STMT#3` 正在执行SQL `SELECT * FROM demo`，持续了 `25 ms` <br/>
+第4-5行日志显示：连接 `HQCP#0#2` 被线程 `BusinessThread-2` 检出了 `150 ms`，并且当前其 `STMT#2` 正在执行SQL `UPDATE demo SET name='zhangsan' WHERE id=123`，持续了 `125 ms`
+- 当前连接数量信息<br/>
+第6行日志：连接池 `HQCP#0` (`checkout`)有3条连接被检出，(`connected`)总共建立了5条连接，(`max`)最多允许10条连接
+
+##### 日志级别说明：
+- <u>活跃连接状态</u>的日志级别取决于连接被检出或者语句执行的耗时，即 当耗时大于 `warnSqlThreshold` 时，打印 `WARN` 日志，否则 大于 `infoSqlThreshold` 时，打印 `INFO` 日志，再否则 打印 `DEBUG` 日志
+- 当 `verbose` 打开 或 连接耗尽 时，<u>连接数量信息</u>打印 `INFO` 日志，否则打印 `DEBUG` 日志
+
+#### 7.1.6 其他常见告警信息
+- 当连接耗尽，需要等待 `checkoutTimeoutMillisec` 所配置的时间时，会先输出一条 `INFO` 告警日志，提示连接吃紧：
+```
+[INFO] connections of HQCP#0 to jdbc:oracle:thin:@localhost:1521:orcl exhausted, wait 10000 ms for idle connection
+```
+- 如果等待 `checkoutTimeoutMillisec` 后还没有可用连接，则会抛出 `SQLException`，异常的message类似：`Timeout on waiting for an available connection of HQCP#0 to jdbc:mysql:url`
+
+
+### 7.2 SQL执行日志
+**当 `printSql` 打开时**，连接池会打印SQL语句执行的情况，示例：
+```
+[INFO ] HQCP#0#0.STMT#0.executeQuery(SELECT * FROM demo)[rs=#0] use 47,284,084 ns
+```
+当SQL耗时大于 `warnSqlThreshold` 时，打印 `WARN` 日志，否则 大于 `infoSqlThreshold` 时，打印 `INFO` 日志，再否则 打印 `DEBUG` 日志
 
 ---
 
