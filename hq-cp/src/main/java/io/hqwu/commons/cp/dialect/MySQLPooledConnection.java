@@ -1,8 +1,8 @@
 package io.hqwu.commons.cp.dialect;
 
-import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.Hqcp;
 import io.hqwu.commons.cp.PooledConnection;
+import io.hqwu.commons.util.Logger;
 
 import java.net.SocketTimeoutException;
 import java.sql.SQLException;

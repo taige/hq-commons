@@ -1,8 +1,8 @@
 package io.hqwu.commons.cp;
 
 
-import com.umpay.commons.util.Logger;
-import com.umpay.commons.util.LoggerFactory;
+import io.hqwu.commons.util.Logger;
+import io.hqwu.commons.util.LoggerFactory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

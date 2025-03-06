@@ -1,10 +1,11 @@
 package io.hqwu.commons.cp;
 
 
-import com.umpay.commons.util.ExceptionUtil;
-import com.umpay.commons.util.Formatter;
-import com.umpay.commons.util.Logger;
 import io.hqwu.commons.cp.util.JdbcUtil;
+import io.hqwu.commons.cp.util.LogUtil;
+import io.hqwu.commons.util.ExceptionUtil;
+import io.hqwu.commons.util.Formatter;
+import io.hqwu.commons.util.Logger;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationHandler;
@@ -301,17 +302,10 @@ class PooledStatement implements InvocationHandler {
         if (! isPrintSQL()) {
             return;
         }
-        if (usedNS/1000 <= connection.getInfoSQLThreshold()*1000) {
-            if (logger.isDebugEnabled()) {
-                logger.debug(getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns");
-            }
-        } else if (usedNS/1000 <= connection.getWarnSQLThreshold()*1000) {
-            if (logger.isInfoEnabled()) {
-                logger.info(getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns");
-            }
-        } else if (logger.isWarnEnabled()) {
-            logger.warn(getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ",  Formatter.formatNS(usedNS), " ns");
-        }
+        LogUtil.logBasedOnThreshold(
+                logger, usedNS/1000000, connection.getConnectionPool().getInfoSQLThreshold(), connection.getConnectionPool().getWarnSQLThreshold(),
+                getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns"
+        );
     }
 
     protected String getPreparedSql() {
@@ -399,13 +393,10 @@ class PooledStatement implements InvocationHandler {
     public boolean isBusying() {
         if (checkOut.get() && busying > 0) {
             long usedNS = System.nanoTime() - busying;
-            if (usedNS/1000 <= connection.getInfoSQLThreshold()*1000 && LOGGER.isDebugEnabled()) {
-                LOGGER.debug(statementName, " invoking ", methodBusying, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
-            } else if (usedNS/1000 <= connection.getWarnSQLThreshold()*1000 && LOGGER.isInfoEnabled()) {
-                LOGGER.info(statementName, " invoking ", methodBusying, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
-            } else if (LOGGER.isWarnEnabled()) {
-                LOGGER.warn(statementName, " invoking ", methodBusying, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns");
-            }
+            LogUtil.logBasedOnThreshold(
+                    LOGGER, usedNS/1000000, connection.getConnectionPool().getInfoSQLThreshold(), connection.getConnectionPool().getWarnSQLThreshold(),
+                    getStatementName(), " invoking ", methodBusying, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns"
+            );
             return true;
         }
         return false;

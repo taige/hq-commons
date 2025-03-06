@@ -1,7 +1,5 @@
 package io.hqwu.commons.cp;
 
-import java.sql.SQLException;
-
 public interface HqcpMBean {
 
     public String getPoolName();
@@ -10,6 +8,5 @@ public interface HqcpMBean {
     public int getActiveConnectionsCount();
     public int getIdleConnectionsCount();
     
-    public void reloadProperties() throws SQLException;
     public void shutdown();
 }

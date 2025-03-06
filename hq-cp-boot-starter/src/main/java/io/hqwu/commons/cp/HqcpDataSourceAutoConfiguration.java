@@ -1,7 +1,7 @@
 package io.hqwu.commons.cp;
 
-import com.umpay.commons.util.Logger;
-import com.umpay.commons.util.LoggerFactory;
+import io.hqwu.commons.util.Logger;
+import io.hqwu.commons.util.LoggerFactory;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;

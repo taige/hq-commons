@@ -1,7 +1,7 @@
 package io.hqwu.commons.mybatisplus;
 
 import com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler;
-import com.umpay.commons.util.Logger;
+import io.hqwu.commons.util.Logger;
 import org.apache.ibatis.type.BaseTypeHandler;
 import org.apache.ibatis.type.EnumTypeHandler;
 import org.apache.ibatis.type.JdbcType;

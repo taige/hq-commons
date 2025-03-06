@@ -1,16 +1,24 @@
 package io.hqwu.commons.cp;
 
 import com.jolbox.bonecp.*;
-import com.umpay.commons.util.Logger;
+import io.hqwu.commons.util.Logger;
 import org.easymock.classextension.IMocksControl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import java.lang.reflect.Field;
 import java.sql.*;
 import java.util.Properties;
-import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.TimeUnit;
+import java.util.Queue;
+import java.util.Random;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.easymock.EasyMock.*;
 import static org.easymock.classextension.EasyMock.createNiceControl;
@@ -52,7 +60,7 @@ public class HqcpTest {
         expect(config.getDriverClassName()).andReturn(null).atLeastOnce();
         expect(config.getIdleTimeoutMillisec()).andReturn(10000L).atLeastOnce(); //回收时间10sec
         expect(config.getCheckoutTimeoutMillisec()).andReturn(5000L).anyTimes(); //获取连接的超时时间5sec
-        expect(config.getCheckStatement()).andReturn("test").anyTimes();
+        expect(config.getCheckStatement()).andReturn("test checking sql").anyTimes();
         expect(config.getJmxLevel()).andReturn(2).atLeastOnce();
         expect(config.getMaxConnections()).andReturn(5).anyTimes(); //最大连接 5
         expect(config.getMinConnections()).andReturn(1).atLeastOnce(); //最小 1
@@ -118,7 +126,7 @@ public class HqcpTest {
             if (! connPool.isShutdown()) {
                 Connection conn = connPool.getConnection();
                 Statement stmt = conn.createStatement();
-                stmt.executeUpdate("ssss");
+                stmt.executeUpdate("tearDown sql");
                 conn.close();
                 connPool.shutdown();
             }
@@ -142,7 +150,7 @@ public class HqcpTest {
         Connection conn = connPool.getConnection();
         assertEquals(conn, mockConnection);
         Statement stmt = conn.createStatement();
-        int n = stmt.executeUpdate("ssss");
+        int n = stmt.executeUpdate("testShutdown sql");
         assertEquals(1, n);
         stmt.close();
         conn.close();
@@ -151,11 +159,8 @@ public class HqcpTest {
         //shutdown() should call real connection's close()
         connPool.shutdown();
         assertEquals(0, connPool.getActiveConnectionsCount());
-        try {
-            connPool.getConnection();
-            fail("should not happend");
-        } catch (SQLException e) {
-        }
+        SQLException ex = assertThrows(SQLException.class, () -> connPool.getConnection());
+        assertEquals("connection pool is shutdown", ex.getMessage());
 
     }
 
@@ -169,9 +174,9 @@ public class HqcpTest {
         connPool = new Hqcp(config);
         Connection conn = connPool.getConnection();
         assertEquals(conn, mockConnection);
-        //conn.close();
+        //conn.close();  不主动关闭connection，shutdown时强制关闭
         Statement stmt = conn.createStatement();
-        int n = stmt.executeUpdate("ssss");
+        int n = stmt.executeUpdate("testShutdownForce sql");
         assertEquals(1, n);
         stmt.close();
         assertEquals(1, connPool.getActiveConnectionsCount());
@@ -179,11 +184,8 @@ public class HqcpTest {
         //shutdown() should call real connection's close()
         connPool.shutdown();
         assertEquals(0, connPool.getActiveConnectionsCount());
-        try {
-            connPool.getConnection();
-            fail("should not happend");
-        } catch (SQLException e) {
-        }
+        SQLException ex = assertThrows(SQLException.class, () -> connPool.getConnection());
+        assertEquals("connection pool is shutdown", ex.getMessage());
 
     }
 
@@ -199,7 +201,7 @@ public class HqcpTest {
             public Connection answer() throws SQLException {
                 LOGGER.info("wait util getConnection timeout...");
                 try {
-                    cyclicBarrier.await(6, TimeUnit.SECONDS); //timeout is 5000 ms
+                    cyclicBarrier.await(7, TimeUnit.SECONDS); //timeout is 5000 ms
                 //} catch (TimeoutException e) {
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -212,12 +214,16 @@ public class HqcpTest {
         driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
 
         connPool = new Hqcp(config);
-        try {
+        Future<?> future = Executors.newSingleThreadExecutor().submit(() -> {
             Connection conn = connPool.getConnection();
             conn.close();
-            fail("test getConnection timeout fail...");
-        } catch (SQLException e) {
-        }
+            return null;
+        });
+        ExecutionException ex = assertThrows(ExecutionException.class, () -> {
+            future.get(5500, TimeUnit.MILLISECONDS);  //获取连接的超时时间5sec
+        });
+        assertTrue(ex.getCause() instanceof SQLException);
+        assertTrue(ex.getCause().getMessage().contains("Timeout on waiting for an available connection"));
         cyclicBarrier.await();
     }
 
@@ -237,18 +243,23 @@ public class HqcpTest {
         for (int i = 0; i < conns.length; i++) {
             conns[i] = connPool.getConnection();
         }
-        try {
+        Future<?> future = Executors.newSingleThreadExecutor().submit(() -> {
             Connection conn = connPool.getConnection();
-            fail("getConnection exhausted timeout fail...");
-        } catch (SQLException e) {
-        }
+            conn.close();
+            return null;
+        });
+        ExecutionException ex = assertThrows(ExecutionException.class, () -> {
+            future.get(5500, TimeUnit.MILLISECONDS);  //获取连接的超时时间5sec
+        });
+        assertTrue(ex.getCause() instanceof SQLException);
+        assertTrue(ex.getCause().getMessage().contains("Timeout on waiting for an available connection"));
         for (Connection conn : conns) {
             conn.close();
         }
     }
 
     @Test
-    public void testStatementUnnormal() throws Exception {
+    public void testStatementWithParameters_executeReturnTrue() throws Exception {
         MockJDBCStatement mockJDBCStatement = mocksControl.createMock(MockJDBCStatement.class);
         expect(mockJDBCStatement.execute((String) anyObject())).andReturn(true).anyTimes();
         expect(mockJDBCStatement.executeUpdate((String) anyObject())).andReturn(1).anyTimes();
@@ -269,7 +280,7 @@ public class HqcpTest {
         Connection conn = connPool.getConnection();
         try {
             Statement stmt = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
-            stmt.execute("stmt ....");
+            assertTrue(stmt.execute("stmt ...."));
             stmt.close();
         } catch (SQLException e) {
             fail("testStatement fail...");
@@ -279,7 +290,7 @@ public class HqcpTest {
     }
 
     @Test
-    public void testStatementUnnormal_false() throws Exception {
+    public void testStatementWithParameters_executeReturnFalse() throws Exception {
         MockJDBCStatement mockJDBCStatement = mocksControl.createMock(MockJDBCStatement.class);
         expect(mockJDBCStatement.execute((String) anyObject())).andReturn(false).anyTimes();
         expect(mockJDBCStatement.executeUpdate((String) anyObject())).andReturn(1).anyTimes();
@@ -302,8 +313,8 @@ public class HqcpTest {
         Connection conn = connPool.getConnection();
         try {
             Statement stmt = conn.createStatement(ResultSet.TYPE_SCROLL_SENSITIVE, ResultSet.CONCUR_UPDATABLE);
-            stmt.execute("stmt ....");
-            stmt.executeLargeUpdate("stmt ....");
+            assertFalse(stmt.execute("stmt ...."));
+            assertEquals(100, stmt.executeLargeUpdate("stmt ...."));
             stmt.close();
         } catch (SQLException e) {
             fail("testStatement fail...");
@@ -326,10 +337,8 @@ public class HqcpTest {
             stmts[i] = conn.createStatement();
             stmts[i].executeQuery("stmt"+i);
         }
-        try {
-            conn.createStatement();
-            fail("testStatement fail...");
-        } catch (SQLException e) {}
+        SQLException ex = assertThrows(SQLException.class, () -> conn.createStatement());
+        assertTrue(ex.getMessage().contains("exceed max value"));
 
         for (Statement stmt : stmts) {
             stmt.close();
@@ -355,15 +364,15 @@ public class HqcpTest {
             fail("testStatement fail...");
         }
 
-        //conn.close();
+        conn.close();
     }
 
     @Test
     public void testPreparedStatement_fail() throws Exception {
         mockPreparedStatement = mocksControl.createMock(MockPreparedStatement.class);
-        expect(mockPreparedStatement.execute()).andThrow(new SQLException("aaa")).anyTimes(); //.andReturn(true).anyTimes();
-        expect(mockPreparedStatement.executeQuery()).andThrow(new SQLException("aaa")).anyTimes(); //.andReturn(rs).anyTimes();
-        expect(mockPreparedStatement.executeUpdate()).andThrow(new SQLException("aaa")).anyTimes(); //.andReturn(1).anyTimes();
+        expect(mockPreparedStatement.execute()).andThrow(new SQLException("mock execute sql exception")).anyTimes(); //.andReturn(true).anyTimes();
+        expect(mockPreparedStatement.executeQuery()).andThrow(new SQLException("mock executeQuery sql exception")).anyTimes(); //.andReturn(rs).anyTimes();
+        expect(mockPreparedStatement.executeUpdate()).andThrow(new SQLException("mock executeUpdate sql exception")).anyTimes(); //.andReturn(1).anyTimes();
         expect(mockPreparedStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
         expect(mockPreparedStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
         expect(mockPreparedStatement.executeBatch()).andReturn(new int[]{1}).anyTimes();
@@ -378,7 +387,7 @@ public class HqcpTest {
         connPool = new Hqcp(config);
         connPool.getConnection().close();
         Connection conn = connPool.getConnection(false);
-        try {
+        SQLException ex = assertThrows(SQLException.class, () -> {
             PreparedStatement pstmt = conn.prepareStatement("prestmt #101 where a=? and bb=? and cc=? and d=? and ee=? and e=1");
             pstmt.setString(1, "aaa");
             pstmt.setInt(2, 123);
@@ -387,10 +396,9 @@ public class HqcpTest {
             pstmt.setTime(5, new Time(System.currentTimeMillis()));
             pstmt.execute();
             pstmt.close();
-            fail("testPreparedStatement_fail fail...");
-        } catch (SQLException e) {
-        }
-        try {
+        });
+        assertEquals("mock execute sql exception", ex.getMessage());
+        ex = assertThrows(SQLException.class, () -> {
             PreparedStatement pstmt = conn.prepareStatement("prestmt #101 where a=? and bb=? and cc=? and d=? and ee=? and e=1");
             pstmt.setString(1, "aaa");
             pstmt.setInt(2, 123);
@@ -400,9 +408,9 @@ public class HqcpTest {
             pstmt.executeUpdate();
             pstmt.close();
             fail("testPreparedStatement_fail fail...");
-        } catch (SQLException e) {
-        }
-        try {
+        });
+        assertEquals("mock executeUpdate sql exception", ex.getMessage());
+        ex = assertThrows(SQLException.class, () -> {
             PreparedStatement pstmt = conn.prepareStatement("prestmt #101 where a=? and bb=? and cc=? and d=? and ee=? and e=1");
             pstmt.setString(1, "aaa");
             pstmt.setInt(2, 123);
@@ -412,8 +420,8 @@ public class HqcpTest {
             pstmt.executeQuery();
             pstmt.close();
             fail("testPreparedStatement_fail fail...");
-        } catch (SQLException e) {
-        }
+        });
+        assertEquals("mock executeQuery sql exception", ex.getMessage());
         conn.close();
     }
 
@@ -471,6 +479,8 @@ public class HqcpTest {
         PreparedStatement pstmt5 = conn.prepareStatement("prestmt #600", Statement.RETURN_GENERATED_KEYS);
         pstmt5.executeUpdate();
         pstmt5.close();
+
+        conn.close();
     }
 
     @Test
@@ -573,6 +583,7 @@ public class HqcpTest {
         CallableStatement pstmt2 = conn.prepareCall("prestmt #300", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE, ResultSet.HOLD_CURSORS_OVER_COMMIT);
         pstmt2.executeUpdate();
         pstmt2.close();
+        conn.close();
     }
 
     @Test
@@ -632,18 +643,16 @@ public class HqcpTest {
         final CyclicBarrier cyclicBarrier = new CyclicBarrier(2);
 
         //用于异步的将conn放回连接池的线程
-        new Thread() {
-            public void run() {
-                try {
-                    cyclicBarrier.await();
-                    LOGGER.debug("sleep 3000ms");
-                    Thread.sleep(3000); //timeout is 5 sec
-                    conn.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+        new Thread(() -> {
+            try {
+                cyclicBarrier.await();
+                LOGGER.debug("sleep 3000ms");
+                Thread.sleep(3000); //timeout is 5 sec
+                conn.close();
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-        }.start();
+        }).start();
         cyclicBarrier.await();
         Connection conn6 = connPool.getConnection();
         assertEquals(conn6, mockConnection);
@@ -705,7 +714,6 @@ public class HqcpTest {
         assertEquals(conn1, mockConnection);
         conn1.close();
 
-        connPool.reloadProperties();
     }
 
     @Test
@@ -758,7 +766,7 @@ public class HqcpTest {
         connPool = new Hqcp(config);
         Connection conn = connPool.getConnection();
         Statement stmt = conn.createStatement();
-        int n = stmt.executeUpdate("ssss");
+        int n = stmt.executeUpdate("testGetPoolName sql");
         assertEquals(1, n);
         stmt.close();
         conn.close();
@@ -829,4 +837,424 @@ public class HqcpTest {
         connPool2.shutdown();
     }
 
+    /**
+     * 测试 lifetimeSec 参数：
+     * 当 lifetimeSec > 0 且连接真正超时后，在checkIn时回收；或者在Monitor线程回收
+     */
+    @Test
+    public void testLifetimeSecEffective() throws Exception {
+        Random random = new Random();
+        WaitWithTimeout wait = new WaitWithTimeout();
+        Queue<MockConnection> connections = new ConcurrentLinkedQueue<>();
+
+        answer = mocksControl.createMock(MockJDBCAnswer.class);
+        expect(answer.answer()).andReturn(mockConnection).once().andAnswer(() -> {
+            MockConnection conn = new MockConnection() {
+                @Override
+                public Statement createStatement() throws SQLException {
+                    return new MockJDBCStatement(this) {
+                        @Override
+                        public boolean execute(String sql) throws SQLException {
+                            wait.awaitWithTimeout(100 + (long) (random.nextDouble() * 1000));
+                            return true;
+                        }
+                    };
+                }
+            };
+            conn.connect();
+            LOGGER.info("connection#{} connected by {}", conn.getConnId(), conn.getConnectThread());
+            connections.offer(conn);
+            return conn;
+        }).atLeastOnce();
+        mocksControl.replay();
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
+
+        {  // 为了兼容其他测试用例，需要执行这段
+            this.connPool = new Hqcp(config);
+            Connection conn = this.connPool.getConnection();
+            conn.createStatement().executeUpdate("lalalal");
+            conn.close();
+            this.connPool.shutdown();
+        }
+
+        HqcpConfig realConfig = new HqcpConfig();
+        realConfig.setUrl("jdbc:mock:test");
+        realConfig.setMinConnections(2);
+        realConfig.setIdleTimeoutSec(10); // 回收时间10s
+        realConfig.setLifetimeSec(15);   // 销毁时间15s
+        realConfig.setVerbose(true);
+        realConfig.setInfoSqlThreshold(0);
+        realConfig.setWarnSqlThreshold(0);
+        realConfig.setPrintSql(false);
+
+        AtomicInteger threadNum = new AtomicInteger(0);
+        ExecutorService executor = Executors.newFixedThreadPool(4, r -> {
+            Thread thread = new Thread(r);
+            thread.setName("BusinessThread-" + threadNum.getAndIncrement());
+            return thread;
+        });
+//        LOGGER.info("waiting timestamp to close to 0.000");
+//        wait.awaitTimeWithSecUnitZero(10);
+        Hqcp connPool = new Hqcp(realConfig);   // 00:00 2 connections (#0 #1) made
+
+        AtomicBoolean stop = new AtomicBoolean(false);
+        Thread task = new Thread(() -> {
+            try {
+                while (!stop.get()) {
+                    Connection conn = connPool.getConnection();
+                    Statement stmt = conn.createStatement();
+                    stmt.execute("mock some time consuming...");
+                    stmt.close();
+                    conn.close();
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        LOGGER.info("starting 3 business workers ... then wait 5s");
+        for (int i = 0; i < 3; i++) {
+            if (i > 0) {
+                Thread.sleep(1500);
+            }
+            executor.submit(task);              // 00:03 connection #2 made
+        }
+        Thread.sleep(5000);
+        LOGGER.info("start one more business worker, then wait 8s");
+        executor.submit(task);                  // 00:08 connection #3 made
+        Thread.sleep(8000);                     // 00:15 connections #0 #1 closed on checkIn() and #4 #5 made
+                                                // 00:16
+        LOGGER.info("check if #0 #1 closed and #4 #5 made.");
+//        connections.forEach(conn -> {
+//            LOGGER.info("connection#{} closed by {}", conn.getConnId(), conn.getCloseThread());
+//        });
+        assertTrue(connections.poll().getCloseThread().startsWith("BusinessThread-"));
+        assertTrue(connections.poll().getCloseThread().startsWith("BusinessThread-"));
+        assertEquals(4, connPool.getActiveConnectionsCount());
+
+        LOGGER.info("stopping workers, then wait 5s");
+        stop.set(true);
+        wait.wakeUp();
+        executor.shutdown();
+        if (! executor.isTerminated()) {
+            executor.awaitTermination(1, TimeUnit.SECONDS);
+        }
+        Thread.sleep(5000);                     // 00:18 connection #2 closed by Monitor
+                                                // 00:21
+        LOGGER.info("check if #2 closed by Monitor, then wait 3s");
+        assertTrue(connections.poll().getCloseThread().startsWith("CPM:HQCP#"));
+        assertEquals(3, connPool.getActiveConnectionsCount());
+
+        Thread.sleep(3000);                     // 00:23 connection #3 closed by Monitor
+                                                // 00:24
+        LOGGER.info("check if #3 closed by Monitor, then wait 7s");
+        assertTrue(connections.poll().getCloseThread().startsWith("CPM:HQCP#"));
+        assertEquals(2, connPool.getActiveConnectionsCount());
+
+        Thread.sleep(7000);                     // 00:40 connection #4 #5 closed by Monitor
+                                                // 00:41
+        LOGGER.info("check if #4 #5 closed by Monitor");
+        assertTrue(connections.poll().getCloseThread().startsWith("CPM:HQCP#"));
+        assertTrue(connections.poll().getCloseThread().startsWith("CPM:HQCP#"));
+        assertEquals(2, connPool.getActiveConnectionsCount());
+
+        /**
+         * 以下测试是为了覆盖 {@link Hqcp.LinkedStack#requireMoreSignal()}
+         */
+        stop.set(false);
+        task.setName("BusinessThread-");
+        task.start();
+        Thread.sleep(16000);
+        stop.set(true);
+        wait.wakeUp();
+        task.join(1000);
+        if (connections.peek().getCloseThread().startsWith("CPM:HQCP#")) {
+            assertTrue(connections.poll().getCloseThread().startsWith("CPM:HQCP#"));
+            assertTrue(connections.poll().getCloseThread().startsWith("BusinessThread-"));
+        } else {
+            assertTrue(connections.poll().getCloseThread().startsWith("BusinessThread-"));
+            assertTrue(connections.poll().getCloseThread().startsWith("CPM:HQCP#"));
+        }
+
+        connPool.shutdown();
+    }
+
+    @Test
+    public void testUnclosedConnection_closeRetry() throws Exception {
+        final AtomicInteger closeCounter = new AtomicInteger(0);
+
+        MockConnection mockConnection2 = createNiceMock(MockConnection.class);
+        mockConnection2.close();
+        expectLastCall().andAnswer(() -> {
+            closeCounter.incrementAndGet();
+            throw new SQLException("mock close exception");
+        }).atLeastOnce();
+        expect(mockConnection2.createStatement()).andReturn(mockStatement).anyTimes();
+        makeThreadSafe(mockConnection2, true);
+        replay(mockConnection2);
+
+        answer = mocksControl.createMock(MockJDBCAnswer.class);
+        expect(answer.answer()).andReturn(mockConnection).once().andReturn(mockConnection2).atLeastOnce();
+        mocksControl.replay();
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
+        {  // 为了兼容其他测试用例，需要执行这段
+            this.connPool = new Hqcp(config);
+            Connection conn = this.connPool.getConnection();
+            conn.createStatement().executeUpdate("lalalal");
+            conn.close();
+            this.connPool.shutdown();
+        }
+
+        HqcpConfig realConfig = new HqcpConfig();
+        realConfig.setUrl("jdbc:mock:test");
+        realConfig.setMaxConnections(1);
+        realConfig.setMinConnections(0);
+
+        Field idleTimeoutField = HqcpConfig.class.getDeclaredField("idleTimeoutSec");
+        idleTimeoutField.setAccessible(true);
+        idleTimeoutField.set(realConfig, 2);   // 强制 monitor 检查间隔：2s
+
+        Hqcp pool = new Hqcp(realConfig);
+
+        Connection conn = pool.getConnection(); // 取得唯一连接
+        conn.close();
+        Thread.sleep(23000);
+        pool.shutdown();
+
+        verify(mockConnection2);
+        assertEquals(22, closeCounter.get());
+    }
+
+    /**
+     * 测试 checkoutTimeoutMillisec 为负值时一直等待的逻辑；
+     */
+    @Test
+    public void testCheckoutTimeoutWaitForever() throws Exception {
+        answer = mocksControl.createMock(MockJDBCAnswer.class);
+        expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
+        mocksControl.replay();
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
+        {  // 为了兼容其他测试用例，需要执行这段
+            this.connPool = new Hqcp(config);
+            Connection conn = this.connPool.getConnection();
+            conn.createStatement().executeUpdate("lalalal");
+            conn.close();
+            this.connPool.shutdown();
+        }
+
+        // 构造配置：最大连接数为 1，checkoutTimeoutMillisec 为 -1 表示一直等待
+        HqcpConfig realConfig = new HqcpConfig();
+        realConfig.setUrl("jdbc:mock:test");
+        realConfig.setMaxConnections(1);
+        realConfig.setMinConnections(0);
+        realConfig.setCheckoutTimeoutMillisec(-1);
+        Hqcp pool = new Hqcp(realConfig);
+
+        Connection conn = pool.getConnection(); // 取得唯一连接
+
+        final boolean[] gotConnection = new boolean[1];
+        Thread waitingThread = new Thread(() -> {
+            try {
+                Connection c = pool.getConnection();
+                gotConnection[0] = true;
+                c.close();
+            } catch (SQLException e) {
+                fail("getConnection 出错: " + e.getMessage());
+            }
+        });
+        waitingThread.start();
+        Thread.sleep(2000);
+        assertFalse(gotConnection[0], "在未释放连接前，等待线程不应能拿到连接");
+
+        conn.close(); // 释放连接，使等待线程能够拿到连接
+        waitingThread.join(3000);
+        assertTrue(gotConnection[0], "释放连接后，等待线程应能拿到连接");
+
+        pool.shutdown();
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {-1, 10_000})     // -1 表示一直等待
+    public void testDynamicIncreaseMaxConnections(long checkoutTimeout) throws Exception {
+        answer = mocksControl.createMock(MockJDBCAnswer.class);
+        expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
+        mocksControl.replay();
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
+        {  // 为了兼容其他测试用例，需要执行这段
+            this.connPool = new Hqcp(config);
+            Connection conn = this.connPool.getConnection();
+            conn.createStatement().executeUpdate("lalalal");
+            conn.close();
+            this.connPool.shutdown();
+        }
+
+        // 构造配置：最大连接数为 1，checkoutTimeoutMillisec 为 -1 表示一直等待
+        HqcpConfig realConfig = new HqcpConfig();
+        realConfig.setUrl("jdbc:mock:test");
+        realConfig.setMaxConnections(1);
+        realConfig.setMinConnections(0);
+        realConfig.setVerbose(true);
+        realConfig.setCheckoutTimeoutMillisec(checkoutTimeout);
+
+        Field idleTimeoutField = HqcpConfig.class.getDeclaredField("idleTimeoutSec");
+        idleTimeoutField.setAccessible(true);
+        idleTimeoutField.set(realConfig, 3);  // 强制 monitor 检查间隔：3s
+
+        Hqcp pool = new Hqcp(realConfig);
+
+        Connection conn = pool.getConnection(); // 取得唯一连接
+
+        final boolean[] gotConnection = new boolean[1];
+        Thread waitingThread = new Thread(() -> {
+            try {
+                Connection c = pool.getConnection();
+                gotConnection[0] = true;
+                c.close();
+            } catch (SQLException e) {
+                fail("getConnection 出错: " + e.getMessage());
+            }
+        });
+        waitingThread.start();
+        Thread.sleep(2000);
+        assertFalse(gotConnection[0], "在未增加连接数前，等待线程不应能拿到连接");
+
+        LOGGER.info("increase max connections to 2");
+        realConfig.setMaxConnections(2);
+
+        waitingThread.join(3000);
+        assertTrue(gotConnection[0], "增加连接数后，等待线程应能拿到连接");
+
+        conn.close();   // 释放连接
+
+        pool.shutdown();
+    }
+
+    /**
+     * 测试 checkoutTimeoutMillisec 为 0 时，不等待立即超时。
+     * 当连接池中无可用连接且 checkoutTimeoutMillisec==0 时，应立即抛出 SQLException。
+     */
+    @Test
+    public void testCheckoutTimeoutImmediateException() throws Exception {
+        answer = mocksControl.createMock(MockJDBCAnswer.class);
+        expect(answer.answer()).andReturn(mockConnection).atLeastOnce();
+        mocksControl.replay();
+        driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
+        {  // 为了兼容其他测试用例，需要执行这段
+            this.connPool = new Hqcp(config);
+            Connection conn = this.connPool.getConnection();
+            conn.createStatement().executeUpdate("lalalal");
+            conn.close();
+            this.connPool.shutdown();
+        }
+
+        // 构造配置：最大连接数1，checkoutTimeoutMillisec==0
+        HqcpConfig realConfig = new HqcpConfig();
+        realConfig.setUrl("jdbc:mock:test");
+        realConfig.setMaxConnections(1);
+        realConfig.setMinConnections(0);
+        realConfig.setCheckoutTimeoutMillisec(0);
+        Hqcp pool = new Hqcp(realConfig);
+
+        // 先占用唯一连接
+        Connection conn = pool.getConnection();
+        // 立即尝试获取新的连接，应立即超时
+        long start = System.currentTimeMillis();
+        SQLException ex = assertThrows(SQLException.class, () -> {
+            Connection c = pool.getConnection();
+            c.close();
+        });
+        assertTrue(System.currentTimeMillis() - start < 1000);
+        assertTrue(ex.getMessage().contains("Timeout on waiting for an available connection"));
+        conn.close();
+        pool.shutdown();
+    }
+
 }
+
+class WaitWithTimeout {
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition condition = lock.newCondition();
+    // 增加一个标志，用于标识是否被提前唤醒
+    private boolean woken = false;
+
+    /**
+     * 类似于 Thread.sleep(timeMillis) 的等待，但当其他线程调用 wakeUp() 后，将立即返回。
+     * 如果没有被提前唤醒，则一直等待到超时为止。
+     */
+    public void awaitWithTimeout(long timeMillis) {
+        lock.lock();
+        woken = false; // 重置标志
+        try {
+            long nanos = timeMillis * 1_000_000;
+            // 循环等待，直到超时或者收到提前唤醒信号
+            while (nanos > 0 && !woken) {
+                nanos = condition.awaitNanos(nanos);
+            }
+        } catch (InterruptedException e) {
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * 提前唤醒等待的线程
+     */
+    public void wakeUp() {
+        lock.lock();
+        try {
+            // 设置标志并发送通知
+            woken = true;
+            condition.signalAll();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * 等待直到当前时间满足：
+     *  1. 当前秒数（取秒数）个位为 0，即 (seconds % 10 == 0)
+     *  2. 当前毫秒数小于指定阈值（例如 10 毫秒）
+     *
+     * 使用动态计算下次满足条件时刻与当前时刻的时间差来等待，而非固定等待 1 毫秒，
+     * 同时允许外部通过其他方式提前唤醒等待线程。
+     *
+     * @param msThreshold 毫秒阈值（例如 10）
+     */
+    public void awaitTimeWithSecUnitZero(long msThreshold)  {
+        lock.lock();
+        try {
+            while (true) {
+                long now = System.currentTimeMillis();
+                long seconds = (now / 1000) % 60; // 当前秒数（0-59）
+                long millis = now % 1000;         // 当前毫秒数（0-999）
+
+                // 判断秒的个位是否为0和毫秒是否小于阈值
+                if (seconds % 10 == 0 && millis < msThreshold) {
+                    break;
+                }
+                // 计算下次满足秒个位为 0 的时刻
+                // 设当前秒为 s，则下一满足条件的秒为：s' = s - (s % 10) + 10
+                long secondsToWait;
+                if (seconds % 10 == 0 && millis >= msThreshold) {
+                    // 仍需要等待直到毫秒部分低于阈值
+                    secondsToWait = 0;
+                } else {
+                    secondsToWait = 10 - (seconds % 10);
+                }
+                // 计算下一个满足条件时刻的时间戳粗略值，
+                // 这里简单计算到整秒点（毫秒为0），再等待 msThreshold 毫秒之前
+                long targetTime = ((now / 1000) + secondsToWait) * 1000;
+                // 如果等待的时间超过 msThreshold，则减去 msThreshold，这样到达目标时刻时，毫秒部分刚好在[0, msThreshold)内
+                targetTime -= msThreshold;
+                long waitTimeMillis = Math.max(targetTime - now, 1); // 至少等待 1 毫秒
+                long nanos = TimeUnit.MILLISECONDS.toNanos(waitTimeMillis);
+                condition.awaitNanos(nanos);
+            }
+        } catch (InterruptedException e) {
+        } finally {
+            lock.unlock();
+        }
+    }
+
+}
+
+

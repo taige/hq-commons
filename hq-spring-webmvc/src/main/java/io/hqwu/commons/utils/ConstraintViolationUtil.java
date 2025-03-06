@@ -1,7 +1,7 @@
 package io.hqwu.commons.utils;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.umpay.commons.util.StringUtil;
+import io.hqwu.commons.util.StringUtil;
 
 import javax.validation.ConstraintViolation;
 import java.lang.reflect.Field;

@@ -1,8 +1,8 @@
 package io.hqwu.commons.annotation.constraints.support;
 
-import com.umpay.commons.util.ClassUtil;
-import com.umpay.commons.util.Logger;
 import io.hqwu.commons.annotation.constraints.AnyFieldsValidated;
+import io.hqwu.commons.util.ClassUtil;
+import io.hqwu.commons.util.Logger;
 import org.hibernate.validator.internal.engine.constraintvalidation.ConstraintValidatorContextImpl;
 
 import javax.validation.ConstraintValidator;

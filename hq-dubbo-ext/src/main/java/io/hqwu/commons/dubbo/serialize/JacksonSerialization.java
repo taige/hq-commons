@@ -1,7 +1,7 @@
 package io.hqwu.commons.dubbo.serialize;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.umpay.commons.util.Logger;
+import io.hqwu.commons.util.Logger;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.extension.ExtensionFactory;
 import org.apache.dubbo.common.extension.ExtensionLoader;
