@@ -19,6 +19,7 @@
     <mybatis.version>3.5.6</mybatis.version>
     <mybatis-boot.version>2.1.4</mybatis-boot.version>
     <dubbo.version>2.7.12</dubbo.version>
+    <jsqlparser.version>4.9</jsqlparser.version>
 
     <test.logger.level>WARN</test.logger.level>
   </properties>
@@ -79,6 +80,11 @@
         <groupId>com.baomidou</groupId>
         <artifactId>mybatis-plus</artifactId>
         <version>${mybatis-plus.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.jsqlparser</groupId>
+        <artifactId>jsqlparser</artifactId>
+        <version>${jsqlparser.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

@@ -13,12 +13,12 @@ public class LogUtil {
 
     /**
      * Log based on thresholds.
-     * @param logger
-     * @param usedTimeMillis
-     * @param infoThresholdMillis
-     * @param warnThresholdMillis
-     * @param message
-     * @param messageParts
+     * @param logger 日志记录器
+     * @param usedTimeMillis 执行时间(ms)
+     * @param infoThresholdMillis 信息级别阈值(ms)
+     * @param warnThresholdMillis 警告级别阈值(ms)
+     * @param message 日志消息
+     * @param messageParts 日志消息参数
      */
     public static void logBasedOnThreshold(Logger logger, long usedTimeMillis, long infoThresholdMillis, long warnThresholdMillis, String message, Object... messageParts) {
         if (usedTimeMillis > warnThresholdMillis && logger.isWarnEnabled()) {
