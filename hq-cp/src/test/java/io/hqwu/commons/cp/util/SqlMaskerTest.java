@@ -1,5 +1,19 @@
 package io.hqwu.commons.cp.util;
 
+import io.hqwu.commons.util.Logger;
+import net.sf.jsqlparser.expression.BinaryExpression;
+import net.sf.jsqlparser.expression.CaseExpression;
+import net.sf.jsqlparser.expression.Expression;
+import net.sf.jsqlparser.expression.StringValue;
+import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
+import net.sf.jsqlparser.parser.CCJSqlParserUtil;
+import net.sf.jsqlparser.statement.insert.Insert;
+import net.sf.jsqlparser.statement.select.ParenthesedSelect;
+import net.sf.jsqlparser.statement.select.PlainSelect;
+import net.sf.jsqlparser.statement.select.Select;
+import net.sf.jsqlparser.statement.select.Values;
+import net.sf.jsqlparser.statement.update.Update;
+import net.sf.jsqlparser.statement.update.UpdateSet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -12,8 +26,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * LogUtil SQL掩码测试
@@ -21,6 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  */
 @DisplayName("LogUtil SQL掩码测试")
 class SqlMaskerTest {
+    private static final Logger LOGGER = new Logger();
 
     private Set<String> sensitiveFields;
 
@@ -393,61 +407,294 @@ class SqlMaskerTest {
     @Test
     void testMaskField() {
         // 1. 空值和边界情况
-        assertNull(SqlMasker.maskField(null, "****"));
-        assertEquals("123", SqlMasker.maskField("123", null));
-        assertEquals("123", SqlMasker.maskField("123", ""));
-        assertEquals("####", SqlMasker.maskField("", "####"));
+        assertNull(SqlMasker.doValueMask(null, "****"));
+        assertEquals("123", SqlMasker.doValueMask("123", null));
+        assertEquals("123", SqlMasker.doValueMask("123", ""));
+        assertEquals("####", SqlMasker.doValueMask("", "####"));
 
         // 2. 规则1：字段长度 <= 掩码长度
-        assertEquals("*", SqlMasker.maskField("1", "*"));
-        assertEquals("##", SqlMasker.maskField("1", "##"));
-        assertEquals("##", SqlMasker.maskField("12", "##"));
-        assertEquals("###", SqlMasker.maskField("12", "###"));
-        assertEquals("###", SqlMasker.maskField("123", "###"));
-        assertEquals("****", SqlMasker.maskField("123", "****"));
-        assertEquals("****", SqlMasker.maskField("1234", "****"));
-        assertEquals("●●●●●", SqlMasker.maskField("1234", "●●●●●"));
-        assertEquals("●●●●●", SqlMasker.maskField("12345", "●●●●●"));
-        assertEquals("??????", SqlMasker.maskField("12345", "??????"));
-        assertEquals("??????", SqlMasker.maskField("123456", "??????"));
+        assertEquals("*", SqlMasker.doValueMask("1", "*"));
+        assertEquals("##", SqlMasker.doValueMask("1", "##"));
+        assertEquals("##", SqlMasker.doValueMask("12", "##"));
+        assertEquals("###", SqlMasker.doValueMask("12", "###"));
+        assertEquals("###", SqlMasker.doValueMask("123", "###"));
+        assertEquals("****", SqlMasker.doValueMask("123", "****"));
+        assertEquals("****", SqlMasker.doValueMask("1234", "****"));
+        assertEquals("●●●●●", SqlMasker.doValueMask("1234", "●●●●●"));
+        assertEquals("●●●●●", SqlMasker.doValueMask("12345", "●●●●●"));
+        assertEquals("??????", SqlMasker.doValueMask("12345", "??????"));
+        assertEquals("??????", SqlMasker.doValueMask("123456", "??????"));
 
         // 3. 规则2：字段长度在掩码长度1-3倍之间, i.e. 1x < fieldLength <= 3x
         // 3.1 偶数长度掩码模式（4个字符）的情况
-        assertEquals("1****", SqlMasker.maskField("12345", "****"));               // 1x+1，首1尾0
-        assertEquals("1****6", SqlMasker.maskField("123456", "****"));             // 1.5倍，剩余2个字符平均分配
-        assertEquals("12####78", SqlMasker.maskField("12345678", "####"));         // 2倍，首2尾2
-        assertEquals("123####89", SqlMasker.maskField("123456789", "####"));       // 2.25倍，剩余5个字符，首3末2
-        assertEquals("1234????901", SqlMasker.maskField("12345678901", "????"));   // 2.75倍，剩余7个字符，首4末3
-        assertEquals("1234????9012", SqlMasker.maskField("123456789012", "????")); // 3倍，首尾各4个字符
+        assertEquals("1****", SqlMasker.doValueMask("12345", "****"));               // 1x+1，首1尾0
+        assertEquals("1****6", SqlMasker.doValueMask("123456", "****"));             // 1.5倍，剩余2个字符平均分配
+        assertEquals("12####78", SqlMasker.doValueMask("12345678", "####"));         // 2倍，首2尾2
+        assertEquals("123####89", SqlMasker.doValueMask("123456789", "####"));       // 2.25倍，剩余5个字符，首3末2
+        assertEquals("1234????901", SqlMasker.doValueMask("12345678901", "????"));   // 2.75倍，剩余7个字符，首4末3
+        assertEquals("1234????9012", SqlMasker.doValueMask("123456789012", "????")); // 3倍，首尾各4个字符
 
         // 3.2 奇数长度掩码模式（3个字符）的情况
-        assertEquals("1***", SqlMasker.maskField("1234", "***"));               // 1x+1，首1尾0
-        assertEquals("1***5", SqlMasker.maskField("12345", "***"));             // 1.67倍，剩余2个字符平均分配
-        assertEquals("12###6", SqlMasker.maskField("123456", "###"));           // 2倍，首2末1
-        assertEquals("12###67", SqlMasker.maskField("1234567", "###"));         // 2.33倍，剩余4个字符，首2末2
-        assertEquals("123●●●78", SqlMasker.maskField("12345678", "●●●"));       // 2.67倍，剩余5个字符，首3末2
-        assertEquals("123●●●789", SqlMasker.maskField("123456789", "●●●"));     // 3倍，首尾各3个字符
+        assertEquals("1***", SqlMasker.doValueMask("1234", "***"));               // 1x+1，首1尾0
+        assertEquals("1***5", SqlMasker.doValueMask("12345", "***"));             // 1.67倍，剩余2个字符平均分配
+        assertEquals("12###6", SqlMasker.doValueMask("123456", "###"));           // 2倍，首2末1
+        assertEquals("12###67", SqlMasker.doValueMask("1234567", "###"));         // 2.33倍，剩余4个字符，首2末2
+        assertEquals("123●●●78", SqlMasker.doValueMask("12345678", "●●●"));       // 2.67倍，剩余5个字符，首3末2
+        assertEquals("123●●●789", SqlMasker.doValueMask("123456789", "●●●"));     // 3倍，首尾各3个字符
 
         // 4. 规则3：字段长度大于掩码长度3倍
         // 4.1 偶数长度掩码模式
-        assertEquals("1234*?#●*0123", SqlMasker.maskField("1234567890123", "*?#●"));     // 3x+1，首4尾4，中间5个mask字符
-        assertEquals("1234?●#*?●#2345", SqlMasker.maskField("123456789012345", "?●#*")); // 3x+3，首尾各4个字符，中间7个mask字符
-        assertEquals("1234●?*#●?*#●4567", SqlMasker.maskField("12345678901234567", "●?*#")); // 4x+1，首尾各4个字符，中间9个mask字符
+        assertEquals("1234*?#●*0123", SqlMasker.doValueMask("1234567890123", "*?#●"));     // 3x+1，首4尾4，中间5个mask字符
+        assertEquals("1234?●#*?●#2345", SqlMasker.doValueMask("123456789012345", "?●#*")); // 3x+3，首尾各4个字符，中间7个mask字符
+        assertEquals("1234●?*#●?*#●4567", SqlMasker.doValueMask("12345678901234567", "●?*#")); // 4x+1，首尾各4个字符，中间9个mask字符
 
         // 4.2 奇数长度掩码模式
-        assertEquals("123#?*#890", SqlMasker.maskField("1234567890", "#?*"));     // 3x+1，首尾各3个字符，中间4个mask字符
-        assertEquals("12345●#?*#●#34567", SqlMasker.maskField("12345678901234567", "●#?*#")); // 3x+2，首尾各5个字符，中间7个mask字符
-        assertEquals("123#?*#?*#123", SqlMasker.maskField("1234567890123", "#?*"));     // 4x+1，首尾各3个字符，中间7个mask字符
+        assertEquals("123#?*#890", SqlMasker.doValueMask("1234567890", "#?*"));     // 3x+1，首尾各3个字符，中间4个mask字符
+        assertEquals("12345●#?*#●#34567", SqlMasker.doValueMask("12345678901234567", "●#?*#")); // 3x+2，首尾各5个字符，中间7个mask字符
+        assertEquals("123#?*#?*#123", SqlMasker.doValueMask("1234567890123", "#?*"));     // 4x+1，首尾各3个字符，中间7个mask字符
 
         // 5. 特殊字符处理
-        assertEquals("1 2 XXXX5 6", SqlMasker.maskField("1 2 3 4 5 6", "XXXX"));
-        assertEquals("1\t2?????5\t6", SqlMasker.maskField("1\t2\t3\t4\t5\t6", "???"));
-        assertEquals("    ", SqlMasker.maskField("123", "    "));
-        assertEquals("    ", SqlMasker.maskField("1234", "    "));
+        assertEquals("1 2 XXXX5 6", SqlMasker.doValueMask("1 2 3 4 5 6", "XXXX"));
+        assertEquals("1\t2?????5\t6", SqlMasker.doValueMask("1\t2\t3\t4\t5\t6", "???"));
+        assertEquals("    ", SqlMasker.doValueMask("123", "    "));
+        assertEquals("    ", SqlMasker.doValueMask("1234", "    "));
 
         // 6. Unicode字符处理
-        assertEquals("1####", SqlMasker.maskField("1你好世界", "####"));
-        assertEquals("1○○○界", SqlMasker.maskField("1你好世界", "○○○"));
+        assertEquals("1####", SqlMasker.doValueMask("1你好世界", "####"));
+        assertEquals("1○○○界", SqlMasker.doValueMask("1你好世界", "○○○"));
+    }
+
+    @Test
+    void testInsertValuesParse_single() throws Exception {
+        String sql = "insert into test (id, name, password) values ('1', '2', '3')";
+        Insert insert = (Insert) CCJSqlParserUtil.parse(sql);
+        Values values = (Values) insert.getSelect();
+        assertEquals(3, values.getExpressions().size());
+        values.getExpressions().forEach(expression -> {
+            assertTrue(expression instanceof StringValue);
+        });
+    }
+
+    @Test
+    void testInsertValuesParse_multi() throws Exception {
+        String sql2 = "insert into test (id, name, password) values ('1', '2', '3'), ('4', '5', '6')";
+        Insert insert2 = (Insert)  CCJSqlParserUtil.parse(sql2);
+        Values values2 = (Values) insert2.getSelect();
+        assertEquals(2, values2.getExpressions().size());
+        values2.getExpressions().forEach(expression -> {
+            assertEquals(3, ((ExpressionList<?>) expression).size());
+            ((ExpressionList<?>) expression).forEach(exp -> {
+                assertTrue(exp instanceof StringValue);
+            });
+        });
+    }
+
+    @Test
+    void testInsertValuesParse_multi2() throws Exception {
+        String sql2 = "insert into test (id, name, password) values (('1', '2', '3'), ('4', '5', '6'))";
+        Insert insert2 = (Insert)  CCJSqlParserUtil.parse(sql2);
+        Values values2 = (Values) insert2.getSelect();
+        assertEquals(2, values2.getExpressions().size());
+        values2.getExpressions().forEach(expression -> {
+            assertEquals(3, ((ExpressionList<?>) expression).size());
+            ((ExpressionList<?>) expression).forEach(exp -> {
+                assertTrue(exp instanceof StringValue);
+            });
+        });
+    }
+
+    @Test
+    void testInsertValuesParse_select() throws Exception {
+        String sql = "INSERT INTO table1 (col1, col2) SELECT col1, col2 FROM table2 WHERE id > 100";
+        Insert insert = (Insert) CCJSqlParserUtil.parse(sql);
+        assertTrue(insert.getSelect() instanceof PlainSelect);
+    }
+
+    @Test
+    void testUpdateParse_values() throws Exception {
+        String sql = "UPDATE test SET (a, b, c) = (VALUES '1', '2', '3') where id = 1";
+        Update update = (Update) CCJSqlParserUtil.parse(sql);
+        assertEquals(1, update.getUpdateSets().size());
+        update.getUpdateSets().forEach(updateSet -> {
+            assertEquals(3, updateSet.getColumns().size());
+            ExpressionList<? extends Expression> expressions = updateSet.getValues();
+            assertEquals(1, expressions.size());
+            assertTrue(expressions.get(0) instanceof ParenthesedSelect);
+            Values values = (Values) ((ParenthesedSelect) expressions.get(0)).getSelect();
+            assertEquals(3, values.getExpressions().size()); // '1', '2', '3'
+            values.getExpressions().forEach(expression -> {
+                assertTrue(expression instanceof StringValue);
+            });
+        });
+    }
+
+    @Test
+    void testUpdateParse_1v1() throws Exception {
+        String sql = "UPDATE test SET a='1', b='2', c='3' where id = 1";
+        Update update = (Update) CCJSqlParserUtil.parse(sql);
+        assertEquals(3, update.getUpdateSets().size());
+        update.getUpdateSets().forEach(updateSet -> {
+            assertEquals(1, updateSet.getColumns().size());
+            ExpressionList<? extends Expression> expressions = updateSet.getValues();
+            assertEquals(1, expressions.size());
+            expressions.forEach(expression -> {
+                assertTrue(expression instanceof StringValue);
+            });
+        });
+    }
+    
+    @Test
+    void testUpdateParse_select_all() throws Exception {
+        String sql = "UPDATE test SET (a, b, c) = (SELECT a, b, c FROM table2 WHERE id = 1) where id = 1";
+        Update update = (Update) CCJSqlParserUtil.parse(sql);
+        assertEquals(1, update.getUpdateSets().size());
+        update.getUpdateSets().forEach(updateSet -> {
+            assertEquals(3, updateSet.getColumns().size());
+            ExpressionList<? extends Expression> expressions = updateSet.getValues();
+            assertEquals(1, expressions.size());
+            assertTrue(expressions.get(0) instanceof ParenthesedSelect);
+            assertNotNull(((ParenthesedSelect) expressions.get(0)).getSelect());
+        });
+    }
+
+    @Test
+    void testUpdateParse_select_1field() throws Exception {
+        String sql = "UPDATE test SET  a='1', b='2', c = (SELECT c FROM table2 WHERE id = 1) where id = 1";
+        Update update = (Update) CCJSqlParserUtil.parse(sql);
+        assertEquals(3, update.getUpdateSets().size());
+
+        UpdateSet updateSet = update.getUpdateSets().get(2);
+        assertEquals(1, updateSet.getColumns().size());
+        ExpressionList<? extends Expression> expressions = updateSet.getValues();
+        assertEquals(1, expressions.size());
+        assertTrue(expressions.get(0) instanceof Select);
+    }
+
+    @Test
+    void testUpdateParse_3v3() throws Exception {
+        String sql = "UPDATE test SET (a, b, c) = ('1', '2', '3') where id = 1";
+        Update update = (Update) CCJSqlParserUtil.parse(sql);
+        assertEquals(1, update.getUpdateSets().size());
+        update.getUpdateSets().forEach(updateSet -> {
+            assertEquals(3, updateSet.getColumns().size());
+            ExpressionList<? extends Expression> expressions = updateSet.getValues();
+            assertEquals(3, expressions.size());
+            expressions.forEach(expression -> {
+                assertTrue(expression instanceof StringValue);
+            });
+        });
+    }
+
+    @Test
+    void testUpdateParse_3v3Mix1v1() throws Exception {
+        String sql = "UPDATE a SET (a, b, c ) = ('1', '2', '3'), d = '4' where id = 1";
+        Update update = (Update) CCJSqlParserUtil.parse(sql);
+        assertEquals(2, update.getUpdateSets().size());
+        update.getUpdateSets().forEach(updateSet -> {
+            assertEquals(updateSet.getColumns().size(), updateSet.getValues().size());
+            updateSet.getValues().forEach(expression -> {
+                assertTrue(expression instanceof StringValue);
+            });
+        });
+
+    }
+
+    @Test
+    void testUpdateParse_valuesMix1v1() throws Exception {
+        String sql = "UPDATE a SET (a, b, c ) = (VALUES '1', '2', '3'), d = '4' where id = 1";
+        Update update = (Update) CCJSqlParserUtil.parse(sql);
+        assertEquals(2, update.getUpdateSets().size());
+
+        {
+            UpdateSet updateSet = update.getUpdateSets().get(0);   //(a, b, c ) = (VALUES '1', '2', '3')
+            assertEquals(3, updateSet.getColumns().size());
+            ExpressionList<? extends Expression> expressions = updateSet.getValues();
+            assertEquals(1, expressions.size());
+            assertTrue(expressions.get(0) instanceof ParenthesedSelect);
+            Values values = (Values) ((ParenthesedSelect) expressions.get(0)).getSelect();
+            assertEquals(3, values.getExpressions().size()); // '1', '2', '3'
+            values.getExpressions().forEach(expression -> {
+                assertTrue(expression instanceof StringValue);
+            });
+        }
+
+        {
+            UpdateSet updateSet = update.getUpdateSets().get(1);   //d = '4'
+            assertEquals(1, updateSet.getColumns().size());
+            ExpressionList<? extends Expression> expressions = updateSet.getValues();
+            assertEquals(1, expressions.size());
+            expressions.forEach(expression -> {
+                assertTrue(expression instanceof StringValue);
+            });
+        }
+
+    }
+
+    @Test
+    void testUpdateParse_case1() throws Exception {
+        String sql = "update table1 set a='1', b=case " +
+                "when password='simple' then 'secret' " +
+                "when password='123456' then 'secret2' " +
+                "when 'secret'=password2 then password * 1.05 " +
+                "else 'secret3' end " +
+                "where id = 1";
+        Update update = (Update) CCJSqlParserUtil.parse(sql);
+        assertEquals(2, update.getUpdateSets().size());
+
+        // b=case ... end
+        UpdateSet updateSet = update.getUpdateSets().get(1);
+        assertEquals(1, updateSet.getColumns().size());
+        ExpressionList<? extends Expression> expressions = updateSet.getValues();
+        assertEquals(1, expressions.size());
+        assertTrue(expressions.get(0) instanceof CaseExpression);
+        CaseExpression caseExpr = (CaseExpression) expressions.get(0);
+        assertNull(caseExpr.getSwitchExpression());
+        assertEquals(3, caseExpr.getWhenClauses().size());
+        caseExpr.getWhenClauses().forEach(whenClause -> {
+            Expression whenExpr = whenClause.getWhenExpression();
+            Expression thenExpr = whenClause.getThenExpression();
+            LOGGER.info("whenExpr: {}, {}", whenExpr.getClass().getName(), whenExpr);
+            LOGGER.info("thenExpr: {}, {}", thenExpr.getClass().getName(), thenExpr);
+            assertTrue(whenExpr instanceof BinaryExpression);
+            // assertTrue(thenExpr instanceof StringValue);
+        });
+        Expression elseExpr = caseExpr.getElseExpression();
+        LOGGER.info("elseExpr: {}, {}", elseExpr.getClass().getName(), elseExpr);
+
+    }
+
+    @Test
+    void testUpdateParse_case2() throws Exception {
+        String sql = "update table1 set a='1', b=case password " +
+                "when 'simple' then 'secret' " +
+                "when old_passwd then 'secret2' " +
+                "when 'secret' then password * 1.05 " +
+                "else 'secret3' end " +
+                "where id = 1";
+        Update update = (Update) CCJSqlParserUtil.parse(sql);
+        assertEquals(2, update.getUpdateSets().size());
+
+        // b=case ... end
+        UpdateSet updateSet = update.getUpdateSets().get(1);
+        assertEquals(1, updateSet.getColumns().size());
+        ExpressionList<? extends Expression> expressions = updateSet.getValues();
+        assertEquals(1, expressions.size());
+        assertTrue(expressions.get(0) instanceof CaseExpression);
+        CaseExpression caseExpr = (CaseExpression) expressions.get(0);
+        Expression switchExpr = caseExpr.getSwitchExpression();
+        LOGGER.info("switchExpr: {}, {}", switchExpr.getClass().getName(), switchExpr);
+        assertEquals(3, caseExpr.getWhenClauses().size());
+        caseExpr.getWhenClauses().forEach(whenClause -> {
+            Expression whenExpr = whenClause.getWhenExpression();
+            Expression thenExpr = whenClause.getThenExpression();
+            LOGGER.info("whenExpr: {}, {}", whenExpr.getClass().getName(), whenExpr);
+            LOGGER.info("thenExpr: {}, {}", thenExpr.getClass().getName(), thenExpr);
+//            assertTrue(whenExpr instanceof BinaryExpression);
+            // assertTrue(thenExpr instanceof StringValue);
+        });
+        Expression elseExpr = caseExpr.getElseExpression();
+        LOGGER.info("elseExpr: {}, {}", elseExpr.getClass().getName(), elseExpr);
+
     }
     
 }
