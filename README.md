@@ -46,7 +46,9 @@
 
 ## Maven 集成步骤
 
-### 1. 认证配置
+### ~~1. 认证配置~~
+👉 **注意：已不需要认证，GitHub Packages现已开放匿名访问**
+
 在 `~/.m2/settings.xml` 中添加：
 
 ```xml
@@ -60,8 +62,8 @@
 
     <server>
       <id>github</id>
-      <username>taige</username>
-      <password>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</password>
+      <username>ta***</username>
+      <password>ghp_*******</password>
     </server>
   </servers>
   

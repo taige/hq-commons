@@ -778,16 +778,16 @@ public class Hqcp implements HqcpMBean {
                 operLock.unlock();
             }
         }
-        
-    public E[] toArray(Class<E> clazz) {
+
+        public E[] toArray(Class<E> clazz) {
             operLock.lock();
             try {
-            @SuppressWarnings("unchecked")
-            E[] array = (E[]) Array.newInstance(clazz, stack.size());
+                @SuppressWarnings("unchecked")
+                E[] array = (E[]) Array.newInstance(clazz, stack.size());
                 Iterator<E> descendingIterator = stack.descendingIterator();
                 int index = 0;
                 while (descendingIterator.hasNext()) {
-                array[index++] = descendingIterator.next();
+                    array[index++] = descendingIterator.next();
                 }
                 return array;
             } finally {
