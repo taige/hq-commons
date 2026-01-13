@@ -1,10 +1,9 @@
 package io.hqwu.commons.cp;
 
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-
-import javax.annotation.PreDestroy;
 
 /**
  * Created with IntelliJ IDEA for hq-cp-boot-starter
@@ -14,7 +13,7 @@ import javax.annotation.PreDestroy;
  * Time: 9:46 a.m.
  */
 @ConfigurationProperties(prefix = "spring.datasource.hqcp")
-public class HqcpDataSourceBoot extends HqcpDataSource implements InitializingBean {
+public class HqcpDataSourceBoot extends HqcpDataSource implements InitializingBean, DisposableBean {
 
     private final DataSourceProperties basicProperties;
 
@@ -40,8 +39,8 @@ public class HqcpDataSourceBoot extends HqcpDataSource implements InitializingBe
         }
     }
 
-    @PreDestroy
-    public void shutdown() {
+    @Override
+    public void destroy() {
         // 关闭数据源，资源释放
         super.shutdown();
     }

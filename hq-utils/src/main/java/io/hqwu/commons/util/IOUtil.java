@@ -320,7 +320,7 @@ public final class IOUtil extends IOUtils {
      * @see #close(java.io.Closeable, String)
      */
     public static void close(Closeable closeable) {
-        close(closeable, null);
+        close(closeable, (String) null);
     }
 
     /**

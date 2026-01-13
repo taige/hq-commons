@@ -39,12 +39,6 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.ibatis</groupId>
-      <artifactId>ibatis-sqlmap</artifactId>
-      <version>${ibatis-sqlmap.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>com.oracle</groupId>
       <artifactId>ojdbc14</artifactId>
       <version>${ojdbc14.version}</version>
@@ -103,11 +97,6 @@
       <groupId>org.easymock</groupId>
       <artifactId>easymockclassextension</artifactId>
       <version>${easymock.version}</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.junit.jupiter</groupId>
-      <artifactId>junit-jupiter-engine</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
