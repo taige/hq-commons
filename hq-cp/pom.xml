@@ -5,11 +5,10 @@
   <parent>
     <groupId>io.hqwu.commons</groupId>
     <artifactId>hq-commons-parent</artifactId>
-    <version>1.4.1-SNAPSHOT</version>
+    <version>1.17.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>hq-cp</artifactId>
-  <version>1.4.1-SNAPSHOT</version>
 
   <properties>
     <ibatis-sqlmap.version>2.3.4.726</ibatis-sqlmap.version>
@@ -30,7 +29,7 @@
     <dependency>
       <groupId>io.hqwu.commons</groupId>
       <artifactId>hq-utils</artifactId>
-      <version>1.4.1-SNAPSHOT</version>
+      <version>${project.parent.version}</version>
     </dependency>
 
     <dependency>
@@ -56,8 +55,8 @@
     </dependency>
 
     <dependency>
-      <groupId>mysql</groupId>
-      <artifactId>mysql-connector-java</artifactId>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

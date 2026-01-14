@@ -4,7 +4,7 @@
 
   <groupId>io.hqwu.commons</groupId>
   <artifactId>hq-commons-parent</artifactId>
-  <version>1.4.1-SNAPSHOT</version>
+  <version>1.17.0-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <properties>
@@ -16,7 +16,6 @@
     <commons-io.version>2.15.1</commons-io.version>
     <commons-text.version>1.11.0</commons-text.version>
     <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
-    <mysql-connector.version>8.0.33</mysql-connector.version>
     <mybatis-plus.version>3.5.5</mybatis-plus.version>
     <mybatis.version>3.5.14</mybatis.version>
     <mybatis-boot.version>2.3.1</mybatis-boot.version>
@@ -35,9 +34,9 @@
     <module>hq-utils</module>
     <module>hq-cp</module>
     <module>hq-cp-boot-starter</module>
-    <module>hq-mybatis-plus-extension</module>
+<!--    <module>hq-mybatis-plus-extension</module>-->
     <module>hq-spring-webmvc</module>
-    <module>hq-dubbo-ext</module>
+<!--    <module>hq-dubbo-ext</module>-->
   </modules>
 
   <distributionManagement>
@@ -81,11 +80,6 @@
         <groupId>com.baomidou</groupId>
         <artifactId>mybatis-plus</artifactId>
         <version>${mybatis-plus.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>mysql</groupId>
-        <artifactId>mysql-connector-java</artifactId>
-        <version>${mysql-connector.version}</version> <!-- 在父 POM 的 dependencyManagement 中定义 -->
       </dependency>
     </dependencies>
   </dependencyManagement>
