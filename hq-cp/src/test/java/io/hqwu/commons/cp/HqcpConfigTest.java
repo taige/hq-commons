@@ -232,6 +232,55 @@ public class HqcpConfigTest {
     }
 
     @Test
+    public void testIsMaskSql() throws Exception {
+        config.setMaskSql(false);
+        assertEquals(false, config.isMaskSql());
+        config.setMaskSql(true);
+        assertEquals(true, config.isMaskSql());
+    }
+
+    @Test
+    public void testGetMaskPattern() throws Exception {
+        assertEquals("****", config.getMaskPattern());
+        prop.setProperty("jdbc.mask-pattern", "####");
+        config.setProperties(prop);
+        assertEquals("####", config.getMaskPattern());
+    }
+
+    @Test
+    public void testGetSensitiveFields() throws Exception {
+        assertTrue(config.getSensitiveFields().isEmpty());
+        prop.setProperty("jdbc.sensitive-fields", "password,mobile,idCard");
+        config.setProperties(prop);
+        assertEquals(3, config.getSensitiveFields().size());
+        assertTrue(config.getSensitiveFields().contains("password"));
+        assertTrue(config.getSensitiveFields().contains("mobile"));
+        assertTrue(config.getSensitiveFields().contains("idCard"));
+    }
+
+    @Test
+    public void testSensitiveFieldsWithSpaces() throws Exception {
+        // 测试包含空格的情况
+        prop.setProperty("jdbc.sensitive-fields", " password , mobile , idCard ");
+        config.setProperties(prop);
+        assertEquals(3, config.getSensitiveFields().size());
+        assertTrue(config.getSensitiveFields().contains("password"));
+        assertTrue(config.getSensitiveFields().contains("mobile"));
+        assertTrue(config.getSensitiveFields().contains("idCard"));
+    }
+
+    @Test
+    public void testSensitiveFieldsWithEmptyValues() throws Exception {
+        // 测试包含空值的情况
+        prop.setProperty("jdbc.sensitive-fields", "password,,mobile,  ,idCard");
+        config.setProperties(prop);
+        assertEquals(3, config.getSensitiveFields().size());
+        assertTrue(config.getSensitiveFields().contains("password"));
+        assertTrue(config.getSensitiveFields().contains("mobile"));
+        assertTrue(config.getSensitiveFields().contains("idCard"));
+    }
+
+    @Test
     public void testIsLazyInit() throws Exception {
         config.setLazyInit(false);
         assertEquals(false, config.isLazyInit());
@@ -382,6 +431,9 @@ public class HqcpConfigTest {
         prop.setProperty("jdbc.driver-class-name", "com.mysql.cj.jdbc.Driver");
         prop.setProperty("jdbc.verbose", "false");
         prop.setProperty("jdbc.print-sql", "false");
+        prop.setProperty("jdbc.mask-sql", "false");
+        prop.setProperty("jdbc.mask-pattern", "####");
+        prop.setProperty("jdbc.sensitive-fields", "password,mobile,idCard");
         prop.setProperty("jdbc.commit-on-close", "false");
         prop.setProperty("jdbc.transaction-mode", "false");
         prop.setProperty("jdbc.lazy-init", "false");
@@ -413,6 +465,12 @@ public class HqcpConfigTest {
         assertEquals("com.mysql.cj.jdbc.Driver", config.getDriverClassName());
         assertFalse(config.isVerbose());
         assertFalse(config.isPrintSql());
+        assertFalse(config.isMaskSql());
+        assertEquals("####", config.getMaskPattern());
+        assertEquals(3, config.getSensitiveFields().size());
+        assertTrue(config.getSensitiveFields().contains("password"));
+        assertTrue(config.getSensitiveFields().contains("mobile"));
+        assertTrue(config.getSensitiveFields().contains("idCard"));
         assertFalse(config.isCommitOnClose());
         assertFalse(config.isTransactionMode());
         assertFalse(config.isLazyInit());
@@ -441,6 +499,7 @@ public class HqcpConfigTest {
         prop.setProperty("jdbc.warn-sql-threshold", "2000");
         prop.setProperty("jdbc.verbose", "true");
         prop.setProperty("jdbc.print-sql", "true");
+        prop.setProperty("jdbc.mask-sql", "true");
         prop.setProperty("jdbc.commit-on-close", "true");
         prop.setProperty("jdbc.transaction-mode", "true");
         prop.setProperty("jdbc.lazy-init", "true");
@@ -453,6 +512,7 @@ public class HqcpConfigTest {
         assertEquals(2000, config.getWarnSqlThreshold());
         assertTrue(config.isVerbose());
         assertTrue(config.isPrintSql());
+        assertTrue(config.isMaskSql());
         assertTrue(config.isCommitOnClose());
         assertTrue(config.isTransactionMode());
         assertTrue(config.isLazyInit());
@@ -472,6 +532,9 @@ public class HqcpConfigTest {
     public void testDefault() throws Exception {
         assertFalse(config.isVerbose());
         assertTrue(config.isPrintSql());
+        assertFalse(config.isMaskSql());
+        assertEquals("****", config.getMaskPattern());
+        assertTrue(config.getSensitiveFields().isEmpty());
         assertFalse(config.isCommitOnClose());
         assertFalse(config.isTransactionMode());
         assertEquals(1, config.getMinConnections());
@@ -491,6 +554,9 @@ public class HqcpConfigTest {
         config.setProperties(prop);
         assertFalse(config.isVerbose());
         assertTrue(config.isPrintSql());
+        assertFalse(config.isMaskSql());
+        assertEquals("****", config.getMaskPattern());
+        assertTrue(config.getSensitiveFields().isEmpty());
         assertFalse(config.isCommitOnClose());
         assertFalse(config.isTransactionMode());
         assertEquals(1, config.getMinConnections());

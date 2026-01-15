@@ -29,6 +29,7 @@ spring:
       sensitive-fields:
         - password
         - id_card_no
+      mask-pattern: ####
       transaction-mode: false
       verbose: true
       use-oracle-implicit-cache: false
