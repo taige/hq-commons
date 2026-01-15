@@ -1,406 +1,733 @@
 package io.hqwu.commons.cp.util;
 
-import io.hqwu.commons.util.Logger;
-import net.sf.jsqlparser.expression.BinaryExpression;
-import net.sf.jsqlparser.expression.CaseExpression;
-import net.sf.jsqlparser.expression.Expression;
-import net.sf.jsqlparser.expression.StringValue;
-import net.sf.jsqlparser.expression.operators.relational.ExpressionList;
-import net.sf.jsqlparser.parser.CCJSqlParserUtil;
-import net.sf.jsqlparser.statement.insert.Insert;
-import net.sf.jsqlparser.statement.select.ParenthesedSelect;
-import net.sf.jsqlparser.statement.select.PlainSelect;
-import net.sf.jsqlparser.statement.select.Select;
-import net.sf.jsqlparser.statement.select.Values;
-import net.sf.jsqlparser.statement.update.Update;
-import net.sf.jsqlparser.statement.update.UpdateSet;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * LogUtil SQL掩码测试
+ * Created with IntelliJ IDEA for hq-commons-parent
+ *
  * @author taige (Wu, Hongqiang)
+ * Date: 2026-01-13
+ * Time: 17:16
+ *
  */
-@DisplayName("LogUtil SQL掩码测试")
 class SqlMaskerTest {
-    private static final Logger LOGGER = new Logger();
 
-    private Set<String> sensitiveFields;
+    private SqlMasker sqlMasker;
+    private final String maskPattern = "****";
+    private final Set<String> sensitiveFields = new HashSet<>(Arrays.asList("password", "email", "secret", "credit_card"));
 
     @BeforeEach
     void setUp() {
-        sensitiveFields = new HashSet<>();
-        sensitiveFields.add("password");
-        sensitiveFields.add("mobile");
-        sensitiveFields.add("id_card");
-        sensitiveFields.add("MOBILE"); // 测试大写字段名
-        sensitiveFields.add("Password"); // 测试首字母大写字段名
-    }
-
-    // 掩码模式数据
-    private static Stream<String> provideMaskPatterns() {
-        return Stream.of("****", "###", "?", "●●●●", "XXXX");
-    }
-
-    // INSERT语句测试数据
-    private static Stream<Arguments> provideInsertTestCases() {
-        return Stream.of(
-                // 基本INSERT
-                Arguments.of(
-                        "基本INSERT语句",
-                        "InSeRt InTo users (name, password) VALUES ('张三', '123456789012')",
-                        (MaskFunction) (pattern) -> String.format("InSeRt InTo users (name, password) VALUES ('张三', '1234%s9012')", pattern)
-                ),
-                // 带换行和空格
-                Arguments.of(
-                        "带换行和空格的INSERT语句",
-                        "INSERT \n  INTO \n  users \n  (\n    name,\n    password,\n    mobile\n  )\n  vAlUeS\n  (\n    '张三',\n    '123456789012',\n    '13812345678'\n  )",
-                        (MaskFunction) (pattern) -> String.format("INSERT \n  INTO \n  users \n  (\n    name,\n    password,\n    mobile\n  )\n  vAlUeS\n  (\n    '张三',\n    '1234%s9012',\n    '1381%s5678'\n  )", pattern, pattern)
-                ),
-                // 带注释
-                Arguments.of(
-                        "带注释的INSERT语句",
-                        "InSeRt InTo users -- 插入用户信息\n(name, /* 用户姓名 */ password /*密码*/, mobile) VaLuEs ('张三', '123456789012', '13812345678')",
-                        (MaskFunction) (pattern) -> String.format("InSeRt InTo users -- 插入用户信息\n(name, /* 用户姓名 */ password /*密码*/, mobile) VaLuEs ('张三', '1234%s9012', '1381%s5678')", pattern, pattern)
-                ),
-                // 使用反引号
-                Arguments.of(
-                        "使用反引号的INSERT语句",
-                        "InSeRt InTo users (`name`, `password`, `mobile`) VALUES ('张三', '123456789012', '13812345678')",
-                        (MaskFunction) (pattern) -> String.format("InSeRt InTo users (`name`, `password`, `mobile`) VALUES ('张三', '1234%s9012', '1381%s5678')", pattern, pattern)
-                )
-        );
-    }
-
-    // UPDATE语句测试数据
-    private static Stream<Arguments> provideUpdateTestCases() {
-        return Stream.of(
-                // 基本UPDATE
-                Arguments.of(
-                        "基本UPDATE语句",
-                        "UpDaTe Users SeT PASSWORD='123456789012', Mobile='13812345678' WhErE ID_CARD='330102199001011234'",
-                        (MaskFunction) (pattern) -> String.format("UpDaTe Users SeT PASSWORD='1234%s9012', Mobile='1381%s5678' WhErE ID_CARD='3301%s1234'", pattern, pattern, pattern)
-                ),
-                // 带子查询的UPDATE
-                Arguments.of(
-                        "带子查询的UPDATE语句",
-                        "UpDaTe users SET password='123456789012' wHeRe id_card=(SeLeCt id_card FrOm temp_users WhErE mobile='13812345678')",
-                        (MaskFunction) (pattern) -> String.format("UpDaTe users SET password='1234%s9012' wHeRe id_card=(SeLeCt id_card FrOm temp_users WhErE mobile='1381%s5678')", pattern, pattern)
-                ),
-                // 带IN条件的UPDATE
-                Arguments.of(
-                        "带IN条件的UPDATE语句",
-                        "UpDaTe users SeT password='123456789012' WhErE mobile In ('13812345678', '13912345678')",
-                        (MaskFunction) (pattern) -> String.format("UpDaTe users SeT password='1234%s9012' WhErE mobile In ('1381%s5678', '1391%s5678')", pattern, pattern, pattern)
-                ),
-                // 带LIKE条件的UPDATE
-                Arguments.of(
-                        "带LIKE条件的UPDATE语句",
-                        "UpDaTe users SeT mobile='13812345678' WhErE password LiKe '123456%'",
-                        (MaskFunction) (pattern) -> String.format("UpDaTe users SeT mobile='1381%s5678' WhErE password LiKe '123456%%'", pattern)
-                ),
-                // 带AND/OR条件的复杂WHERE子句
-                Arguments.of(
-                        "带AND/OR条件的复杂WHERE子句",
-                        "UpDaTe users SeT name='李四' WhErE (mobile='13812345678' Or mobile='13912345678') AnD (password='123456789012' Or id_card='330102199001011234')",
-                        (MaskFunction) (pattern) -> String.format("UpDaTe users SeT name='李四' WhErE (mobile='1381%s5678' Or mobile='1391%s5678') AnD (password='1234%s9012' Or id_card='3301%s1234')", pattern, pattern, pattern, pattern)
-                )
-        );
-    }
-
-    // 定义一个函数式接口来处理掩码模式
-    @FunctionalInterface
-    interface MaskFunction {
-        String apply(String maskPattern);
+        sqlMasker = new SqlMasker(maskPattern, sensitiveFields);
     }
 
     @Nested
-    @DisplayName("1. INSERT语句测试")
-    class InsertStatementTests {
-
-        @ParameterizedTest(name = "1.1 {0} - 使用掩码模式 {1}")
-        @MethodSource("io.hqwu.commons.cp.util.SqlMaskerTest#provideInsertTestData")
-        void testInsert(String testName, String sql, MaskFunction expectedGenerator, String maskPattern) {
-            String expected = expectedGenerator.apply(maskPattern);
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, maskPattern));
-        }
-    }
-
-    // INSERT语句参数化测试数据
-    private static Stream<Arguments> provideInsertTestData() {
-        return provideInsertTestCases().flatMap(args ->
-                provideMaskPatterns().map(pattern ->
-                        Arguments.of(
-                                args.get()[0],
-                                args.get()[1],
-                                args.get()[2],
-                                pattern
-                        )
-                )
-        );
-    }
-
-    @Nested
-    @DisplayName("2. UPDATE语句测试")
-    class UpdateStatementTests {
-
-        @ParameterizedTest(name = "2.1 {0} - 使用掩码模式 {1}")
-        @MethodSource("io.hqwu.commons.cp.util.SqlMaskerTest#provideUpdateTestData")
-        void testUpdate(String testName, String sql, MaskFunction expectedGenerator, String maskPattern) {
-            String expected = expectedGenerator.apply(maskPattern);
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, maskPattern));
-        }
-    }
-
-    // UPDATE语句参数化测试数据
-    private static Stream<Arguments> provideUpdateTestData() {
-        return provideUpdateTestCases().flatMap(args ->
-                provideMaskPatterns().map(pattern ->
-                        Arguments.of(
-                                args.get()[0],
-                                args.get()[1],
-                                args.get()[2],
-                                pattern
-                        )
-                )
-        );
-    }
-
-    // 边界情况测试数据
-    private static Stream<Arguments> provideEdgeCases() {
-        return Stream.of(
-                // 空值处理
-                Arguments.of(
-                        "空SQL",
-                        null,
-                        null
-                ),
-                Arguments.of(
-                        "空敏感字段集合",
-                        "SELECT * FROM users",
-                        "SELECT * FROM users"
-                ),
-                // 短字符串
-                Arguments.of(
-                        "短密码",
-                        "INSERT INTO users (password) VALUES ('123')",
-                        "INSERT INTO users (password) VALUES ('123')"
-                ),
-                // 超长字符串
-                Arguments.of(
-                        "超长密码",
-                        "INSERT INTO users (password) VALUES ('123456789012345678901234567890')",
-                        "INSERT INTO users (password) VALUES ('1234****7890')"
-                ),
-                // 特殊字符
-                Arguments.of(
-                        "包含转义字符",
-                        "INSERT INTO users (password) VALUES ('123\\'456789012')",
-                        "INSERT INTO users (password) VALUES ('123\\'4****9012')"
-                ),
-                Arguments.of(
-                        "包含Unicode字符",
-                        "INSERT INTO users (password) VALUES ('123456\\u0020789012')",
-                        "INSERT INTO users (password) VALUES ('1234****9012')"
-                )
-        );
-    }
-
-    @Nested
-    @DisplayName("3. 参数化测试")
-    class ParameterizedTests {
-
-        @ParameterizedTest(name = "3.1 使用掩码模式 {0}")
-        @MethodSource("io.hqwu.commons.cp.util.SqlMaskerTest#provideMaskPatterns")
-        @DisplayName("不同掩码模式测试")
-        void testDifferentMaskPatterns(String maskPattern) {
-            String sql = "INSERT INTO users (name, password) VALUES ('张三', '123456789012')";
-            String expected = String.format("INSERT INTO users (name, password) VALUES ('张三', '1234%s9012')", maskPattern);
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, maskPattern));
+    class InsertStatements {
+        /**
+         * Covers: 1.1 单行INSERT语句
+         */
+        @Test
+        void testSingleRowInsert() {
+            String sql = "INSERT INTO users (id, name, password, email) VALUES (1, 'John', 'secret123', 'john@example.com')";
+            String expected = "INSERT INTO users (id, name, password, email) VALUES (1, 'John', 'sec****23', 'john********.com')";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
-        @ParameterizedTest(name = "3.2 边界情况: {0}")
-        @MethodSource("io.hqwu.commons.cp.util.SqlMaskerTest#provideEdgeCases")
-        @DisplayName("边界情况测试")
-        void testEdgeCases(String testName, String sql, String expected) {
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        /**
+         * Covers: 2.1 多行INSERT语句
+         */
+        @Test
+        void testMultiRowInsert() {
+            String sql = "INSERT INTO users (id, name, password, email) VALUES (1, 'John', 'secret123', 'john@example.com'), (2, 'Mary', 'secret456', 'mary@example.com')";
+            String expected = "INSERT INTO users (id, name, password, email) VALUES (1, 'John', 'sec****23', 'john********.com'), (2, 'Mary', 'sec****56', 'mary********.com')";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 带括号的VALUES
+         * Covers: 1.2 INSERT (column1) VALUES ('2')
+         */
+        @Test
+        void testInsertWithSimpleParenthesizedValue() {
+            // jsqlparser treats VALUES ('value') as a Parenthesis-wrapped expression.
+            String sql = "INSERT INTO users (password) VALUES ('secret123')";
+            String expected = "INSERT INTO users (password) VALUES ('sec****23')";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 带多层括号的VALUES
+         * Covers: 1.2 INSERT (column1) VALUES (('2'))
+         */
+        @Test
+        void testInsertWithExplicitParenthesizedValue() {
+            String sql = "INSERT INTO users (password) VALUES (('secret123'))";
+            String expected = "INSERT INTO users (password) VALUES (('sec****23'))";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 2.2 INSERT (column1) VALUES ('2'), ('5')
+         */
+        @Test
+        void testSingleColumnMultiRowInsert() {
+            String sql = "INSERT INTO password_history (password) VALUES ('secret1'), ('secret2')";
+            String expected = "INSERT INTO password_history (password) VALUES ('se****1'), ('se****2')";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 3. INSERT ... SELECT 语句
+         */
+        @Test
+        void testInsertSelect() {
+            String sql = "INSERT INTO backup_users (id, name, password, email) SELECT id, name, password, email FROM users WHERE password = '' OR password='simple_password'";
+            String expected = "INSERT INTO backup_users (id, name, password, email) SELECT id, name, password, email FROM users WHERE password = '****' OR password = 'simp*******word'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 4. INSERT ... ON DUPLICATE KEY UPDATE
+         */
+        @Test
+        void testInsertOnDuplicateKeyUpdate() {
+            String sql = "INSERT INTO table_name (id, password) VALUES (123, 'secret') ON DUPLICATE KEY UPDATE password = 'new_secret'";
+            String expected = "INSERT INTO table_name (id, password) VALUES (123, 's****t') ON DUPLICATE KEY UPDATE password = 'new****ret'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testInsertOnDuplicateKeyUpdateWithCase() {
+            String sql = "INSERT INTO users (id, password) VALUES (1, 'secret') ON DUPLICATE KEY UPDATE password = CASE WHEN id=1 THEN 'new_secret' ELSE 'old_secret' END";
+            String expected = "INSERT INTO users (id, password) VALUES (1, 's****t') ON DUPLICATE KEY UPDATE password = CASE WHEN id = 1 THEN 'new****ret' ELSE 'old****ret' END";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
     }
 
     @Nested
-    @DisplayName("4. 特殊情况测试")
-    class SpecialCaseTests {
-
+    class UpdateStatements {
+        /**
+         * Covers: 1.1 基础UPDATE语句 UPDATE ... SET (a, b, c) = (VALUES '1', '2', '3')
+         */
         @Test
-        @DisplayName("4.1 空值处理")
-        void testNullHandling() {
-            assertEquals(null, SqlMasker.maskSensitiveFields(null, sensitiveFields, "****"));
-            assertEquals("SELECT * FROM users", SqlMasker.maskSensitiveFields("SELECT * FROM users", null, "****"));
-            assertEquals("SELECT * FROM users", SqlMasker.maskSensitiveFields("SELECT * FROM users", new HashSet<>(), "****"));
+        void testUpdateWithTupleAssignment() {
+            String sql =      "UPDATE users SET (name, password, email) = (VALUES ('John', 'new_secret', 'new@email.com')) WHERE id = 1";
+            String expected = "UPDATE users SET (name, password, email) = (VALUES ('John', 'new****ret', 'new@*****.com')) WHERE id = 1";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
+        /**
+         * Covers: 1.2 基础UPDATE语句 UPDATE ... SET column2 = (SELECT ... )
+         */
         @Test
-        @DisplayName("4.2 转义字符处理")
-        void testEscapeCharacters() {
-            String sql = "INSERT INTO users (name, password) VALUES ('O\\'Brien', '123\\'456789012')";
-            String expected = "INSERT INTO users (name, password) VALUES ('O\\'Brien', '123\\'4****9012')";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testUpdateSetWithSubquery() {
+            String sql = "UPDATE users SET email = (SELECT email FROM user_emails WHERE user_id = 1 AND email = 'test@example.com')";
+            String expected = "UPDATE users SET email = (SELECT email FROM user_emails WHERE user_id = 1 AND email = 'test********.com')";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
+        /**
+         * Covers: 1.2 基础UPDATE语句 UPDATE ... SET column2 = (SELECT ... )
+         */
         @Test
-        @DisplayName("4.3 多个连续转义字符")
-        void testMultipleEscapeCharacters() {
-            String sql = "INSERT INTO users (name, password) VALUES ('O\\\\'Brien', '123\\\\456789012')";
-            String expected = "INSERT INTO users (name, password) VALUES ('O\\\\'Brien', '123\\\\****9012')";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testUpdateSetWithSubqueryAndOtherFields() {
+            String sql = "UPDATE users SET name = 'John', password = 'secret123', email = (SELECT email FROM user_emails WHERE user_id = 1 AND email = 'test@example.com')";
+            String expected = "UPDATE users SET name = 'John', password = 'sec****23', email = (SELECT email FROM user_emails WHERE user_id = 1 AND email = 'test********.com')";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
+        /**
+         * Covers: 1.2 基础UPDATE语句 UPDATE ... SET column2 = (SELECT ... )
+         */
         @Test
-        @DisplayName("4.4 Unicode字符")
-        void testUnicodeCharacters() {
-            String sql = "INSERT INTO users (name, password) VALUES ('张三', '123456\\u0020789012')";
-            String expected = "INSERT INTO users (name, password) VALUES ('张三', '1234****9012')";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testUpdateSetWithSubqueryInTuple() {
+            String sql = "UPDATE users SET (name, password, email) = (VALUES ('John', 'new_secret', (SELECT email FROM user_emails WHERE user_id = 1 AND email = 'test@example.com'))) WHERE id = 1";
+            String expected = "UPDATE users SET (name, password, email) = (VALUES ('John', 'new****ret', (SELECT email FROM user_emails WHERE user_id = 1 AND email = 'test********.com'))) WHERE id = 1";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
+        /**
+         * Covers: 1.3 基础UPDATE语句 UPDATE ... SET column1 = value1 ...
+         */
         @Test
-        @DisplayName("4.5 超长敏感信息")
-        void testLongSensitiveInfo() {
-            String sql = "INSERT INTO users (password) VALUES ('123456789012345678901234567890')";
-            String expected = "INSERT INTO users (password) VALUES ('1234****7890')";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testBasicUpdate_SetClause() {
+            String sql = "UPDATE users SET enabled = true, password = 'new_password' WHERE id = 1";
+            String expected = "UPDATE users SET enabled = true, password = 'new_****word' WHERE id = 1";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
+        /**
+         * Covers: 1.3 基础UPDATE语句 UPDATE ... SET column1 = value1 ...
+         */
         @Test
-        @DisplayName("4.6 值包含SQL关键字")
-        void testValueContainsSqlKeywords() {
-            String sql = "INSERT INTO users (password) VALUES ('SELECT123456FROM789012')";
-            String expected = "INSERT INTO users (password) VALUES ('1234****9012')";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testBasicUpdate_WhereClause() {
+            String sql = "UPDATE users SET enabled = false WHERE password = '' OR password='simple_password'";
+            String expected = "UPDATE users SET enabled = false WHERE password = '****' OR password = 'simp*******word'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
+        /**
+         * Covers: 2. 带JOIN的UPDATE
+         */
         @Test
-        @DisplayName("4.7 字段名包含敏感字段")
-        void testFieldNameContainsSensitiveField() {
-            String sql = "UPDATE users SET user_password='123456789012', mobile_phone='13812345678'";
-            String expected = "UPDATE users SET user_password='1234****9012', mobile_phone='1381****5678'";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testUpdateWithJoin() {
+            String sql =      "UPDATE users u JOIN temp_users t ON u.id = t.id SET u.password = t.password, t.sync = true WHERE u.password = 'simple_password'";
+            String expected = "UPDATE users u JOIN temp_users t ON u.id = t.id SET u.password = t.password, t.sync = true WHERE u.password = 'simp*******word'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
+
+        /**
+         * Covers: 2. 带JOIN的UPDATE
+         */
+        @Test
+        void testUpdateWithJoinOnCondition() {
+            String sql =      "UPDATE users u JOIN user_secrets s ON u.email = s.email SET u.password = 'verified' WHERE s.email = 'test@example.com'";
+            String expected = "UPDATE users u JOIN user_secrets s ON u.email = s.email SET u.password = 've****ed' WHERE s.email = 'test********.com'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 3.1.1 UPDATE ... SET column1 = CASE switchColumn WHEN (SELECT ...)
+         */
+        @Test
+        void testUpdate_CaseWhenWithSubquery() {
+            String sql =      "UPDATE users SET credit_card = CASE secret WHEN (SELECT secret_key FROM secrets WHERE password = 'pass1234') THEN 'card123' END";
+            String expected = "UPDATE users SET credit_card = CASE secret WHEN (SELECT secret_key FROM secrets WHERE password = 'pa****34') THEN 'ca****3' END";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 3.1.2 UPDATE ... SET column1 = CASE switchColumn WHEN 'secret'
+         */
+        @Test
+        void testUpdateWithCaseSwitch() {
+            String sql =      "UPDATE users SET credit_card = CASE secret WHEN 'key1234' THEN 'card1234' ELSE 'card5678' END";
+            String expected = "UPDATE users SET credit_card = CASE secret WHEN 'ke****4' THEN 'ca****34' ELSE 'ca****78' END";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 3.2 UPDATE ... SET column1 = CASE WHEN password='secret'
+         */
+        @Test
+        void testUpdateWithCaseWhenCondition() {
+            String sql = "UPDATE users SET status = CASE WHEN password = 'secret' THEN 'active' ELSE 'inactive' END";
+            String expected = "UPDATE users SET status = CASE WHEN password = 's****t' THEN 'active' ELSE 'inactive' END";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 3.3 UPDATE ... SET column1 = CASE ... THEN (SELECT ...)
+         */
+        @Test
+        void testUpdate_CaseThenWithSubquery() {
+            String sql = "UPDATE users SET credit_card = CASE WHEN status = 'active' THEN (SELECT card FROM cards WHERE password = 'pass1234') END";
+            String expected = "UPDATE users SET credit_card = CASE WHEN status = 'active' THEN (SELECT card FROM cards WHERE password = 'pa****34') END";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 3.5 UPDATE ... SET column1 = CASE ... ELSE (SELECT ...)
+         */
+        @Test
+        void testUpdate_CaseElseWithSubquery() {
+            String sql = "UPDATE users SET credit_card = CASE WHEN status = 'inactive' THEN 'default' ELSE (SELECT card FROM cards WHERE password = 'pass1234') END";
+            String expected = "UPDATE users SET credit_card = CASE WHEN status = 'inactive' THEN 'de****t' ELSE (SELECT card FROM cards WHERE password = 'pa****34') END";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 3.4 UPDATE ... SET column1 = CASE ... THEN 'secret'
+         * Covers: 3.6 UPDATE ... SET column1 = CASE ... ELSE 'secret'
+         */
+        @Test
+        void testUpdateWithCase() {
+            String sql = "UPDATE users SET password = CASE WHEN id = 1 THEN 'secret1' ELSE 'secret2' END";
+            String expected = "UPDATE users SET password = CASE WHEN id = 1 THEN 'se****1' ELSE 'se****2' END";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
     }
 
     @Nested
-    @DisplayName("5. DELETE语句测试")
-    class DeleteStatementTests {
-
+    class SelectStatements {
+        /**
+         * Covers: 0. SELECT * FROM ... WHERE ...
+         */
         @Test
-        @DisplayName("5.1 基本的DELETE语句")
-        void testBasicDelete() {
-            String sql = "DeLeTe FrOm users WhErE mobile='13812345678' AnD password='123456789012'";
-            String expected = "DeLeTe FrOm users WhErE mobile='1381****5678' AnD password='1234****9012'";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testBasicSelect() {
+            String sql = "SELECT column1, column2 FROM table_name WHERE password = '' OR password='simple_password'";
+            String expected = "SELECT column1, column2 FROM table_name WHERE password = '****' OR password = 'simp*******word'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 1. SELECT column1, (SELECT ... ) FROM ...
+         */
+        @Test
+        void testSelectWithSubqueryInSelectList() {
+            String sql = "SELECT name, (SELECT password FROM user_secrets s WHERE s.user_id = u.id AND s.password = 'sub_secret') FROM users u";
+            String expected = "SELECT name, (SELECT password FROM user_secrets s WHERE s.user_id = u.id AND s.password = 'sub****ret') FROM users u";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 2. SELECT * FROM (SELECT ... )
+         */
+        @Test
+        void testSelectWithSubqueryInFromClause() {
+            String sql =      "SELECT * FROM (SELECT id, password FROM users WHERE password = 'secret') AS u WHERE u.id = 1";
+            String expected = "SELECT * FROM (SELECT id, password FROM users WHERE password = 's****t') AS u WHERE u.id = 1";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 3.1 SELECT * FROM ... JOIN (SELECT ... )
+         */
+        @Test
+        void testSelectWithSubqueryInJoinClause() {
+            String sql = "SELECT * FROM users u JOIN (SELECT user_id, email FROM user_emails WHERE email = 'test@example.com') AS e ON u.id = e.user_id";
+            String expected = "SELECT * FROM users u JOIN (SELECT user_id, email FROM user_emails WHERE email = 'test********.com') AS e ON u.id = e.user_id";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 3.2 SELECT * FROM ... JOIN ... ON ...
+         */
+        @Test
+        void testSelectWithJoinOnCondition_NoMasking() {
+            String sql =      "SELECT * FROM users u JOIN user_secrets s ON u.email = s.email WHERE u.id = 1";
+            String expected = "SELECT * FROM users u JOIN user_secrets s ON u.email = s.email WHERE u.id = 1";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 3.2 SELECT * FROM ... JOIN ... ON ...
+         */
+        @Test
+        void testSelectWithJoinOnCondition_WithMasking() {
+            String sql = "SELECT * FROM users u JOIN user_secrets s ON u.email = 'test@example.com' WHERE u.id = 1";
+            String expected = "SELECT * FROM users u JOIN user_secrets s ON u.email = 'test********.com' WHERE u.id = 1";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
         @Test
-        @DisplayName("5.2 带有IN和OR条件的DELETE语句")
-        void testDeleteWithInAndOr() {
-            String sql = "DELETE FROM users WHERE mobile IN ('13812345678', '13912345678') OR password='123456789012' OR id_card='330102199001011234'";
-            String expected = "DELETE FROM users WHERE mobile IN ('1381****5678', '1391****5678') OR password='1234****9012' OR id_card='3301****1234'";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
-        }
-
-        @Test
-        @DisplayName("5.3 带有子查询的DELETE语句")
-        void testDeleteWithSubquery() {
-            String sql = "DELETE FROM users WHERE id IN (SELECT user_id FROM orders WHERE mobile='13812345678' AND password='123456789012')";
-            String expected = "DELETE FROM users WHERE id IN (SELECT user_id FROM orders WHERE mobile='1381****5678' AND password='1234****9012')";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
-        }
-    }
-
-    @Nested
-    @DisplayName("6. SELECT语句测试")
-    class SelectStatementTests {
-
-        @Test
-        @DisplayName("6.1 带有ORDER BY和LIMIT的SELECT语句")
-        void testSelectWithOrderByAndLimit() {
-            String sql = "SeLeCt * FrOm users WhErE mobile='13812345678' AnD password='123456789012' OrDeR By id LiMiT 1";
-            String expected = "SeLeCt * FrOm users WhErE mobile='1381****5678' AnD password='1234****9012' OrDeR By id LiMiT 1";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
-        }
-
-        @Test
-        @DisplayName("6.2 带有JOIN的SELECT语句")
         void testSelectWithJoin() {
-            String sql = "SeLeCt u.*, o.* FrOm users u LeFt JoIn orders o On u.id=o.user_id WhErE u.mobile='13812345678' AnD u.password='123456789012'";
-            String expected = "SeLeCt u.*, o.* FrOm users u LeFt JoIn orders o On u.id=o.user_id WhErE u.mobile='1381****5678' AnD u.password='1234****9012'";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+            String sql =      "SELECT t1.column1, t2.column2 FROM table1 t1 JOIN table2 t2 ON t1.id = t2.id WHERE password = '' OR password='simple_password'";
+            String expected = "SELECT t1.column1, t2.column2 FROM table1 t1 JOIN table2 t2 ON t1.id = t2.id WHERE password = '****' OR password = 'simp*******word'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
+        /**
+         * 4. 被括号包裹的 SELECT 查询，例如作为子查询或在 UNION 操作中
+         */
         @Test
-        @DisplayName("6.3 UNION查询")
-        void testUnionSelect() {
-            String sql = "SELECT id_card FROM users WHERE mobile='13812345678' UNION SELECT id_card FROM temp_users WHERE mobile='13912345678'";
-            String expected = "SELECT id_card FROM users WHERE mobile='1381****5678' UNION SELECT id_card FROM temp_users WHERE mobile='1391****5678'";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testSelectWithUnion() {
+            String sql = "SELECT * FROM users WHERE password = '123' UNION SELECT * FROM admins WHERE password = '456'";
+            String expected = "SELECT * FROM users WHERE password = '****' UNION SELECT * FROM admins WHERE password = '****'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
+        /**
+         * 4. 被括号包裹的 SELECT 查询，例如作为子查询或在 UNION ALL 操作中
+         */
         @Test
-        @DisplayName("6.4 多层嵌套子查询")
-        void testNestedSubqueries() {
-            String sql = "SELECT * FROM users WHERE mobile IN (SELECT mobile FROM temp_users WHERE password IN (SELECT password FROM history WHERE id_card='330102199001011234'))";
-            String expected = "SELECT * FROM users WHERE mobile IN (SELECT mobile FROM temp_users WHERE password IN (SELECT password FROM history WHERE id_card='3301****1234'))";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testSelectWithUnionAll() {
+            String sql = "SELECT * FROM users WHERE password = '123' UNION ALL SELECT * FROM admins WHERE password = '456'";
+            String expected = "SELECT * FROM users WHERE password = '****' UNION ALL SELECT * FROM admins WHERE password = '****'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * 5. 多个 SELECT 查询通过集合操作（如 INTERSECT）连接而成的组合查询
+         */
+        @Test
+        void testSelectWithIntersect() {
+            String sql = "SELECT password FROM users WHERE password = '123' INTERSECT SELECT password FROM admins WHERE password = '456'";
+            String expected = "SELECT password FROM users WHERE password = '****' INTERSECT SELECT password FROM admins WHERE password = '****'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * 5. 多个 SELECT 查询通过集合操作（如 EXCEPT）连接而成的组合查询
+         */
+        @Test
+        void testSelectWithExcept() {
+            String sql = "SELECT password FROM users WHERE password = '123' EXCEPT SELECT password FROM admins WHERE password = '456'";
+            String expected = "SELECT password FROM users WHERE password = '****' EXCEPT SELECT password FROM admins WHERE password = '****'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 6. SQL 中 LATERAL 关键字引入的子查询
+         */
+        @Test
+        void testSelectWithLateralSubSelect() {
+            String sql = "SELECT * FROM users u, LATERAL (SELECT * FROM user_secrets s WHERE s.user_id = u.id AND s.password = 'secret') AS s";
+            String expected = "SELECT * FROM users u, LATERAL(SELECT * FROM user_secrets s WHERE s.user_id = u.id AND s.password = 's****t') AS s";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+    }
+
+    @Nested
+    class DeleteStatements {
+        /**
+         * Covers: 1. 基础DELETE语句
+         */
+        @Test
+        void testBasicDelete() {
+            String sql = "DELETE FROM users WHERE password = '' OR password='simple_password'";
+            String expected = "DELETE FROM users WHERE password = '****' OR password = 'simp*******word'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 2. DELETE ... FROM ... JOIN
+         */
+        @Test
+        void testDeleteWithJoin() {
+            String sql = "DELETE t1, t2 FROM table1 t1 JOIN table2 t2 ON t1.id = t2.id WHERE password = '' OR password='simple_password'";
+            String expected = "DELETE t1, t2 FROM table1 t1 JOIN table2 t2 ON t1.id = t2.id WHERE password = '****' OR password = 'simp*******word'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        /**
+         * Covers: 2. DELETE ... FROM ... JOIN
+         */
+        @Test
+        void testDeleteWithJoinOnCondition() {
+            String      sql = "DELETE u FROM users u JOIN user_secrets s ON u.email = 'test@example.com' WHERE u.id = 1";
+            String expected = "DELETE u FROM users u JOIN user_secrets s ON u.email = 'test********.com' WHERE u.id = 1";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
     }
 
     @Nested
-    @DisplayName("7. 复杂SQL场景测试")
-    class ComplexSqlTests {
-
+    class WhereClauseVariations {
         @Test
-        @DisplayName("7.1 WITH子句和ON DUPLICATE KEY UPDATE")
-        void testWithClauseAndDuplicateKeyUpdate() {
-            String sql = "WITH t AS (SELECT password FROM users WHERE mobile='13812345678') " +
-                    "INSERT INTO `users` (\"name\", `password`) " +
-                    "VALUES (\"O'Brien\", (SELECT password FROM t)) " +
-                    "ON DUPLICATE KEY UPDATE password='123456789012'";
-            String expected = "WITH t AS (SELECT password FROM users WHERE mobile='1381****5678') " +
-                    "INSERT INTO `users` (\"name\", `password`) " +
-                    "VALUES (\"O'Brien\", (SELECT password FROM t)) " +
-                    "ON DUPLICATE KEY UPDATE password='1234****9012'";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testComparisonOperator_NotEquals() {
+            String sql = "SELECT * FROM users WHERE password != 'secret'";
+            String expected = "SELECT * FROM users WHERE password != 's****t'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
         @Test
-        @DisplayName("7.2 批量INSERT")
-        void testBatchInsert() {
-            String sql = "INSERT INTO users (name, password, mobile) VALUES " +
-                    "('张三', '123456789012', '13812345678'), " +
-                    "('李四', '123456789012', '13912345678')";
-            String expected = "INSERT INTO users (name, password, mobile) VALUES " +
-                    "('张三', '1234****9012', '1381****5678'), " +
-                    "('李四', '1234****9012', '1391****5678')";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testComparisonOperator_EqualsReversed() {
+            String sql = "SELECT * FROM users WHERE 'secret' = password";
+            String expected = "SELECT * FROM users WHERE 's****t' = password";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
 
         @Test
-        @DisplayName("7.3 带表别名前缀的UPDATE")
-        void testUpdateWithTableAlias() {
-            String sql = "UPDATE t1 SET t1.password='123456789012', t2.mobile='13812345678' FROM users t1 JOIN temp_users t2";
-            String expected = "UPDATE t1 SET t1.password='1234****9012', t2.mobile='1381****5678' FROM users t1 JOIN temp_users t2";
-            assertEquals(expected, SqlMasker.maskSensitiveFields(sql, sensitiveFields, "****"));
+        void testComparisonOperator_GreaterThan() {
+            String sql = "SELECT * FROM users WHERE password > 'secret'";
+            String expected = "SELECT * FROM users WHERE password > 's****t'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testComparisonOperator_GreaterThanEquals() {
+            String sql = "SELECT * FROM users WHERE password >= 'secret'";
+            String expected = "SELECT * FROM users WHERE password >= 's****t'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testComparisonOperator_LessThan() {
+            String sql = "SELECT * FROM users WHERE password < 'secret'";
+            String expected = "SELECT * FROM users WHERE password < 's****t'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testComparisonOperator_LessThanEquals() {
+            String sql = "SELECT * FROM users WHERE password <= 'secret'";
+            String expected = "SELECT * FROM users WHERE password <= 's****t'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testNotOperator() {
+            String sql = "SELECT * FROM users WHERE NOT password = 'secret'";
+            String expected = "SELECT * FROM users WHERE NOT password = 's****t'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testLikeOperator() {
+            String sql = "SELECT * FROM users WHERE password LIKE '%secret%'";
+            String expected = "SELECT * FROM users WHERE password LIKE '%s****t%'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testLike_withEscape() throws Exception {
+            String sql = "SELECT * FROM users WHERE `password` LIKE '!%secret%' ESCAPE '!'";
+            String expected = "SELECT * FROM users WHERE `password` LIKE '!%****et%' ESCAPE '!'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testBetweenOperator() {
+            String sql = "SELECT * FROM users WHERE password BETWEEN 'secret1' AND 'secret2'";
+            String expected = "SELECT * FROM users WHERE password BETWEEN 'se****1' AND 'se****2'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testInOperator() {
+            String sql = "SELECT * FROM users WHERE password IN ('secret1', 'secret2')";
+            String expected = "SELECT * FROM users WHERE password IN ('se****1', 'se****2')";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testInOperator_WithSubquery() {
+            String sql = "SELECT * FROM users WHERE password IN (SELECT password FROM old_passwords WHERE user_id = 1 AND password = 'old_secret')";
+            String expected = "SELECT * FROM users WHERE password IN (SELECT password FROM old_passwords WHERE user_id = 1 AND password = 'old****ret')";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testSubquery() {
+            String sql = "SELECT * FROM employees WHERE salary > (SELECT AVG(salary) FROM employees WHERE password = 'simple_password')";
+            String expected = "SELECT * FROM employees WHERE salary > (SELECT AVG(salary) FROM employees WHERE password = 'simp*******word')";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testExistsOperator() {
+            String sql = "SELECT * FROM users WHERE EXISTS (SELECT 1 FROM users WHERE users.customer_id = customers.id and users.password = 'simple_password')";
+            String expected = "SELECT * FROM users WHERE EXISTS (SELECT 1 FROM users WHERE users.customer_id = customers.id AND users.password = 'simp*******word')";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+    }
+
+    @Nested
+    class FieldIdentification {
+        @Test
+        void testSimpleFieldName() {
+            String sql = "UPDATE users SET password = 'new_password'";
+            String expected = "UPDATE users SET password = 'new_****word'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testFieldNameWithTableAlias() {
+            String sql = "SELECT u.password FROM users u WHERE u.password = 'secret'";
+            String expected = "SELECT u.password FROM users u WHERE u.password = 's****t'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testFieldNameWithDatabasePrefix() {
+            String sql = "SELECT * FROM db1.users WHERE db1.users.password = 'secret'";
+            String expected = "SELECT * FROM db1.users WHERE db1.users.password = 's****t'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testFuzzyFieldNameMatch() {
+            String sql = "UPDATE users SET app_password = 'new_password'";
+            String expected = "UPDATE users SET app_password = 'new_****word'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testQuotedFieldName() {
+            String sql = "UPDATE users SET `password` = 'new_password'";
+            String expected = "UPDATE users SET `password` = 'new_****word'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+    }
+
+    @Nested
+    class LikePatternMaskTests {
+
+        @Test
+        void testBasicLikePattern() {
+            // 测试前缀%
+            assertEquals("%s****t", sqlMasker.maskLikeValue("%secret", ""));
+            // 测试后缀%
+            assertEquals("s****t%", sqlMasker.maskLikeValue("secret%", ""));
+            // 测试前后缀%
+            assertEquals("%s****t%", sqlMasker.maskLikeValue("%secret%", ""));
+            // 测试多个前缀%
+            assertEquals("%%%s****t", sqlMasker.maskLikeValue("%%%secret", ""));
+            // 测试多个后缀%
+            assertEquals("s****t%%%", sqlMasker.maskLikeValue("secret%%%", ""));
+        }
+
+        @Test
+        void testLikePatternWithUnderscore() {
+            // 测试前缀_
+            assertEquals("_s****t", sqlMasker.maskLikeValue("_secret", ""));
+            // 测试后缀_
+            assertEquals("s****t_", sqlMasker.maskLikeValue("secret_", ""));
+            // 测试前后缀_
+            assertEquals("_s****t_", sqlMasker.maskLikeValue("_secret_", ""));
+            // 测试多个前缀_
+            assertEquals("___s****t", sqlMasker.maskLikeValue("___secret", ""));
+            // 测试多个后缀_
+            assertEquals("s****t___", sqlMasker.maskLikeValue("secret___", ""));
+        }
+
+        @Test
+        void testLikePatternWithMixedWildcards() {
+            // 测试%和_混合
+            assertEquals("%_s****t", sqlMasker.maskLikeValue("%_secret", ""));
+            assertEquals("s****t_%", sqlMasker.maskLikeValue("secret_%", ""));
+            assertEquals("%_s****t_%", sqlMasker.maskLikeValue("%_secret_%", ""));
+            // 测试多个混合通配符
+            assertEquals("%_%_s****t", sqlMasker.maskLikeValue("%_%_secret", ""));
+            assertEquals("s****t_%_%", sqlMasker.maskLikeValue("secret_%_%", ""));
+            assertEquals("%_%_s****t_%_%", sqlMasker.maskLikeValue("%_%_secret_%_%", ""));
+        }
+
+        @Test
+        void testLikePatternEdgeCases() {
+            // 测试空值
+            assertNull(sqlMasker.maskLikeValue(null, ""));
+            // 测试空字符串
+            assertEquals("", sqlMasker.maskLikeValue("", ""));
+            // 测试只有通配符
+            assertEquals("%", sqlMasker.maskLikeValue("%", ""));
+            assertEquals("_", sqlMasker.maskLikeValue("_", ""));
+            assertEquals("%_%", sqlMasker.maskLikeValue("%_%", ""));
+            // 测试全是通配符的情况
+            assertEquals("%%%", sqlMasker.maskLikeValue("%%%", ""));
+            assertEquals("___", sqlMasker.maskLikeValue("___", ""));
+            assertEquals("%_%_%", sqlMasker.maskLikeValue("%_%_%", ""));
+        }
+
+        @Test
+        void testLongLikePattern() {
+            // 测试长字符串
+            String longSecret = "ThisIsAVeryLongSecretValue";
+            String maskedLong = sqlMasker.maskLikeValue("%" + longSecret + "%", "");
+            assertTrue(maskedLong.startsWith("%This"));
+            assertTrue(maskedLong.endsWith("alue%"));
+            assertTrue(maskedLong.substring(5, maskedLong.length() - 5).matches("\\*+"));
+
+            // 测试超长字符串
+            String veryLongSecret = "ThisIsAnExtremelyLongSecretValueThatShouldBeMaskedProperly";
+            String maskedVeryLong = sqlMasker.maskLikeValue("%" + veryLongSecret + "%", "");
+            assertTrue(maskedVeryLong.startsWith("%This"));
+            assertTrue(maskedVeryLong.endsWith("erly%"));
+            assertTrue(maskedVeryLong.substring(5, maskedVeryLong.length() - 5).matches("\\*+"));
+        }
+
+        @Test
+        void testLikePatternWithEscape() {
+            // 测试转义%字符
+            assertEquals("!%****et", sqlMasker.maskLikeValue("!%secret", "!"));
+            assertEquals("se****!%", sqlMasker.maskLikeValue("secret!%", "!"));
+            assertEquals("!%s****t!%", sqlMasker.maskLikeValue("!%secret!%", "!"));
+
+            // 测试转义_字符
+            assertEquals("!_****et", sqlMasker.maskLikeValue("!_secret", "!"));
+            assertEquals("se****!_", sqlMasker.maskLikeValue("secret!_", "!"));
+            assertEquals("!_s****t!_", sqlMasker.maskLikeValue("!_secret!_", "!"));
+
+            // 测试转义字符本身
+            assertEquals("!!s****t!", sqlMasker.maskLikeValue("!!secret!", "!"));
+            assertEquals("se****!!", sqlMasker.maskLikeValue("secret!!", "!"));
+            assertEquals("!!****et", sqlMasker.maskLikeValue("!!secret", "!"));
+
+            // 测试混合转义情况
+            assertEquals("!%!****ret", sqlMasker.maskLikeValue("!%!_secret", "!"));
+            assertEquals("sec****_!%", sqlMasker.maskLikeValue("secret!_!%", "!"));
+            assertEquals("!%!_******!_!%", sqlMasker.maskLikeValue("!%!_secret!_!%", "!"));
+
+            // 测试转义字符和通配符混合
+            assertEquals("%!%****et", sqlMasker.maskLikeValue("%!%secret", "!"));
+            assertEquals("sec****!%", sqlMasker.maskLikeValue("secret%!%", "!"));
+            assertEquals("%!%se****%!%", sqlMasker.maskLikeValue("%!%secret%!%", "!"));
+            assertEquals("_!_se****_!_", sqlMasker.maskLikeValue("_!_secret_!_", "!"));
+
+            // 测试复杂的转义和通配符组合
+            assertEquals("!%se****%!%", sqlMasker.maskLikeValue("!%secret%!%", "!"));
+            assertEquals("%!%s****t!%", sqlMasker.maskLikeValue("%!%secret!%", "!"));
+            assertEquals("!%se****!%!%", sqlMasker.maskLikeValue("!%secret!%!%", "!"));
+            assertEquals("!%!****ret%", sqlMasker.maskLikeValue("!%!%secret%", "!"));
+
+            // 测试不同的转义字符
+            assertEquals("#%****et", sqlMasker.maskLikeValue("#%secret", "#"));
+            assertEquals("se****#%", sqlMasker.maskLikeValue("secret#%", "#"));
+            assertEquals("#_s****t#_", sqlMasker.maskLikeValue("#_secret#_", "#"));
+
+            assertEquals("%#1****#%", sqlMasker.maskLikeValue("%#12345#%", "#"));
+            assertEquals("****_", sqlMasker.maskLikeValue("#_#__", "#"));
+            assertEquals("%****_", sqlMasker.maskLikeValue("%#_#__", "#"));
+            assertEquals("****%", sqlMasker.maskLikeValue("#_#%%", "#"));
+            assertEquals("****%%", sqlMasker.maskLikeValue("#_#%%%", "#"));
+        }
+
+        @Test
+        void testEscapeCharIsWildcard() {
+            // escapeChar = '%'. Input "%%sec".
+            // Expected: "%%" is literal. Treated as content.
+            // "%%sec" (len 5) -> "%****" (with maskPattern "****")
+            assertEquals("%****", sqlMasker.maskLikeValue("%%sec", "%"));
+        }
+
+        @Test
+        void testDoubleEscapeAtEnd() {
+            // escapeChar = '!'. Input "secret!!%".
+            // Expected: "!!" is literal. "%" is wildcard.
+            // "secret!!" (len 8) -> "se****!!"
+            // Result: "se****!!%"
+            assertEquals("se****!!%", sqlMasker.maskLikeValue("secret!!%", "!"));
+        }
+
+        @Test
+        void testEscapeCharIsWildcardAndEscaped() {
+            // escapeChar = '%'. Input "secret%%%".
+            // Expected: "%%" is literal. Last "%" is wildcard.
+            // "secret%%" (len 8) -> "se****%%"
+            // Result: "se****%%%"
+            assertEquals("se****%%%", sqlMasker.maskLikeValue("secret%%%", "%"));
+        }
+
+    }
+
+    @Nested
+    class EscapeCharacterHandling {
+        @Test
+        void testStandardSqlEscape() {
+            String sql = "UPDATE users SET password = 'It''s_secret'";
+            String expected = "UPDATE users SET password = 'It''****cret'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testMySqlEscape() {
+            String sql = "UPDATE users SET password = 'It\\'s_secret'";
+            String expected = "UPDATE users SET password = 'It\\'****cret'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testBackslashEscape() {
+            String sql =      "UPDATE users SET password = 'Ba\\\\ck1234slash'";
+            String expected = "UPDATE users SET password = 'Ba\\\\*******lash'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testMixedEscape() {
+            String sql =      "UPDATE users SET password = 'I\\'t\\\\s_a__test'";
+            String expected = "UPDATE users SET password = 'I\\'t*******test'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
     }
 
@@ -453,6 +780,9 @@ class SqlMaskerTest {
         assertEquals("12345●#?*#●#34567", SqlMasker.doValueMask("12345678901234567", "●#?*#")); // 3x+2，首尾各5个字符，中间7个mask字符
         assertEquals("123#?*#?*#123", SqlMasker.doValueMask("1234567890123", "#?*"));     // 4x+1，首尾各3个字符，中间7个mask字符
 
+        // 4.3 中间填充长度整除掩码长度
+        assertEquals("1234********3456", SqlMasker.doValueMask("1234567890123456", "****")); // 4x, midLen=8, pLen=4
+
         // 5. 特殊字符处理
         assertEquals("1 2 XXXX5 6", SqlMasker.doValueMask("1 2 3 4 5 6", "XXXX"));
         assertEquals("1\t2?????5\t6", SqlMasker.doValueMask("1\t2\t3\t4\t5\t6", "???"));
@@ -464,237 +794,32 @@ class SqlMaskerTest {
         assertEquals("1○○○界", SqlMasker.doValueMask("1你好世界", "○○○"));
     }
 
-    @Test
-    void testInsertValuesParse_single() throws Exception {
-        String sql = "insert into test (id, name, password) values ('1', '2', '3')";
-        Insert insert = (Insert) CCJSqlParserUtil.parse(sql);
-        Values values = (Values) insert.getSelect();
-        assertEquals(3, values.getExpressions().size());
-        values.getExpressions().forEach(expression -> {
-            assertTrue(expression instanceof StringValue);
-        });
-    }
+    @Nested
+    class ExceptionTest {
+        /**
+         * Covers: JSQLParserException catch block in maskSensitiveFields
+         */
+        @Test
+        void testSqlParsingException() {
+            // SQL must contain a sensitive field to pass the initial check
+            // and be invalid to trigger JSQLParserException
+            String invalidSql = "This is not a valid SQL but contains password";
 
-    @Test
-    void testInsertValuesParse_multi() throws Exception {
-        String sql2 = "insert into test (id, name, password) values ('1', '2', '3'), ('4', '5', '6')";
-        Insert insert2 = (Insert)  CCJSqlParserUtil.parse(sql2);
-        Values values2 = (Values) insert2.getSelect();
-        assertEquals(2, values2.getExpressions().size());
-        values2.getExpressions().forEach(expression -> {
-            assertEquals(3, ((ExpressionList<?>) expression).size());
-            ((ExpressionList<?>) expression).forEach(exp -> {
-                assertTrue(exp instanceof StringValue);
-            });
-        });
-    }
-
-    @Test
-    void testInsertValuesParse_multi2() throws Exception {
-        String sql2 = "insert into test (id, name, password) values (('1', '2', '3'), ('4', '5', '6'))";
-        Insert insert2 = (Insert)  CCJSqlParserUtil.parse(sql2);
-        Values values2 = (Values) insert2.getSelect();
-        assertEquals(2, values2.getExpressions().size());
-        values2.getExpressions().forEach(expression -> {
-            assertEquals(3, ((ExpressionList<?>) expression).size());
-            ((ExpressionList<?>) expression).forEach(exp -> {
-                assertTrue(exp instanceof StringValue);
-            });
-        });
-    }
-
-    @Test
-    void testInsertValuesParse_select() throws Exception {
-        String sql = "INSERT INTO table1 (col1, col2) SELECT col1, col2 FROM table2 WHERE id > 100";
-        Insert insert = (Insert) CCJSqlParserUtil.parse(sql);
-        assertTrue(insert.getSelect() instanceof PlainSelect);
-    }
-
-    @Test
-    void testUpdateParse_values() throws Exception {
-        String sql = "UPDATE test SET (a, b, c) = (VALUES '1', '2', '3') where id = 1";
-        Update update = (Update) CCJSqlParserUtil.parse(sql);
-        assertEquals(1, update.getUpdateSets().size());
-        update.getUpdateSets().forEach(updateSet -> {
-            assertEquals(3, updateSet.getColumns().size());
-            ExpressionList<? extends Expression> expressions = updateSet.getValues();
-            assertEquals(1, expressions.size());
-            assertTrue(expressions.get(0) instanceof ParenthesedSelect);
-            Values values = (Values) ((ParenthesedSelect) expressions.get(0)).getSelect();
-            assertEquals(3, values.getExpressions().size()); // '1', '2', '3'
-            values.getExpressions().forEach(expression -> {
-                assertTrue(expression instanceof StringValue);
-            });
-        });
-    }
-
-    @Test
-    void testUpdateParse_1v1() throws Exception {
-        String sql = "UPDATE test SET a='1', b='2', c='3' where id = 1";
-        Update update = (Update) CCJSqlParserUtil.parse(sql);
-        assertEquals(3, update.getUpdateSets().size());
-        update.getUpdateSets().forEach(updateSet -> {
-            assertEquals(1, updateSet.getColumns().size());
-            ExpressionList<? extends Expression> expressions = updateSet.getValues();
-            assertEquals(1, expressions.size());
-            expressions.forEach(expression -> {
-                assertTrue(expression instanceof StringValue);
-            });
-        });
-    }
-    
-    @Test
-    void testUpdateParse_select_all() throws Exception {
-        String sql = "UPDATE test SET (a, b, c) = (SELECT a, b, c FROM table2 WHERE id = 1) where id = 1";
-        Update update = (Update) CCJSqlParserUtil.parse(sql);
-        assertEquals(1, update.getUpdateSets().size());
-        update.getUpdateSets().forEach(updateSet -> {
-            assertEquals(3, updateSet.getColumns().size());
-            ExpressionList<? extends Expression> expressions = updateSet.getValues();
-            assertEquals(1, expressions.size());
-            assertTrue(expressions.get(0) instanceof ParenthesedSelect);
-            assertNotNull(((ParenthesedSelect) expressions.get(0)).getSelect());
-        });
-    }
-
-    @Test
-    void testUpdateParse_select_1field() throws Exception {
-        String sql = "UPDATE test SET  a='1', b='2', c = (SELECT c FROM table2 WHERE id = 1) where id = 1";
-        Update update = (Update) CCJSqlParserUtil.parse(sql);
-        assertEquals(3, update.getUpdateSets().size());
-
-        UpdateSet updateSet = update.getUpdateSets().get(2);
-        assertEquals(1, updateSet.getColumns().size());
-        ExpressionList<? extends Expression> expressions = updateSet.getValues();
-        assertEquals(1, expressions.size());
-        assertTrue(expressions.get(0) instanceof Select);
-    }
-
-    @Test
-    void testUpdateParse_3v3() throws Exception {
-        String sql = "UPDATE test SET (a, b, c) = ('1', '2', '3') where id = 1";
-        Update update = (Update) CCJSqlParserUtil.parse(sql);
-        assertEquals(1, update.getUpdateSets().size());
-        update.getUpdateSets().forEach(updateSet -> {
-            assertEquals(3, updateSet.getColumns().size());
-            ExpressionList<? extends Expression> expressions = updateSet.getValues();
-            assertEquals(3, expressions.size());
-            expressions.forEach(expression -> {
-                assertTrue(expression instanceof StringValue);
-            });
-        });
-    }
-
-    @Test
-    void testUpdateParse_3v3Mix1v1() throws Exception {
-        String sql = "UPDATE a SET (a, b, c ) = ('1', '2', '3'), d = '4' where id = 1";
-        Update update = (Update) CCJSqlParserUtil.parse(sql);
-        assertEquals(2, update.getUpdateSets().size());
-        update.getUpdateSets().forEach(updateSet -> {
-            assertEquals(updateSet.getColumns().size(), updateSet.getValues().size());
-            updateSet.getValues().forEach(expression -> {
-                assertTrue(expression instanceof StringValue);
-            });
-        });
-
-    }
-
-    @Test
-    void testUpdateParse_valuesMix1v1() throws Exception {
-        String sql = "UPDATE a SET (a, b, c ) = (VALUES '1', '2', '3'), d = '4' where id = 1";
-        Update update = (Update) CCJSqlParserUtil.parse(sql);
-        assertEquals(2, update.getUpdateSets().size());
-
-        {
-            UpdateSet updateSet = update.getUpdateSets().get(0);   //(a, b, c ) = (VALUES '1', '2', '3')
-            assertEquals(3, updateSet.getColumns().size());
-            ExpressionList<? extends Expression> expressions = updateSet.getValues();
-            assertEquals(1, expressions.size());
-            assertTrue(expressions.get(0) instanceof ParenthesedSelect);
-            Values values = (Values) ((ParenthesedSelect) expressions.get(0)).getSelect();
-            assertEquals(3, values.getExpressions().size()); // '1', '2', '3'
-            values.getExpressions().forEach(expression -> {
-                assertTrue(expression instanceof StringValue);
-            });
+            // Should return original SQL when parsing fails
+            assertEquals(invalidSql, sqlMasker.maskSensitiveFields(invalidSql));
         }
 
-        {
-            UpdateSet updateSet = update.getUpdateSets().get(1);   //d = '4'
-            assertEquals(1, updateSet.getColumns().size());
-            ExpressionList<? extends Expression> expressions = updateSet.getValues();
-            assertEquals(1, expressions.size());
-            expressions.forEach(expression -> {
-                assertTrue(expression instanceof StringValue);
-            });
+        @Test
+        void testNullSensitiveFields() {
+            String sql = "INSERT INTO users (password) VALUES ('secret')";
+            // Should return original SQL because sensitiveFields is null (optimization check returns false)
+            assertEquals(sql, SqlMasker.maskSensitiveFields(sql, null, "****"));
         }
 
+        @Test
+        void testNullSql() {
+            assertNull(sqlMasker.maskSensitiveFields(null));
+        }
     }
 
-    @Test
-    void testUpdateParse_case1() throws Exception {
-        String sql = "update table1 set a='1', b=case " +
-                "when password='simple' then 'secret' " +
-                "when password='123456' then 'secret2' " +
-                "when 'secret'=password2 then password * 1.05 " +
-                "else 'secret3' end " +
-                "where id = 1";
-        Update update = (Update) CCJSqlParserUtil.parse(sql);
-        assertEquals(2, update.getUpdateSets().size());
-
-        // b=case ... end
-        UpdateSet updateSet = update.getUpdateSets().get(1);
-        assertEquals(1, updateSet.getColumns().size());
-        ExpressionList<? extends Expression> expressions = updateSet.getValues();
-        assertEquals(1, expressions.size());
-        assertTrue(expressions.get(0) instanceof CaseExpression);
-        CaseExpression caseExpr = (CaseExpression) expressions.get(0);
-        assertNull(caseExpr.getSwitchExpression());
-        assertEquals(3, caseExpr.getWhenClauses().size());
-        caseExpr.getWhenClauses().forEach(whenClause -> {
-            Expression whenExpr = whenClause.getWhenExpression();
-            Expression thenExpr = whenClause.getThenExpression();
-            LOGGER.info("whenExpr: {}, {}", whenExpr.getClass().getName(), whenExpr);
-            LOGGER.info("thenExpr: {}, {}", thenExpr.getClass().getName(), thenExpr);
-            assertTrue(whenExpr instanceof BinaryExpression);
-            // assertTrue(thenExpr instanceof StringValue);
-        });
-        Expression elseExpr = caseExpr.getElseExpression();
-        LOGGER.info("elseExpr: {}, {}", elseExpr.getClass().getName(), elseExpr);
-
-    }
-
-    @Test
-    void testUpdateParse_case2() throws Exception {
-        String sql = "update table1 set a='1', b=case password " +
-                "when 'simple' then 'secret' " +
-                "when old_passwd then 'secret2' " +
-                "when 'secret' then password * 1.05 " +
-                "else 'secret3' end " +
-                "where id = 1";
-        Update update = (Update) CCJSqlParserUtil.parse(sql);
-        assertEquals(2, update.getUpdateSets().size());
-
-        // b=case ... end
-        UpdateSet updateSet = update.getUpdateSets().get(1);
-        assertEquals(1, updateSet.getColumns().size());
-        ExpressionList<? extends Expression> expressions = updateSet.getValues();
-        assertEquals(1, expressions.size());
-        assertTrue(expressions.get(0) instanceof CaseExpression);
-        CaseExpression caseExpr = (CaseExpression) expressions.get(0);
-        Expression switchExpr = caseExpr.getSwitchExpression();
-        LOGGER.info("switchExpr: {}, {}", switchExpr.getClass().getName(), switchExpr);
-        assertEquals(3, caseExpr.getWhenClauses().size());
-        caseExpr.getWhenClauses().forEach(whenClause -> {
-            Expression whenExpr = whenClause.getWhenExpression();
-            Expression thenExpr = whenClause.getThenExpression();
-            LOGGER.info("whenExpr: {}, {}", whenExpr.getClass().getName(), whenExpr);
-            LOGGER.info("thenExpr: {}, {}", thenExpr.getClass().getName(), thenExpr);
-//            assertTrue(whenExpr instanceof BinaryExpression);
-            // assertTrue(thenExpr instanceof StringValue);
-        });
-        Expression elseExpr = caseExpr.getElseExpression();
-        LOGGER.info("elseExpr: {}, {}", elseExpr.getClass().getName(), elseExpr);
-
-    }
-    
 }
