@@ -3,6 +3,7 @@ package io.hqwu.commons.cp;
 
 import io.hqwu.commons.cp.util.JdbcUtil;
 import io.hqwu.commons.cp.util.LogUtil;
+import io.hqwu.commons.cp.util.SqlMasker;
 import io.hqwu.commons.util.ExceptionUtil;
 import io.hqwu.commons.util.Formatter;
 import io.hqwu.commons.util.Logger;
@@ -161,14 +162,14 @@ class PooledStatement implements InvocationHandler {
         } catch (Exception e) {
             if (methodDoing.startsWith("execute")) {
                 if (e instanceof SQLException) {
-                    LOGGER.info(e.toString(), "[ErrorCode=", ((SQLException) e).getErrorCode(), ";SQLState=", ((SQLException) e).getSQLState(), "] on ", methodDoing, "(", getSqlDoing(), ")");
+                    LOGGER.info(e.toString(), "[ErrorCode=", ((SQLException) e).getErrorCode(), ";SQLState=", ((SQLException) e).getSQLState(), "] on ", methodDoing, "(", getMaskedSql(), ")");
                 } else {
                     // MySQL unexpected exception with mysql-connector-java:8.0.19:
                     // java.lang.NullPointerException: null
                     //	at com.mysql.cj.AbstractQuery.stopQueryTimer(AbstractQuery.java:206)
                     //	at com.mysql.cj.jdbc.StatementImpl.stopQueryTimer(StatementImpl.java:643)
                     //	at com.mysql.cj.jdbc.StatementImpl.executeQuery(StatementImpl.java:1182)
-                    LOGGER.error("unexpected exception occurs on ", methodDoing, "(", getSqlDoing(), ")", e);
+                    LOGGER.error("unexpected exception occurs on ", methodDoing, "(", getMaskedSql(), ")", e);
                 }
             }
             if (! (e instanceof SQLException) || connection.isFetalException((SQLException) e)) {
@@ -287,6 +288,14 @@ class PooledStatement implements InvocationHandler {
         return updateCount;
     }
 
+    private long getInfoSQLThreshold() {
+        return connection.getConnectionPool().getInfoSQLThreshold();
+    }
+
+    private long getWarnSQLThreshold() {
+        return connection.getConnectionPool().getWarnSQLThreshold();
+    }
+
     /**
      * 根据执行时间，打印不同级别的SQL日志
      * @param logger
@@ -295,21 +304,33 @@ class PooledStatement implements InvocationHandler {
      * @param infos
      */
     protected void printSQL(Logger logger, String methodDoing, long usedNS, Object... infos) {
-        printSQL(logger, methodDoing, this::getSqlDoing, usedNS, infos);
+        printSQL(logger, methodDoing, this::getMaskedSql, usedNS, infos);
     }
 
     protected void printSQL(Logger logger, String methodDoing, Supplier<String> sqlSupplier, long usedNS, Object... infos) {
         if (! isPrintSQL()) {
             return;
         }
+        if (! LogUtil.isEnabled(logger, usedNS/1000000, getInfoSQLThreshold(), getWarnSQLThreshold())) {
+            return;
+        }
         LogUtil.logBasedOnThreshold(
-                logger, usedNS/1000000, connection.getConnectionPool().getInfoSQLThreshold(), connection.getConnectionPool().getWarnSQLThreshold(),
+                logger, usedNS/1000000, getInfoSQLThreshold(), getWarnSQLThreshold(),
                 getStatementName(), ".", methodDoing, "(", sqlSupplier.get(), ")", infos, " use ", Formatter.formatNS(usedNS), " ns"
         );
     }
 
     protected String getPreparedSql() {
         return "";
+    }
+
+    String getMaskedSql() {
+        HqcpConfig config = connection.getConnectionPool().getConfig();
+        SqlMasker sqlMasker = connection.getConnectionPool().getSqlMasker();
+        if (config.isMaskSql() && sqlMasker != null) {
+            return sqlMasker.maskSensitiveFields(getSqlDoing());
+        }
+        return getSqlDoing();
     }
 
     protected String getSqlDoing() {
@@ -393,10 +414,12 @@ class PooledStatement implements InvocationHandler {
     public boolean isBusying() {
         if (checkOut.get() && busying > 0) {
             long usedNS = System.nanoTime() - busying;
-            LogUtil.logBasedOnThreshold(
-                    LOGGER, usedNS/1000000, connection.getConnectionPool().getInfoSQLThreshold(), connection.getConnectionPool().getWarnSQLThreshold(),
-                    getStatementName(), " invoking ", methodBusying, "(", getSqlDoing(), ")", " use ", Formatter.formatNS(usedNS), " ns"
-            );
+            if (LogUtil.isEnabled(LOGGER, usedNS/1000000, getInfoSQLThreshold(), getWarnSQLThreshold())) {
+                LogUtil.logBasedOnThreshold(
+                        LOGGER, usedNS/1000000, getInfoSQLThreshold(), getWarnSQLThreshold(),
+                        getStatementName(), " invoking ", methodBusying, "(", getMaskedSql(), ")", " use ", Formatter.formatNS(usedNS), " ns"
+                );
+            }
             return true;
         }
         return false;

@@ -7,6 +7,7 @@ import io.hqwu.commons.cp.dialect.OraclePooledConnection;
 import io.hqwu.commons.cp.util.DynamicSemaphore;
 import io.hqwu.commons.cp.util.LogUtil;
 import io.hqwu.commons.cp.util.OracleUtil;
+import io.hqwu.commons.cp.util.SqlMasker;
 import io.hqwu.commons.util.Formatter;
 import io.hqwu.commons.util.JMXUtil;
 import io.hqwu.commons.util.Logger;
@@ -90,6 +91,8 @@ public class Hqcp implements HqcpMBean {
      */
     private final DynamicSemaphore maxConnectionSemaphore;
 
+    private volatile SqlMasker sqlMasker;
+
     Hqcp(String poolName) throws SQLException {
         this.config = new HqcpConfig();
         this.config.loadFromProperties(poolName);
@@ -158,6 +161,10 @@ public class Hqcp implements HqcpMBean {
             if (validConnectionNum.get() < config.getMinConnections()) {
                 newConnection(false);
             }
+        }
+
+        if (config.getSensitiveFields() != null && !config.getSensitiveFields().isEmpty()) {
+            this.sqlMasker = new SqlMasker(config.getMaskPattern(), config.getSensitiveFields());
         }
 
         monitor = new CPMonitor();
@@ -823,6 +830,10 @@ public class Hqcp implements HqcpMBean {
                 this.monitor.setName("CPM:" + poolName);
             }
         }
+    }
+
+    public SqlMasker getSqlMasker() {
+        return sqlMasker;
     }
 
 }

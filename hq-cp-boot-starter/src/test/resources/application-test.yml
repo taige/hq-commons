@@ -25,9 +25,10 @@ spring:
       max-pre-statements: 20
       max-statements: 200
       print-sql: false
+      mask-sql: true
+      sensitive-fields:
+        - password
+        - id_card_no
       transaction-mode: false
       verbose: true
       use-oracle-implicit-cache: false
-
-
-
