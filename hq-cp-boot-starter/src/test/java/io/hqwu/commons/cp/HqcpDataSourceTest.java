@@ -71,6 +71,14 @@ public class HqcpDataSourceTest {
         assertEquals(200, dataSource.getMaxStatements());
         //      print-sql: false
         assertFalse(dataSource.isPrintSql());
+        //      mask-sql: true
+        assertTrue(dataSource.isMaskSql());
+        //      sensitive-fields: [password, id_card_no]
+        assertEquals(2, dataSource.getSensitiveFields().size());
+        assertTrue(dataSource.getSensitiveFields().contains("password"));
+        assertTrue(dataSource.getSensitiveFields().contains("id_card_no"));
+        //      mask-pattern: ####
+        assertEquals("####", dataSource.getMaskPattern());
         //      transaction-mode: false
         assertFalse(dataSource.isTransactionMode());
         //      verbose: true

@@ -150,4 +150,85 @@ public class LogUtilTest {
         }
     }
 
+    /**
+     * 测试 {@link LogUtil#isEnabled} 方法，通过参数化输入验证是否应启用日志记录。
+     * 本测试覆盖了多种启用日志级别、时间阈值和预期结果的组合，
+     * 包括常规阈值以及 {@code infoThreshold} 和/或 {@code warnThreshold} 设置为 {@code Long.MAX_VALUE} 的场景。
+     *
+     * @param levelEnabled    启用的日志级别 ({@link Level#ERROR}, {@link Level#WARN}, {@link Level#INFO}, {@link Level#DEBUG})
+     * @param usedTimeMillis  用于与阈值比较的时间值
+     * @param infoThresholdStr INFO阈值，字符串形式（"Long.MAX_VALUE" 或数值）
+     * @param warnThresholdStr WARN阈值，字符串形式（"Long.MAX_VALUE" 或数值）
+     * @param expectedEnabled 预期的返回值（true 表示应启用日志，false 表示不应启用）
+     */
+    @ParameterizedTest
+    @CsvSource({
+            // Conventional thresholds (infoThreshold=500, warnThreshold=1000)
+            // Time > warnThreshold (1500)
+            "WARN,  1500, 500, 1000, true",   // WARN enabled, expect true
+            "INFO,  1500, 500, 1000, true",   // INFO enabled (WARN also enabled), expect true
+            "DEBUG, 1500, 500, 1000, true",   // DEBUG enabled (WARN also enabled), expect true
+            "ERROR, 1500, 500, 1000, false",  // All disabled, expect false
+            // infoThreshold < Time <= warnThreshold (750)
+            "INFO,  750,  500, 1000, true",   // INFO enabled, expect true
+            "DEBUG, 750,  500, 1000, true",   // DEBUG enabled (INFO also enabled), expect true
+            "WARN,  750,  500, 1000, false",  // WARN enabled, expect false
+            "ERROR, 750,  500, 1000, false",  // All disabled, expect false
+            // Time <= infoThreshold (400)
+            "DEBUG, 400,  500, 1000, true",   // DEBUG enabled, expect true
+            "INFO,  400,  500, 1000, false",  // INFO enabled, expect false
+            "WARN,  400,  500, 1000, false",  // WARN enabled, expect false
+            "ERROR, 400,  500, 1000, false",  // All disabled, expect false
+
+            // warnThreshold = Long.MAX_VALUE, infoThreshold < Long.MAX_VALUE (500)
+            // infoThreshold < Time <= Long.MAX_VALUE (1000)
+            "INFO,  1000, 500, Long.MAX_VALUE, true",   // INFO enabled, expect true
+            "DEBUG, 1000, 500, Long.MAX_VALUE, true",   // DEBUG enabled (INFO also enabled), expect true
+            "WARN,  1000, 500, Long.MAX_VALUE, false",  // WARN enabled, expect false
+            "ERROR, 1000, 500, Long.MAX_VALUE, false",  // All disabled, expect false
+            // Time <= infoThreshold (400)
+            "DEBUG, 400,  500, Long.MAX_VALUE, true",   // DEBUG enabled, expect true
+            "INFO,  400,  500, Long.MAX_VALUE, false",  // INFO enabled, expect false
+            "WARN,  400,  500, Long.MAX_VALUE, false",  // WARN enabled, expect false
+            "ERROR, 400,  500, Long.MAX_VALUE, false",  // All disabled, expect false
+
+            // infoThreshold = Long.MAX_VALUE, warnThreshold < Long.MAX_VALUE (1000)
+            // Time > warnThreshold (1500)
+            "WARN,  1500, Long.MAX_VALUE, 1000, true",   // WARN enabled, expect true
+            "INFO,  1500, Long.MAX_VALUE, 1000, true",   // INFO enabled (WARN also enabled), expect true
+            "DEBUG, 1500, Long.MAX_VALUE, 1000, true",   // DEBUG enabled (WARN also enabled), expect true
+            "ERROR, 1500, Long.MAX_VALUE, 1000, false",  // All disabled, expect false
+            // Time <= warnThreshold (500)
+            "DEBUG, 500,  Long.MAX_VALUE, 1000, true",   // DEBUG enabled, expect true
+            "INFO,  500,  Long.MAX_VALUE, 1000, false",  // INFO enabled, expect false
+            "WARN,  500,  Long.MAX_VALUE, 1000, false",  // WARN enabled, expect false
+            "ERROR, 500,  Long.MAX_VALUE, 1000, false",  // All disabled, expect false
+
+            // warnThreshold = Long.MAX_VALUE, infoThreshold = Long.MAX_VALUE
+            // Time <= Long.MAX_VALUE (1000)
+            "DEBUG, 1000, Long.MAX_VALUE, Long.MAX_VALUE, true",   // DEBUG enabled, expect true
+            "INFO,  1000, Long.MAX_VALUE, Long.MAX_VALUE, false",  // INFO enabled, expect false
+            "WARN,  1000, Long.MAX_VALUE, Long.MAX_VALUE, false",  // WARN enabled, expect false
+            "ERROR, 1000, Long.MAX_VALUE, Long.MAX_VALUE, false"   // All disabled, expect false
+    })
+    public void testIsEnabled(Level levelEnabled, long usedTimeMillis, String infoThresholdStr, String warnThresholdStr, boolean expectedEnabled) {
+        long infoThreshold = infoThresholdStr.equals("Long.MAX_VALUE") ? Long.MAX_VALUE : Long.parseLong(infoThresholdStr);
+        long warnThreshold = warnThresholdStr.equals("Long.MAX_VALUE") ? Long.MAX_VALUE : Long.parseLong(warnThresholdStr);
+        logger.setLevel(levelEnabled);
+
+        boolean result = LogUtil.isEnabled(logger, usedTimeMillis, infoThreshold, warnThreshold);
+
+        if (expectedEnabled) {
+            assert result : "Expected isEnabled to return true for levelEnabled=" + levelEnabled
+                    + ", usedTimeMillis=" + usedTimeMillis
+                    + ", infoThreshold=" + infoThreshold
+                    + ", warnThreshold=" + warnThreshold;
+        } else {
+            assert !result : "Expected isEnabled to return false for levelEnabled=" + levelEnabled
+                    + ", usedTimeMillis=" + usedTimeMillis
+                    + ", infoThreshold=" + infoThreshold
+                    + ", warnThreshold=" + warnThreshold;
+        }
+    }
+
 }

@@ -25,7 +25,10 @@ public interface HqcpConfigMBean {
     
     public boolean isPrintSql();
     public void setPrintSql(boolean ps);
-    
+
+    public boolean isMaskSql();
+    public void setMaskSql(boolean maskSql);
+
     public boolean isCommitOnClose();
     public void setCommitOnClose(boolean cc);
     
