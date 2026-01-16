@@ -468,8 +468,18 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         return maskPattern;
     }
 
+    public void setMaskPattern(String maskPattern) {
+        if (StringUtil.isNotBlank(maskPattern)) {
+            this.maskPattern = maskPattern;
+        }
+    }
+
     public Set<String> getSensitiveFields() {
         return sensitiveFields;
+    }
+
+    public void setSensitiveFields(Set<String> sensitiveFields) {
+        this.sensitiveFields = sensitiveFields;
     }
 
     public boolean isCommitOnClose() {

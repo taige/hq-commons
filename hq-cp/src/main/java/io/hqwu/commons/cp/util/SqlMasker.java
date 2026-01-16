@@ -85,7 +85,7 @@ import java.util.stream.Collectors;
  *     - 非字符串类型的敏感字段：UPDATE users SET key = 0x1234ABCD; <br/>
  *     - 转义符(') MySQL转义符(\) 当成普通字符处理，即忽略语义层面的字符串；<br/>
  *          比如：VALUES('''1234567') - 语义层面是长度为8的字符串 "'1234567"，<br/>
- *               但脱敏时按长度为9的字符串处理，脱敏结果为：VALUES('''1****67')，
+ *               但脱敏时按长度为9的字符串处理，脱敏结果为：VALUES('''1****67')，<br/>
  *               可能导致输出的SQL不是合法的。（仅用于日志脱敏，故暂忽略）
  * @author taige (Wu, Hongqiang) <br/>
  * Date: 2025-03-11  <br/>
