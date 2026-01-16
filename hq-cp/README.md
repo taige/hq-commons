@@ -51,7 +51,7 @@ hq-cp 模块旨在提供一种符合 Java 标准的高效、可监控且易于�
 
 ```xml
 <properties>
-  <hq-commons.version>1.4.0</hq-commons.version>
+  <hq-commons.version>1.4.1</hq-commons.version>
 </properties>
 
 <dependencies>
@@ -70,7 +70,7 @@ hq-cp 模块旨在提供一种符合 Java 标准的高效、可监控且易于�
 
 ```groovy
 ext {
-    hqCommonsVersion = '1.4.0'
+    hqCommonsVersion = '1.4.1'
 }
 
 dependencies {
@@ -247,7 +247,7 @@ public class ManualDataSourceSetup {
 
 ```xml
 <properties>
-  <hq-commons.version>1.4.0</hq-commons.version>
+  <hq-commons.version>1.4.1</hq-commons.version>
 </properties>
 
 <dependencies>
@@ -267,7 +267,7 @@ public class ManualDataSourceSetup {
 
 ```groovy
 ext {
-    hqCommonsVersion = '1.4.0' 
+    hqCommonsVersion = '1.4.1' 
 }
 
 dependencies {
