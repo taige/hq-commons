@@ -6,14 +6,16 @@ import com.baomidou.mybatisplus.core.conditions.query.Query;
 import com.baomidou.mybatisplus.core.conditions.segments.MergeSegments;
 import com.baomidou.mybatisplus.core.metadata.TableFieldInfo;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
-import com.baomidou.mybatisplus.core.toolkit.ArrayUtils;
+import com.baomidou.mybatisplus.core.toolkit.Assert;
+import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.core.toolkit.LambdaUtils;
+import com.baomidou.mybatisplus.core.toolkit.support.LambdaMeta;
 import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
-import com.baomidou.mybatisplus.core.toolkit.support.SerializedLambda;
 import io.hqwu.commons.util.StringUtil;
 import org.apache.ibatis.reflection.property.PropertyNamer;
 import org.springframework.lang.NonNull;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -21,7 +23,7 @@ import java.util.function.Predicate;
 /**
  * Created with IntelliJ IDEA for pp-gopay-fa
  *
- * 关联查询时代表 `主表` 的查询条件封装。
+ * 关联查询时 代表 `主表` 的查询条件封装。
  *   主要为了实现：在where条件从句上自动添加主表前缀
  *
  * 大部分代码从 {@link com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper} 拷贝而来
@@ -42,9 +44,9 @@ public class MainLambdaQueryWrapper<T> extends AbstractLambdaWrapper<T, MainLamb
 
     @Override
     protected String columnToString(SFunction<T, ?> column, boolean onlyColumn) {
-        SerializedLambda lambda = LambdaUtils.resolve(column);
+        LambdaMeta lambda = LambdaUtils.extract(column);
         String fieldName = PropertyNamer.methodToProperty(lambda.getImplMethodName());
-        Class<?> aClass = lambda.getInstantiatedType();
+        Class<?> aClass = lambda.getInstantiatedClass();
         String joinColumn = PageHelper.getJoinColumn(aClass, fieldName);
         if (joinColumn != null) {
             return joinColumn;
@@ -64,7 +66,7 @@ public class MainLambdaQueryWrapper<T> extends AbstractLambdaWrapper<T, MainLamb
     }
 
     MainLambdaQueryWrapper(T entity, Class<T> entityClass, SharedString sqlSelect, AtomicInteger paramNameSeq,
-                           Map<String, Object> paramNameValuePairs, MergeSegments mergeSegments,
+                           Map<String, Object> paramNameValuePairs, MergeSegments mergeSegments, SharedString paramAlias,
                            SharedString lastSql, SharedString sqlComment, SharedString sqlFirst,
                            @NonNull String mainTable) {
         super.setEntity(entity);
@@ -73,30 +75,12 @@ public class MainLambdaQueryWrapper<T> extends AbstractLambdaWrapper<T, MainLamb
         this.paramNameValuePairs = paramNameValuePairs;
         this.expression = mergeSegments;
         this.sqlSelect = sqlSelect;
+        this.paramAlias = paramAlias;
         this.lastSql = lastSql;
         this.sqlComment = sqlComment;
         this.sqlFirst = sqlFirst;
         mainTable = mainTable.replaceAll("\\.*$", "");
         this.mainTable = StringUtil.isNotBlank(mainTable) ? (mainTable + ".") : "";
-    }
-
-    /**
-     * SELECT 部分 SQL 设置
-     *
-     * @param columns 查询字段
-     */
-    @SafeVarargs
-    @Override
-    public final MainLambdaQueryWrapper<T> select(SFunction<T, ?>... columns) {
-        if (ArrayUtils.isNotEmpty(columns)) {
-            this.sqlSelect.setStringValue(columnsToString(false, columns));
-        }
-        return typedThis;
-    }
-
-    @Override
-    public MainLambdaQueryWrapper<T> select(Predicate<TableFieldInfo> predicate) {
-        return select(getEntityClass(), predicate);
     }
 
     /**
@@ -113,11 +97,20 @@ public class MainLambdaQueryWrapper<T> extends AbstractLambdaWrapper<T, MainLamb
     @Override
     public MainLambdaQueryWrapper<T> select(Class<T> entityClass, Predicate<TableFieldInfo> predicate) {
         if (entityClass == null) {
-            entityClass = this.getEntityClass();
+            entityClass = getEntityClass();
         } else {
-            this.setEntityClass(entityClass);
+            setEntityClass(entityClass);
         }
+        Assert.notNull(entityClass, "entityClass can not be null");
         this.sqlSelect.setStringValue(TableInfoHelper.getTableInfo(entityClass).chooseSelect(predicate));
+        return typedThis;
+    }
+
+    @Override
+    public MainLambdaQueryWrapper<T> select(boolean condition, List<SFunction<T, ?>> columns) {
+        if (condition && CollectionUtils.isNotEmpty(columns)) {
+            this.sqlSelect.setStringValue(columnsToString(false, columns));
+        }
         return typedThis;
     }
 
@@ -133,6 +126,12 @@ public class MainLambdaQueryWrapper<T> extends AbstractLambdaWrapper<T, MainLamb
     @Override
     protected MainLambdaQueryWrapper<T> instance() {
         return new MainLambdaQueryWrapper<>(getEntity(), getEntityClass(), null, paramNameSeq, paramNameValuePairs,
-                new MergeSegments(), SharedString.emptyString(), SharedString.emptyString(), SharedString.emptyString(), mainTable);
+                new MergeSegments(), paramAlias, SharedString.emptyString(), SharedString.emptyString(), SharedString.emptyString(), mainTable);
+    }
+
+    @Override
+    public void clear() {
+        super.clear();
+        sqlSelect.toNull();
     }
 }

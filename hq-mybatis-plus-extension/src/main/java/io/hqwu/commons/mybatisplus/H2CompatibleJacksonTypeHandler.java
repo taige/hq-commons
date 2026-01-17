@@ -25,7 +25,7 @@ public class H2CompatibleJacksonTypeHandler extends JacksonTypeHandler {
     }
 
     @Override
-    protected Object parse(String json) {
+    public Object parse(String json) {
         if (json.startsWith("\"") && json.endsWith("\"")) {
             json = json.substring(1, json.length() - 1);
             json = StringEscapeUtils.unescapeJava(json);

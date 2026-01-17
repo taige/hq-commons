@@ -14,10 +14,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.Map;
-import java.util.MissingResourceException;
-import java.util.Properties;
-import java.util.ResourceBundle;
+import java.util.*;
 
 public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     private static final Logger LOGGER = new Logger();
@@ -113,6 +110,23 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
      * 默认 true
      */
     private boolean printSql = true;
+
+    /**
+     * 打印log的时候是否脱敏敏感字段<br/>
+     * 默认 false
+     */
+    private boolean maskSql = false;
+
+    /**
+     * 脱敏模式，如"***", "####", "????", "*#?●○"<br/>
+     * 默认 ****
+     */
+    private String maskPattern = "****";
+
+    /**
+     * 敏感字段集
+     */
+    private Set<String> sensitiveFields = new HashSet<>();
 
     /**
      * 检测连接是否可用的查询语句<br/>
@@ -442,6 +456,32 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         this.printSql = printSql;
     }
 
+    public boolean isMaskSql() {
+        return maskSql;
+    }
+
+    public void setMaskSql(boolean maskSql) {
+        this.maskSql = maskSql;
+    }
+
+    public String getMaskPattern() {
+        return maskPattern;
+    }
+
+    public void setMaskPattern(String maskPattern) {
+        if (StringUtil.isNotBlank(maskPattern)) {
+            this.maskPattern = maskPattern;
+        }
+    }
+
+    public Set<String> getSensitiveFields() {
+        return sensitiveFields;
+    }
+
+    public void setSensitiveFields(Set<String> sensitiveFields) {
+        this.sensitiveFields = sensitiveFields;
+    }
+
     public boolean isCommitOnClose() {
         return commitOnClose;
     }
@@ -722,6 +762,19 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         driverClassName = prop.getProperty("jdbc.driver-class-name", driverClassName);
         verbose = getBoolean(prop, "jdbc.verbose", verbose);
         printSql = getBoolean(prop, "jdbc.print-sql", printSql);
+        maskSql = getBoolean(prop, "jdbc.mask-sql", maskSql);
+        maskPattern = prop.getProperty("jdbc.mask-pattern", maskPattern);
+        String sensitiveFieldsStr = prop.getProperty("jdbc.sensitive-fields");
+        if (StringUtil.isNotBlank(sensitiveFieldsStr)) {
+            Set<String> newSensitiveFields = new HashSet<>();
+            String[] fields = sensitiveFieldsStr.split(",");
+            for (String field : fields) {
+                if (StringUtil.isNotBlank(field)) {
+                    newSensitiveFields.add(field.trim());
+                }
+            }
+            this.sensitiveFields = newSensitiveFields;
+        }
         commitOnClose = getBoolean(prop, "jdbc.commit-on-close", commitOnClose);
         setMinConnections(getInt(prop, "jdbc.min-connections", minConnections));
         setMaxConnections(getInt(prop, "jdbc.max-connections", maxConnections));
@@ -744,7 +797,7 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
 
     private static final String[] PROPERTIES = new String[] {
             "jdbc.url", "jdbc.username", "jdbc.password", "jdbc.driver", "jdbc.driver-class-name",
-            "jdbc.verbose", "jdbc.print-sql", "jdbc.commit-on-close", "jdbc.min-connections", "jdbc.max-connections",
+            "jdbc.verbose", "jdbc.print-sql", "jdbc.mask-sql", "jdbc.mask-pattern", "jdbc.sensitive-fields", "jdbc.commit-on-close", "jdbc.min-connections", "jdbc.max-connections",
             "jdbc.idle-timeout-sec", "jdbc.checkout-timeout-millisec", "jdbc.lifetime-sec",
             "jdbc.check-statement", "jdbc.max-statements", "jdbc.max-pre-statements", "jdbc.jmx-level", "jdbc.transaction-mode", "jdbc.lazy-init",
             "jdbc.info-sql-threshold", "jdbc.warn-sql-threshold", "jdbc.use-oracle-implicit-cache",
@@ -773,6 +826,9 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         logger.info("commitOnClose           = " + commitOnClose);
         logger.info("verbose                 = " + verbose);
         logger.info("printSql                = " + printSql);
+        logger.info("maskSql                 = " + maskSql);
+        logger.info("maskPattern             = " + maskPattern);
+        logger.info("sensitiveFields         = " + sensitiveFields);
         logger.info("checkStatement          = '" + checkStatement + "'");
         logger.info("lazyInit                = " + lazyInit);
         logger.info("infoSqlThreshold        = " + infoSqlThreshold);
