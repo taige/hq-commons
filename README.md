@@ -1,8 +1,8 @@
 # hq-commons
 
-[![GitHub Package](https://img.shields.io/badge/Download-v1.4.1-blue?logo=github)](https://github.com/taige/hq-commons/packages)
+[![GitHub Package](https://img.shields.io/badge/Download-v1.17.0-blue?logo=github)](https://github.com/taige/hq-commons/packages)
 [![GitHub Package](https://img.shields.io/badge/Download-GitHub_Packages-blue)](https://github.com/taige/hq-commons/packages)
-[![Java Version](https://img.shields.io/badge/Java-8%2B-orange?logo=openjdk)](https://openjdk.org/)
+[![Java Version](https://img.shields.io/badge/Java-17%2B-orange?logo=openjdk)](https://openjdk.org/)
 
 面向企业级Java应用的基础组件库，提供数据库连接池、MyBatis增强、Dubbo扩展等核心模块，通过深度整合Spring生态实现开箱即用的高效开发体验。          
 
@@ -18,7 +18,8 @@
 ### hq-cp
 - 核心数据库连接池实现
 - 提供Spring Boot Starter自动配置
-- 支持与Spring原生数据源配置的智能融合
+- 支持与 Spring 原生数据源配置的智能融合
+- **✨ 新增 SQL 敏感信息脱敏功能**
 
 ### hq-cp-boot-starter
 - 数据库连接池Spring Boot Starter
@@ -46,7 +47,9 @@
 
 ## Maven 集成步骤
 
-### 1. 认证配置
+### ~~1. 认证配置~~
+👉 **注意：已不需要认证，GitHub Packages现已开放匿名访问**
+
 在 `~/.m2/settings.xml` 中添加：
 
 ```xml
@@ -60,8 +63,8 @@
 
     <server>
       <id>github</id>
-      <username>taige</username>
-      <password>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</password>
+      <username>ta***</username>
+      <password>ghp_*******</password>
     </server>
   </servers>
   
@@ -93,7 +96,7 @@
   <dependency>
     <groupId>io.hqwu.commons</groupId>
     <artifactId>hq-cp</artifactId>
-    <version>1.4.1</version>
+    <version>1.17.0</version>
   </dependency>
 
   <!-- 其他dependency  -->

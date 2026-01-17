@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @deprecated
  */
+@Deprecated
 public class ConnectionFactory {
     private static ConcurrentMap<String, Hqcp> poolCache = new ConcurrentHashMap<>();
 

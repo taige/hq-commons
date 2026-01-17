@@ -49,14 +49,14 @@ public class JoinQueryWrapper<T> extends QueryWrapper<T> {
      * @param entityClass 本不应该需要的
      */
     private JoinQueryWrapper(T entity, Class<T> entityClass, AtomicInteger paramNameSeq,
-                             Map<String, Object> paramNameValuePairs, MergeSegments mergeSegments,
-                             SharedString lastSql, SharedString sqlComment,
-                             SharedString sqlFirst) {
+                             Map<String, Object> paramNameValuePairs, MergeSegments mergeSegments, SharedString paramAlias,
+                             SharedString lastSql, SharedString sqlComment, SharedString sqlFirst) {
         super.setEntity(entity);
         super.setEntityClass(entityClass);
         this.paramNameSeq = paramNameSeq;
         this.paramNameValuePairs = paramNameValuePairs;
         this.expression = mergeSegments;
+        this.paramAlias = paramAlias;
         this.lastSql = lastSql;
         this.sqlComment = sqlComment;
         this.sqlFirst = sqlFirst;
@@ -86,8 +86,8 @@ public class JoinQueryWrapper<T> extends QueryWrapper<T> {
      * 返回一个支持 lambda 函数写法的 wrapper
      */
     public MainLambdaQueryWrapper<T> lambda(@NonNull String mainTable) {
-        return new MainLambdaQueryWrapper<>(getEntity(), getEntityClass(), sqlSelect, paramNameSeq, paramNameValuePairs, expression,
-                lastSql, sqlComment, sqlFirst, mainTable);
+        return new MainLambdaQueryWrapper<>(getEntity(), getEntityClass(), sqlSelect, paramNameSeq, paramNameValuePairs,
+        expression, paramAlias, lastSql, sqlComment, sqlFirst, mainTable);
     }
 
 }

@@ -40,11 +40,11 @@ public class NumbersInMessageInterpolator extends AbstractMessageInterpolator {
                 }
             }
             else {
-                resolvedExpression = messageInterpolator.interpolate(context, locale, expression);
+                resolvedExpression = messageInterpolator.interpolate(expression, context, locale);
             }
             return resolvedExpression;
         } else {
-            return messageInterpolator.interpolate(context, locale, expression);
+            return messageInterpolator.interpolate(expression, context, locale);
         }
     }
 

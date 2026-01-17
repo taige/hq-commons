@@ -421,8 +421,29 @@ public class SecurityUtil extends DigestUtils {
     public static byte[] aesEncrypt(byte[] data, byte[] bkey, String mode,
                                     String padding) throws GeneralSecurityException,
             IllegalArgumentException {
-        String alg = String.format("AES/%s/%s", mode == null ? DEFAULT_MODE : mode, padding == null ? DEFAULT_SYM_PADDING : padding);
-        return symCipher(data, bkey, ENCRYPT_MODE, alg);
+        return symCipher(data, bkey, ENCRYPT_MODE, alg(mode, padding));
+    }
+
+    /**
+     * 根据算法决定 填充算法padding
+     * @param mode    加解密模式(ECB|CBC|CFB|OFB)
+     * @param padding 填充算法(PKCS1Padding|PKCS5Padding|PKCS7Padding...)
+     * @return
+     */
+    private static String alg(String mode, String padding) {
+        // 确定实际使用的模式
+        String actualMode = mode == null ? DEFAULT_MODE : mode.toUpperCase();
+
+        // 流密码模式不需要填充,强制使用 NoPadding
+        String actualPadding;
+        if (actualMode.equals("CTR") || actualMode.equals("CFB") ||
+                actualMode.equals("OFB") || actualMode.equals("GCM")) {
+            actualPadding = "NoPadding";
+        } else {
+            actualPadding = padding == null ? DEFAULT_SYM_PADDING : padding;
+        }
+
+        return String.format("AES/%s/%s", actualMode, actualPadding);
     }
 
     /**
@@ -486,8 +507,7 @@ public class SecurityUtil extends DigestUtils {
     public static byte[] aesDecrypt(byte[] bcipher, byte[] bkey, String mode,
                                     String padding) throws GeneralSecurityException,
             IllegalArgumentException {
-        String alg = String.format("AES/%s/%s", mode == null ? DEFAULT_MODE : mode, padding == null ? DEFAULT_SYM_PADDING : padding);
-        return symCipher(bcipher, bkey, DECRYPT_MODE, alg);
+        return symCipher(bcipher, bkey, DECRYPT_MODE, alg(mode, padding));
     }
 
     /**

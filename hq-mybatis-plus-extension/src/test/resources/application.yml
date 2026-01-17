@@ -1,7 +1,5 @@
 spring:
   datasource:
-    initialization-mode: embedded
-    platform: h2
     driver-class-name: org.h2.Driver
     url: jdbc:h2:mem:gopayfa;MODE=MySQL
     username: bp_user
@@ -9,7 +7,11 @@ spring:
     hqcp:
       min-connections: 1
       verbose: true
-
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-h2.sql
+      encoding: utf-8
 
 mybatis-plus:
   type-aliases-package: io.hqwu.commons.mybatisplus.ext.entity

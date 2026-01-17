@@ -2,7 +2,7 @@ package io.hqwu.commons.cp;
 
 import com.jolbox.bonecp.*;
 import io.hqwu.commons.util.Logger;
-import org.easymock.classextension.IMocksControl;
+import org.easymock.IMocksControl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,11 +21,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.easymock.EasyMock.*;
-import static org.easymock.classextension.EasyMock.createNiceControl;
-import static org.easymock.classextension.EasyMock.createNiceMock;
-import static org.easymock.classextension.EasyMock.makeThreadSafe;
-import static org.easymock.classextension.EasyMock.replay;
-import static org.easymock.classextension.EasyMock.verify;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
