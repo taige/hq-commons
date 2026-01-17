@@ -15,9 +15,7 @@
     <spring-boot.version>2.4.4</spring-boot.version>
     <commons-io.version>2.6</commons-io.version>
     <maven-surefire-plugin.version>2.22.2</maven-surefire-plugin.version>
-    <mybatis-plus.version>3.4.1</mybatis-plus.version>
-    <mybatis.version>3.5.6</mybatis.version>
-    <mybatis-boot.version>2.1.4</mybatis-boot.version>
+    <mybatis-plus.version>3.5.11</mybatis-plus.version>
     <dubbo.version>2.7.12</dubbo.version>
     <jsqlparser.version>4.9</jsqlparser.version>
 
