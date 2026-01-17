@@ -7,6 +7,11 @@
     - [Maven 引入示例](#maven-引入示例)
     - [Gradle 引入示例](#gradle-引入示例)
 -  [3. HqcpConfig 配置参数说明](#3-hqcpconfig-配置参数说明)
+    - [3.1 基础连接配置](#31-基础连接配置)
+    - [3.2 连接池行为配置](#32-连接池行为配置)
+    - [3.3 事务管理配置](#33-事务管理配置)
+    - [3.4 日志与监控配置](#34-日志与监控配置)
+    - [3.5 SQL 脱敏配置](#35-sql-脱敏配置)
 -  [4. 在 Spring 环境下的使用示例](#4-在-spring-环境下的使用示例)
     - [4.1 传统 XML 配置方式](#41-传统-xml-配置方式)
     - [4.2 注解配置方式](#42-注解配置方式)
@@ -85,33 +90,55 @@ dependencies {
 
 ## 3. HqcpConfig 配置参数说明
 
-`HqcpConfig` 类是用于定义 hq-cp 连接池配置参数的核心类。下面说明其中一些常用的配置参数：
+`HqcpConfig` 类是用于定义 hq-cp 连接池配置参数的核心类。下面按功能分类说明常用的配置参数：
 
-| 配置项                     | properties文件的key               | 默认值   | 取值范围               | 说明                                                                                                                                                                                                                     |
-|-------------------------|--------------------------------|-------|--------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| url                     | jdbc.url                       | 无     | 合法的 JDBC URL       | 数据库连接的 URL，用于建立与数据库之间的连接。                                                                                                                                                                                              |
-| driverClassName         | jdbc.driver-class-name         | 无     | 非空字符串              | 数据库驱动类的全限定名，用于加载对应的 JDBC 驱动。<br/>* 如果未配置，将自动根据 url 中的数据库类型设置相应的驱动类：<br/>- `oracle`: `oracle.jdbc.driver.OracleDriver` <br/>- `mysql`: `com.mysql.jdbc.Driver`                                                          |
-| username                | jdbc.username                  | 无     | 非空字符串              | 数据库登录时使用的用户名。                                                                                                                                                                                                          |
-| password                | jdbc.password                  | 无     | 字符串（可为空）           | 数据库登录时使用的密码。                                                                                                                                                                                                           |
-| minConnections          | jdbc.min-connections           | 1     | 0 ~ 100            | 连接池中保持的最小连接数。                                                                                                                                                                                                          |
-| maxConnections          | jdbc.max-connections           | 10    | 1 ~ 1000           | 连接池允许的最大连接数。                                                                                                                                                                                                           |
-| maxStatements           | jdbc.max-statements            | 100   | 10 ~ 1000          | 池中最多缓存的 Statement 数。<br/><b>* 超过该值可能会抛出 SQLException，提示同时创建过多 Statement 而未及时关闭。</b>                                                                                                                                    |
-| maxPreStatements        | jdbc.max-pre-statements        | 10    | 5 ~ 200            | 池中最多缓存的 PreparedStatement 数；超过该值时会关闭最早未使用的 PreparedStatement。                                                                                                                                                          |
-| idleTimeoutSec          | jdbc.idle-timeout-sec          | 300   | 10 ~ 3600（单位：秒）    | 空闲超时时间，连接空闲超过该时间将被检测（调用`checkStatement`）或销毁（如果当前连接数超过`minConnections`）。                                                                                                                                                |
-| checkoutTimeoutMillisec | jdbc.checkout-timeout-millisec | 10000 | -1 ~ 600000（单位：毫秒） | （没有可用连接时，）等待可用连接的超时时间。<br/>- `-1` 无限等待 <b>危险配置，不建议</b><br/>- &nbsp;&nbsp;`0` 立即失败（抛SQLExceptin） <b>也不建议</b><br/>                                                                                                       |
-| lifetimeSec             | jdbc.lifetime-sec              | 0     | 0 ~ 86400（单位：秒）    | 连接存活时间，超过该时间的连接将被销毁。 <br/>- `0` 不回收 <br/>非`0`时，取与 `idleTimeoutSec` 两者中取较大值。                                                                                                                                            |
-| verbose                 | jdbc.verbose                   | false | true 或 false       | 是否记录除 SQL 语句及执行时间外的其他日志信息。                                                                                                                                                                                             |
-| printSql                | jdbc.print-sql                 | true  | true 或 false       | 是否记录 SQL 语句及其执行时间。                                                                                                                                                                                                     |
-| maskSql                 | jdbc.mask-sql                  | false | true 或 false       | 打印SQL日志时是否对敏感字段进行脱敏处理。<br/>- `true` 启用脱敏，根据 `sensitiveFields` 配置的字段进行脱敏 <br/>- `false` 不脱敏，直接输出原始SQL                                                                                                                              |
-| maskPattern             | jdbc.mask-pattern              | ****  | 非空字符串              | 脱敏时使用的替换字符串，如 `****`、`####`、`????`、`*#?●○` 等。                                                                                                                                                                                |
-| sensitiveFields         | jdbc.sensitive-fields          | 空     | 逗号分隔的字段名列表         | 需要脱敏的敏感字段名称列表，多个字段用英文逗号分隔。<br/>例如：`password,phone,idCard,bankAccount`<br/>* 仅当 `maskSql` 为 `true` 时生效                                                                                                                           |
-| infoSqlThreshold        | jdbc.info-sql-threshold        | 10    | 整数                 | 当 `printSql` 为 `true` 且 SQL 执行耗时超过该阈值（单位：毫秒）时，打印 `INFO` 级别日志。 <br/>- `≤0` 不打印 `INFO` 级别日志                                                                                                                              |
-| warnSqlThreshold        | jdbc.warn-sql-threshold        | 100   | 整数                 | 当 `printSql` 为 `true` 且 SQL 执行耗时超过该阈值（单位：毫秒）时，打印 `WARN` 级别日志。<br/>- `≤0` 不打印 `WARN` 级别日志 <br/>- `>0` 时，取与`infoSqlThreshold`两者中的较大值                                                                                     |
+### 3.1 基础连接配置
+
+| 配置项             | properties文件的key    | 默认值 | 取值范围        | 说明                                                                                                                                                  |
+|-----------------|----------------------|-----|-------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| url             | jdbc.url             | 无   | 合法的 JDBC URL | 数据库连接的 URL，用于建立与数据库之间的连接。                                                                                                                           |
+| driverClassName | jdbc.driver-class-name | 无   | 非空字符串       | 数据库驱动类的全限定名，用于加载对应的 JDBC 驱动。<br/>* 如果未配置，将自动根据 url 中的数据库类型设置相应的驱动类：<br/>- `oracle`: `oracle.jdbc.driver.OracleDriver` <br/>- `mysql`: `com.mysql.jdbc.Driver` |
+| username        | jdbc.username        | 无   | 非空字符串       | 数据库登录时使用的用户名。                                                                                                                                       |
+| password        | jdbc.password        | 无   | 字符串（可为空）    | 数据库登录时使用的密码。                                                                                                                                        |
+
+### 3.2 连接池行为配置
+
+| 配置项                     | properties文件的key               | 默认值   | 取值范围               | 说明                                                                                                                      |
+|-------------------------|--------------------------------|-------|--------------------|---------------------------------------------------------------------------------------------------------------------------|
+| minConnections          | jdbc.min-connections           | 1     | 0 ~ 100            | 连接池中保持的最小连接数。                                                                                                           |
+| maxConnections          | jdbc.max-connections           | 10    | 1 ~ 1000           | 连接池允许的最大连接数。                                                                                                            |
+| maxStatements           | jdbc.max-statements            | 100   | 10 ~ 1000          | 池中最多缓存的 Statement 数。<br/><b>* 超过该值可能会抛出 SQLException，提示同时创建过多 Statement 而未及时关闭。</b>                                     |
+| maxPreStatements        | jdbc.max-pre-statements        | 10    | 5 ~ 200            | 池中最多缓存的 PreparedStatement 数；超过该值时会关闭最早未使用的 PreparedStatement。                                                           |
+| idleTimeoutSec          | jdbc.idle-timeout-sec          | 300   | 10 ~ 3600（单位：秒）    | 空闲超时时间，连接空闲超过该时间将被检测（调用`checkStatement`）或销毁（如果当前连接数超过`minConnections`）。                                                 |
+| checkoutTimeoutMillisec | jdbc.checkout-timeout-millisec | 10000 | -1 ~ 600000（单位：毫秒） | （没有可用连接时，）等待可用连接的超时时间。<br/>- `-1` 无限等待 <b>危险配置，不建议</b><br/>- &nbsp;&nbsp;`0` 立即失败（抛SQLExceptin） <b>也不建议</b><br/>        |
+| lifetimeSec             | jdbc.lifetime-sec              | 0     | 0 ~ 86400（单位：秒）    | 连接存活时间，超过该时间的连接将被销毁。 <br/>- `0` 不回收 <br/>非`0`时，取与 `idleTimeoutSec` 两者中取较大值。                                             |
 | checkStatement          | jdbc.check-statement           | 无     | 合法的 SQL 查询语句       | 检测连接是否可用的 SQL 查询语句。<br/>* 如果未配置，将自动根据 url 中的数据库类型设置相应的检测语句（未匹配到以下数据库类型，则无法检测 <b>!!不建议!!</b>）：<br/>- `oracle`: `select systimestamp from dual` <br/>- `mysql`: `select now()` <br/>- `db2`: `values(current timestamp)` |
-| jmxLevel                | jdbc.jmx-level                 | 0     | 0、1 或 2            | JMX 管理级别：<br/>- `0` 表示不启用 JMX <br/>- `1` 表示管理 `Hqcp`连接池 及其 `HqcpConfig`配置 实例 <br/>- `2` 表示管理 `数据库连接` 实例                                                                                                                |
-| transactionMode         | jdbc.transaction-mode          | false | true 或 false       | 获取连接（调用 `DataSource.getConnection()` 方法）时是否返回的`Connection`对象是否默认设置为事务模式：<br/>- `true` 表示使用事务模式，即 `autoCommit`=`false` <br/>- `false` 表示非事务模式，即 `autoCommit`=`true`  <br/>* 使用Spring管理事务时可忽略该配置                         |
-| commitOnClose           | jdbc.commit-on-close           | false | true 或 false       | 关闭连接时（`autoCommit`=`false`，且有未提交的语句时）是否自动提交事务。<br/>- `true` 自动commit <br/>- `false` 自动rollback <br/>* 使用Spring管理事务时可忽略该配置                                                                                              |
-| lazyInit                | jdbc.lazy-init                 | false | true 或 false       | 是否延迟初始化连接池。<br/>- `true` 将在监控线程中建立连接 <br/>- `false` 在主线程（调用 `DataSource.getConnection()`的线程）中建立连接                                                                                                                      |
+| lazyInit                | jdbc.lazy-init                 | false | true 或 false       | 是否延迟初始化连接池。<br/>- `true` 将在监控线程中建立连接 <br/>- `false` 在主线程（调用 `DataSource.getConnection()`的线程）中建立连接                       |
+
+### 3.3 事务管理配置
+
+| 配置项             | properties文件的key      | 默认值   | 取值范围          | 说明                                                                                                                                                              |
+|-----------------|------------------------|-------|---------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| transactionMode | jdbc.transaction-mode  | false | true 或 false | 获取连接（调用 `DataSource.getConnection()` 方法）时是否返回的`Connection`对象是否默认设置为事务模式：<br/>- `true` 表示使用事务模式，即 `autoCommit`=`false` <br/>- `false` 表示非事务模式，即 `autoCommit`=`true`  <br/>* 使用Spring管理事务时可忽略该配置 |
+| commitOnClose   | jdbc.commit-on-close   | false | true 或 false | 关闭连接时（`autoCommit`=`false`，且有未提交的语句时）是否自动提交事务。<br/>- `true` 自动commit <br/>- `false` 自动rollback <br/>* 使用Spring管理事务时可忽略该配置                                                  |
+
+### 3.4 日志与监控配置
+
+| 配置项              | properties文件的key        | 默认值   | 取值范围          | 说明                                                                                                                         |
+|------------------|-------------------------|-------|---------------|-----------------------------------------------------------------------------------------------------------------------------|
+| verbose          | jdbc.verbose            | false | true 或 false | 是否记录除 SQL 语句及执行时间外的其他日志信息。                                                                                                  |
+| printSql         | jdbc.print-sql          | true  | true 或 false | 是否记录 SQL 语句及其执行时间。                                                                                                          |
+| infoSqlThreshold | jdbc.info-sql-threshold | 10    | 整数            | 当 `printSql` 为 `true` 且 SQL 执行耗时超过该阈值（单位：毫秒）时，打印 `INFO` 级别日志。 <br/>- `≤0` 不打印 `INFO` 级别日志                                   |
+| warnSqlThreshold | jdbc.warn-sql-threshold | 100   | 整数            | 当 `printSql` 为 `true` 且 SQL 执行耗时超过该阈值（单位：毫秒）时，打印 `WARN` 级别日志。<br/>- `≤0` 不打印 `WARN` 级别日志 <br/>- `>0` 时，取与`infoSqlThreshold`两者中的较大值 |
+| jmxLevel         | jdbc.jmx-level          | 0     | 0、1 或 2       | JMX 管理级别：<br/>- `0` 表示不启用 JMX <br/>- `1` 表示管理 `Hqcp`连接池 及其 `HqcpConfig`配置 实例 <br/>- `2` 表示管理 `数据库连接` 实例                     |
+
+### 3.5 SQL 脱敏配置
+
+| 配置项             | properties文件的key       | 默认值   | 取值范围         | 说明                                                                                                                |
+|-----------------|-------------------------|-------|--------------|---------------------------------------------------------------------------------------------------------------------|
+| maskSql         | jdbc.mask-sql           | false | true 或 false | 打印SQL日志时是否对敏感字段进行脱敏处理。<br/>- `true` 启用脱敏，根据 `sensitiveFields` 配置的字段进行脱敏 <br/>- `false` 不脱敏，直接输出原始SQL                   |
+| maskPattern     | jdbc.mask-pattern       | ****  | 非空字符串        | 脱敏时使用的替换字符串，如 `****`、`####`、`????`、`*#?●○` 等。                                                                     |
+| sensitiveFields | jdbc.sensitive-fields   | 空     | 逗号分隔的字段名列表   | 需要脱敏的敏感字段名称列表，多个字段用英文逗号分隔。<br/>例如：`password,phone,idCard,bankAccount`<br/>* 仅当 `maskSql` 为 `true` 时生效                |
 
 > 更多详细的配置参数请参考 `HqcpConfig` 类的源码文档说明。
 

@@ -18,7 +18,8 @@
 ### hq-cp
 - 核心数据库连接池实现
 - 提供Spring Boot Starter自动配置
-- 支持与Spring原生数据源配置的智能融合
+- 支持与 Spring 原生数据源配置的智能融合
+- **✨ 新增 SQL 敏感信息脱敏功能**
 
 ### hq-cp-boot-starter
 - 数据库连接池Spring Boot Starter
