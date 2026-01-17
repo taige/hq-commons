@@ -2,7 +2,7 @@
 
 [![GitHub Package](https://img.shields.io/badge/Download-v1.17.0-blue?logo=github)](https://github.com/taige/hq-commons/packages)
 [![GitHub Package](https://img.shields.io/badge/Download-GitHub_Packages-blue)](https://github.com/taige/hq-commons/packages)
-[![Java Version](https://img.shields.io/badge/Java-8%2B-orange?logo=openjdk)](https://openjdk.org/)
+[![Java Version](https://img.shields.io/badge/Java-17%2B-orange?logo=openjdk)](https://openjdk.org/)
 
 面向企业级Java应用的基础组件库，提供数据库连接池、MyBatis增强、Dubbo扩展等核心模块，通过深度整合Spring生态实现开箱即用的高效开发体验。          
 
