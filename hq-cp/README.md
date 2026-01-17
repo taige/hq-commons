@@ -24,6 +24,7 @@
       - [7.1.5 连接池状态信息](#715-连接池状态信息)
       - [7.1.6 其他常见告警信息](#716-其他常见告警信息)
     - [7.2 SQL执行日志](#72-SQL执行日志)
+      - [7.2.1 SQL敏感信息脱敏](#721-SQL敏感信息脱敏)
 - [总结](#总结)
 
 
@@ -101,6 +102,9 @@ dependencies {
 | lifetimeSec             | jdbc.lifetime-sec              | 0     | 0 ~ 86400（单位：秒）    | 连接存活时间，超过该时间的连接将被销毁。 <br/>- `0` 不回收 <br/>非`0`时，取与 `idleTimeoutSec` 两者中取较大值。                                                                                                                                            |
 | verbose                 | jdbc.verbose                   | false | true 或 false       | 是否记录除 SQL 语句及执行时间外的其他日志信息。                                                                                                                                                                                             |
 | printSql                | jdbc.print-sql                 | true  | true 或 false       | 是否记录 SQL 语句及其执行时间。                                                                                                                                                                                                     |
+| maskSql                 | jdbc.mask-sql                  | false | true 或 false       | 打印SQL日志时是否对敏感字段进行脱敏处理。<br/>- `true` 启用脱敏，根据 `sensitiveFields` 配置的字段进行脱敏 <br/>- `false` 不脱敏，直接输出原始SQL                                                                                                                              |
+| maskPattern             | jdbc.mask-pattern              | ****  | 非空字符串              | 脱敏时使用的替换字符串，如 `****`、`####`、`????`、`*#?●○` 等。                                                                                                                                                                                |
+| sensitiveFields         | jdbc.sensitive-fields          | 空     | 逗号分隔的字段名列表         | 需要脱敏的敏感字段名称列表，多个字段用英文逗号分隔。<br/>例如：`password,phone,idCard,bankAccount`<br/>* 仅当 `maskSql` 为 `true` 时生效                                                                                                                           |
 | infoSqlThreshold        | jdbc.info-sql-threshold        | 10    | 整数                 | 当 `printSql` 为 `true` 且 SQL 执行耗时超过该阈值（单位：毫秒）时，打印 `INFO` 级别日志。 <br/>- `≤0` 不打印 `INFO` 级别日志                                                                                                                              |
 | warnSqlThreshold        | jdbc.warn-sql-threshold        | 100   | 整数                 | 当 `printSql` 为 `true` 且 SQL 执行耗时超过该阈值（单位：毫秒）时，打印 `WARN` 级别日志。<br/>- `≤0` 不打印 `WARN` 级别日志 <br/>- `>0` 时，取与`infoSqlThreshold`两者中的较大值                                                                                     |
 | checkStatement          | jdbc.check-statement           | 无     | 合法的 SQL 查询语句       | 检测连接是否可用的 SQL 查询语句。<br/>* 如果未配置，将自动根据 url 中的数据库类型设置相应的检测语句（未匹配到以下数据库类型，则无法检测 <b>!!不建议!!</b>）：<br/>- `oracle`: `select systimestamp from dual` <br/>- `mysql`: `select now()` <br/>- `db2`: `values(current timestamp)` |
@@ -419,6 +423,120 @@ hq-cp提供了丰富的日志，用以监控、调优连接池、连接的使用
 [INFO ] HQCP#0#0.STMT#0.executeQuery(SELECT * FROM demo)[rs=#0] use 47,284,084 ns
 ```
 当SQL耗时大于 `warnSqlThreshold` 时，打印 `WARN` 日志，否则 大于 `infoSqlThreshold` 时，打印 `INFO` 日志，再否则 打印 `DEBUG` 日志
+
+#### 7.2.1 SQL敏感信息脱敏
+为了保护日志中的敏感信息（如密码、手机号、身份证号等），hq-cp 提供了SQL脱敏功能。通过配置 `maskSql`、`maskPattern` 和 `sensitiveFields` 三个参数，可以在打印SQL日志时自动对敏感字段的值进行脱敏处理。
+
+##### 配置说明
+- **maskSql**：是否启用SQL脱敏功能，默认为 `false`。设置为 `true` 时启用脱敏。
+- **maskPattern**：脱敏时使用的替换字符串，默认为 `****`。可以自定义为任意字符串，如 `####`、`????` 等。
+- **sensitiveFields**：需要脱敏的字段名列表，多个字段用英文逗号分隔。例如：`password,phone,idCard,bankAccount`
+
+##### 脱敏算法
+
+**普通字段值的脱敏规则：**
+
+脱敏算法会根据字段值的长度采用不同的策略，以在保护敏感信息的同时保留一定的可读性：
+
+1. **值长度 ≤ maskPattern长度**：全部替换为 `maskPattern`
+   - 示例（maskPattern=`****`）：
+     - `''` → `****`
+     - `'abc'` → `****`
+
+2. **值长度在 maskPattern长度的 1-3倍之间**：保留首尾字符，中间替换为 `maskPattern`
+   - 当无法平均分配保留的首尾字符时，首部保留更多字符
+   - 示例（maskPattern=`****`）：
+     - `'1234567'` (长度7) → `'12****7'` (保留首2尾1)
+     - `'1234567890'` (长度10) → `'123****890'` (保留首3尾3)
+
+3. **值长度 > maskPattern长度的 3倍**：保留前后各 maskPattern长度的字符，中间用 `maskPattern` 循环填充，脱敏后总长度与原值一致
+   - 示例（maskPattern=`?●#*`）：
+     - `'123456789012345'` (长度15) → `'1234?●#*?●#2345'` (保留前4后4，中间7位用`?●#*`循环填充)
+
+**LIKE 表达式值的特殊处理：**
+
+对于 `LIKE` 操作符中的值，脱敏时会保留首尾的通配符（`%` 和 `_`），只对中间的内容(包括通配符)进行脱敏：
+
+- 正确处理 ESCAPE 转义字符
+
+示例（maskPattern=`****`）：
+- `'%secret%'` → `'%s****t%'`
+- `'_password_'` → `'_pa****rd_'`
+- `'1234_67890%'` → `'123****890%'`
+
+##### 配置示例
+
+**properties 文件配置：**
+```properties
+jdbc.mask-sql=true
+jdbc.mask-pattern=****
+jdbc.sensitive-fields=password,phone,idCard,bankAccount,mobile
+```
+
+**Java 代码配置：**
+```java
+HqcpDataSource dataSource = new HqcpDataSource();
+dataSource.setMaskSql(true);
+dataSource.setMaskPattern("****");
+Set<String> sensitiveFields = new HashSet<>();
+sensitiveFields.add("password");
+sensitiveFields.add("phone");
+sensitiveFields.add("idCard");
+sensitiveFields.add("bankAccount");
+dataSource.setSensitiveFields(sensitiveFields);
+```
+
+**Spring Boot 配置（application.yml）：**
+```yaml
+spring:
+  datasource:
+    hqcp:
+      mask-sql: true
+      mask-pattern: "****"
+      sensitive-fields: password,phone,idCard,bankAccount,mobile
+```
+
+##### 脱敏效果示例
+
+**未启用脱敏时的SQL日志：**
+```
+[INFO ] HQCP#0#0.STMT#1.executeUpdate(UPDATE user SET password='123456', phone='13800138123' WHERE id=1) use 15,234,567 ns
+[INFO ] HQCP#0#0.PSTMT#2.executeQuery(SELECT * FROM user WHERE phone='13800138123' AND idCard='110101199001011234') use 8,456,789 ns
+```
+
+**启用脱敏后的SQL日志：**
+```
+[INFO ] HQCP#0#0.STMT#1.executeUpdate(UPDATE user SET password='1****6', phone='1380****123' WHERE id=1) use 15,234,567 ns
+[INFO ] HQCP#0#0.PSTMT#2.executeQuery(SELECT * FROM user WHERE phone='1380****123' AND idCard='1101**********1234') use 8,456,789 ns
+```
+
+##### 注意事项
+- 脱敏功能仅对日志输出进行处理，不影响实际的SQL执行。
+- 字段名匹配不区分大小写，且**模糊匹配**，`Password`、`password`、`PASSWORD`、`app_password` 都会被识别为同一个字段。
+- 脱敏仅在 `printSql=true` 时有效，如果不打印SQL日志，则脱敏配置不会生效。
+- 建议根据实际业务场景配置敏感字段列表，避免遗漏重要的敏感信息。
+
+##### 当前版本的局限性
+
+脱敏功能基于 SQL 解析实现，对于以下场景暂不支持或有限制：
+
+1. **敏感字段或值使用了函数**
+   - 值使用了函数：`INSERT INTO users (password) VALUES (MD5('secret'))`
+   - 字段在函数中：`SELECT * FROM users WHERE LOWER(password) = 'secret'`
+   - 说明：当敏感字段或其值通过函数计算或转换时，无法识别和脱敏
+
+2. **非字符串类型的敏感字段**
+   - 示例：`UPDATE users SET key = 0x1234ABCD`
+   - 说明：仅支持字符串类型（单引号包围）的字段值脱敏，二进制、数值等类型暂不支持
+
+3. **字符串转义符的处理限制**
+   - SQL 中的单引号转义符（`'`）和 MySQL 的反斜杠转义符（`\`）会被当作普通字符处理
+   - 示例：`VALUES('''1234567')` 
+     - 语义层面是长度为 8 的字符串：`'1234567`
+     - 脱敏时按长度为 9 的字符串处理，结果为：`VALUES('''1****67')`，可能导致输出的 SQL 在语法上不完全准确
+   - 说明：由于该功能仅用于日志脱敏展示，不影响实际 SQL 执行
+
+> **提示**：上述限制场景在实际使用中较为少见。如果遇到无法脱敏的场景，原始 SQL 仍会正常输出到日志中，不会影响系统运行。
 
 ---
 

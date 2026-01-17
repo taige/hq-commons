@@ -548,6 +548,33 @@ class SqlMaskerTest {
             String expected = "UPDATE users SET `password` = 'new_****word'";
             assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
         }
+
+        @Test
+        void testFieldValueInFunction_unsupported() {
+            String sql = "UPDATE users SET password = MD5('new_password')";
+            String expected = "UPDATE users SET password = MD5('new_password')";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testFieldNameInFunction_unsupported() {
+            String sql = "SELECT * FROM users WHERE LOWER(password) = 'secret'";
+            String expected = "SELECT * FROM users WHERE LOWER(password) = 'secret'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+        @Test
+        void testNotStringField_unsupported() {
+            String sql = "SELECT * FROM users WHERE credit_card_no = 1234567890";
+            String expected = "SELECT * FROM users WHERE credit_card_no = 1234567890";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+
+            sql = "SELECT * FROM users WHERE credit_card_no = '1234567890'";
+            expected = "SELECT * FROM users WHERE credit_card_no = '123****890'";
+            assertEquals(expected, sqlMasker.maskSensitiveFields(sql));
+        }
+
+
     }
 
     @Nested
