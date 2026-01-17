@@ -35,11 +35,11 @@ jobs:
         with:
           ref: ${{ inputs.branch }}   # 使用指定的分支
 
-      # 2. 设置 Java 8 环境并启用 Maven 缓存
-      - name: Set up JDK 8
+      # 2. 设置 Java 17 环境并启用 Maven 缓存
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'temurin'
           server-id: github   # 与pom.xml中的id对应
           cache: 'maven'      # 自动缓存 Maven 依赖

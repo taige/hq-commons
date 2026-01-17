@@ -1,6 +1,6 @@
 # hq-commons
 
-[![GitHub Package](https://img.shields.io/badge/Download-v1.4.1-blue?logo=github)](https://github.com/taige/hq-commons/packages)
+[![GitHub Package](https://img.shields.io/badge/Download-v1.17.0-blue?logo=github)](https://github.com/taige/hq-commons/packages)
 [![GitHub Package](https://img.shields.io/badge/Download-GitHub_Packages-blue)](https://github.com/taige/hq-commons/packages)
 [![Java Version](https://img.shields.io/badge/Java-8%2B-orange?logo=openjdk)](https://openjdk.org/)
 
@@ -95,7 +95,7 @@
   <dependency>
     <groupId>io.hqwu.commons</groupId>
     <artifactId>hq-cp</artifactId>
-    <version>1.4.1</version>
+    <version>1.17.0</version>
   </dependency>
 
   <!-- 其他dependency  -->
