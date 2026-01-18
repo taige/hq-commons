@@ -1,9 +1,8 @@
 package io.hqwu.commons.annotation.constraints.support;
 
 import io.hqwu.commons.util.StringUtil;
+import jakarta.validation.ConstraintValidatorContext;
 import org.hibernate.validator.internal.constraintvalidators.bv.EmailValidator;
-
-import javax.validation.ConstraintValidatorContext;
 
 /**
  * Created with IntelliJ IDEA for pp-gopay-fa

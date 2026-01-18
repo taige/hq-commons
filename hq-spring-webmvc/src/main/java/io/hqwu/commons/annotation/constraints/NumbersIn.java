@@ -3,9 +3,9 @@ package io.hqwu.commons.annotation.constraints;
 
 import io.hqwu.commons.annotation.constraints.support.NumbersInArrayValidator;
 import io.hqwu.commons.annotation.constraints.support.NumbersInValidator;
+import jakarta.validation.Constraint;
+import jakarta.validation.Payload;
 
-import javax.validation.Constraint;
-import javax.validation.Payload;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

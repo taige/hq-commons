@@ -4,17 +4,17 @@ import io.hqwu.commons.annotation.constraints.support.EmailsValidator;
 import io.hqwu.commons.annotation.constraints.support.NumbersInMessageInterpolator;
 import io.hqwu.commons.annotation.constraints.support.PatternValidatorForBlank;
 import io.hqwu.commons.annotation.constraints.support.SizeValidatorForBlankCharSequence;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.Validation;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import org.hibernate.validator.HibernateValidator;
 import org.hibernate.validator.HibernateValidatorConfiguration;
 import org.hibernate.validator.cfg.ConstraintMapping;
 import org.hibernate.validator.messageinterpolation.AbstractMessageInterpolator;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
-import javax.validation.ConstraintValidator;
-import javax.validation.Validation;
-import javax.validation.constraints.Email;
-import javax.validation.constraints.Pattern;
-import javax.validation.constraints.Size;
 import java.lang.annotation.Annotation;
 
 /**
@@ -32,7 +32,7 @@ public class EnhancedValidator extends LocalValidatorFactoryBean {
     }
 
     @Override
-    protected void postProcessConfiguration(javax.validation.Configuration<?> configuration) {
+    protected void postProcessConfiguration(jakarta.validation.Configuration<?> configuration) {
         HibernateValidatorConfiguration config = Validation.byProvider(HibernateValidator.class).configure();
         customizeConstraintMappings(config);
     }

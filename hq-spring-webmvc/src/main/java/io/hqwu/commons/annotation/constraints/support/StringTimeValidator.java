@@ -3,9 +3,9 @@ package io.hqwu.commons.annotation.constraints.support;
 import io.hqwu.commons.annotation.constraints.StringTime;
 import io.hqwu.commons.util.Logger;
 import io.hqwu.commons.util.StringUtil;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
 
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
 import java.time.format.DateTimeFormatter;
 
 /**

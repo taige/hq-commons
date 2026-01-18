@@ -1,11 +1,10 @@
 package io.hqwu.commons.annotation.constraints.support;
 
 import io.hqwu.commons.annotation.constraints.AnyFieldsValidated;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 import lombok.experimental.Accessors;
-
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotEmpty;
 
 import static io.hqwu.commons.annotation.constraints.AnyFieldsValidated.AnyField;
 

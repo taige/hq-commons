@@ -2,8 +2,8 @@ package io.hqwu.commons.utils;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hqwu.commons.util.StringUtil;
+import jakarta.validation.ConstraintViolation;
 
-import javax.validation.ConstraintViolation;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.stream.StreamSupport;

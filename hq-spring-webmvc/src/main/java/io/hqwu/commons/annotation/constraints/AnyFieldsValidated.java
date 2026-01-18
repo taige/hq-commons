@@ -1,10 +1,10 @@
 package io.hqwu.commons.annotation.constraints;
 
 import io.hqwu.commons.annotation.constraints.support.AnyFieldsValidatedValidator;
+import jakarta.validation.Constraint;
+import jakarta.validation.Payload;
+import jakarta.validation.groups.Default;
 
-import javax.validation.Constraint;
-import javax.validation.Payload;
-import javax.validation.groups.Default;
 import java.lang.annotation.*;
 
 import static java.lang.annotation.RetentionPolicy.RUNTIME;

@@ -2,10 +2,9 @@ package io.hqwu.commons.annotation.constraints.support;
 
 
 import io.hqwu.commons.annotation.constraints.Cron;
-import org.springframework.scheduling.support.CronSequenceGenerator;
-
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
+import org.springframework.scheduling.support.CronExpression;
 
 /**
  * Created with IntelliJ IDEA for bp-public-api
@@ -18,12 +17,7 @@ public class CronValidator implements ConstraintValidator<Cron, String> {
 
     @Override
     public boolean isValid(String value, ConstraintValidatorContext context) {
-        try {
-            new CronSequenceGenerator(value);
-        } catch (RuntimeException e) {
-            return false;
-        }
-        return true;
+        return CronExpression.isValidExpression(value);
     }
 
 }

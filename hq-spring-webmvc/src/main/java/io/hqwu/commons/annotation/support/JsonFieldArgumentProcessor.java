@@ -5,6 +5,7 @@ import io.hqwu.commons.annotation.JsonField;
 import io.hqwu.commons.servlet.support.CachedBodyHttpServletRequest;
 import io.hqwu.commons.util.ClassUtil;
 import io.hqwu.commons.util.Logger;
+import jakarta.servlet.http.HttpServletRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.Conventions;
 import org.springframework.core.MethodParameter;
@@ -25,7 +26,6 @@ import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.ModelAndViewContainer;
 import org.springframework.web.servlet.mvc.method.annotation.AbstractMessageConverterMethodArgumentResolver;
 
-import javax.servlet.http.HttpServletRequest;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;

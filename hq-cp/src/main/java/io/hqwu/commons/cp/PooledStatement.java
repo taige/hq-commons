@@ -239,6 +239,12 @@ class PooledStatement implements InvocationHandler {
                 if (isPrintSQL()) {
                     printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", ret4log, "]");
                 }
+            } else if (methodDoing.equals("getMoreResults")) {
+                ret = method.invoke(real_statement, args);
+                Object ret4log = onExecuteMethodDone(methodDoing, ret);
+                if (isVerbose() || isPrintSQL()) {
+                    LOGGER.debug(statementName, ".", methodDoing, "(...)", "[", ret4log, "] use ", Formatter.formatNS(System.nanoTime() - start), " ns");
+                }
             } else {
                 if (methodDoing.equals("getResultSet") && resultSet != null) {
                     // maybe incorrect
@@ -264,7 +270,7 @@ class PooledStatement implements InvocationHandler {
 //        boolean b = real_statement.execute("");
 //        int n = real_statement.executeUpdate("");
 //        long l = real_statement.executeLargeUpdate("");
-        if (methodDoing.equals("execute")) {
+        if (methodDoing.equals("execute") || methodDoing.equals("getMoreResults")) {
             // true if the first result is a ResultSet object;
             // false if it is an update count or there are no results
             if ((Boolean) ret) {

@@ -2,9 +2,8 @@ package io.hqwu.commons.annotation.constraints.support;
 
 import io.hqwu.commons.annotation.constraints.CurrencyCode;
 import io.hqwu.commons.util.StringUtil;
-
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
 
 /**
  * Created with IntelliJ IDEA for hq-commons-parent

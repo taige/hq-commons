@@ -1,10 +1,10 @@
 package io.hqwu.commons.mybatisplus;
 
 import io.hqwu.commons.util.StringUtil;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import org.hibernate.validator.constraints.Range;
 
-import javax.validation.constraints.Min;
-import javax.validation.constraints.Pattern;
 import java.util.StringJoiner;
 
 /**

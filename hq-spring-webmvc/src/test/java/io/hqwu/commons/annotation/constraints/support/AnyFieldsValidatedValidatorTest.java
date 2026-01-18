@@ -1,6 +1,8 @@
 package io.hqwu.commons.annotation.constraints.support;
 
 import io.hqwu.commons.utils.ConstraintViolationUtil;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import lombok.CustomLog;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,8 +13,6 @@ import org.springframework.test.context.BootstrapWith;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.context.support.DefaultTestContextBootstrapper;
 
-import javax.validation.ConstraintViolation;
-import javax.validation.Validator;
 import java.util.Set;
 import java.util.stream.Collectors;
 

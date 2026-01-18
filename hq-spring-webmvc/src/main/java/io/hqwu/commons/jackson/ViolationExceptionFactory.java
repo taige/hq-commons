@@ -1,6 +1,7 @@
 package io.hqwu.commons.jackson;
 
-import javax.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolation;
+
 import java.util.Set;
 
 /**
