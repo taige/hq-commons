@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.generator.config.OutputFile;
 import com.baomidou.mybatisplus.generator.config.rules.DbColumnType;
 import com.baomidou.mybatisplus.generator.config.rules.NamingStrategy;
 import com.baomidou.mybatisplus.generator.engine.FreemarkerTemplateEngine;
+import io.hqwu.commons.util.StringUtil;
 import org.apache.ibatis.type.JdbcType;
 
 import javax.sql.DataSource;
@@ -23,8 +24,6 @@ import java.util.stream.Collectors;
  * @link <a href="https://baomidou.com/guides/new-code-generator/">代码生成器</a>
  */
 public class CodeGenerator {
-    // java文件路径
-    private static final String JAVA_PACKAGE_URL = "/src/main/java";
 
     private final String basePackage;
 
@@ -35,9 +34,20 @@ public class CodeGenerator {
     private String author = "Mr. NoName";
 
     /**
-     * mapper.xml 文件生成路径
+     * 文件生成的基础目录 <br/>
+     * 默认值：user.dir 环境变量
      */
-    private String mapperXmlOutputPath = "/src/main/resources/mapper/";
+    private String baseOutputDir;
+
+    /**
+     * java 文件生成路径，相对 {@link #baseOutputDir} 的路径
+     */
+    private String javaOutputPath = "src/main/java";
+
+    /**
+     * mapper.xml 文件生成路径，相对 {@link #baseOutputDir} 的路径
+     */
+    private String mapperXmlOutputPath = "src/main/resources/mapper/";
 
     /**
      * 文件模板目录
@@ -71,9 +81,9 @@ public class CodeGenerator {
     private String controllerTemplatePath = "controller.java";
 
     /**
-     * 实体类名格式，默认为 %PO，即 以 PO 结尾
+     * 实体类名格式，默认为 %sPO，即 以 PO 结尾
      */
-    private String entityNameFormat = "%PO";
+    private String entityNameFormat = "%sPO";
 
     /**
      * 生成service相关类，默认：false - 不生成
@@ -84,12 +94,6 @@ public class CodeGenerator {
      * 生成controller类，默认：false - 不生成
      */
     private boolean controllerEnabled = false;
-
-    /**
-     * 文件生成的基础目录 <br/>
-     * 默认值：user.dir 环境变量
-     */
-    private String baseOutputDir;
 
     /**
      * 参考 {@link IdType}
@@ -150,6 +154,15 @@ public class CodeGenerator {
             generator.strategyConfig(builder ->
                     builder.controllerBuilder().disable());
         }
+        if (StringUtil.isNotBlank(author)) {
+            generator.globalConfig(builder ->
+                    builder.author(author));
+        }
+        if (idType != null) {
+            generator.strategyConfig(builder ->
+                    builder.entityBuilder().idType(idType)
+            );
+        }
         generator.strategyConfig(builder ->
                 builder.addInclude(tables)
                         .addTablePrefix(prefix))
@@ -157,7 +170,7 @@ public class CodeGenerator {
     }
 
     protected FastAutoGenerator buildGenerator() {
-        String projectPath = baseOutputDir == null ? System.getProperty("user.dir") : baseOutputDir;
+        String projectPath = StringUtil.isBlank(baseOutputDir) ? System.getProperty("user.dir") : baseOutputDir;
         return FastAutoGenerator.create(new DataSourceConfig.Builder(dataSource))
                 .dataSourceConfig(builder ->
                         builder.typeConvertHandler((globalConfig, typeRegistry, metaInfo) -> {
@@ -170,7 +183,7 @@ public class CodeGenerator {
                 .packageConfig(builder ->
                         builder.parent(basePackage)
                                 .moduleName(moduleName)
-                                .pathInfo(Collections.singletonMap(OutputFile.xml, mapperXmlOutputPath)))
+                                .pathInfo(Collections.singletonMap(OutputFile.xml, new File(projectPath, mapperXmlOutputPath).getPath())))
                 .strategyConfig(builder ->
                         builder.entityBuilder()
                                 .formatFileName(entityNameFormat)
@@ -179,7 +192,6 @@ public class CodeGenerator {
                                 .enableLombok()
                                 .enableChainModel()
                                 .disableSerialVersionUID()
-                                .idType(idType)
                                 .javaTemplate(new File(templatesPath, entityTemplatePath).getPath())
                                 .mapperBuilder()
                                 .mapperTemplate(new File(templatesPath, mapperTemplatePath).getPath())
@@ -192,12 +204,20 @@ public class CodeGenerator {
                                 .enableHyphenStyle()
                                 .template(new File(templatesPath, controllerTemplatePath).getPath())) // 不生成 controller
                 .globalConfig(builder ->
-                        builder.author(author)
-                                .outputDir(new File(projectPath, JAVA_PACKAGE_URL).getPath())
+                        builder.outputDir(new File(projectPath, javaOutputPath).getPath())
                                 .disableOpenDir()
 
                 )
-                .templateEngine(new FreemarkerTemplateEngine());
+                .templateEngine(new FreemarkerTemplateEngine() {
+                    @Override
+                    protected boolean isCreate(File file, boolean fileOverride) {
+                        boolean b = super.isCreate(file, fileOverride);
+                        if (! b) {
+                            System.err.printf("文件[%s]已存在，且未开启文件覆盖配置，需要开启配置可到策略配置中设置！！！%n", file.getName());
+                        }
+                        return b;
+                    }
+                });
     }
 
     public CodeGenerator baseOutputDir(String baseOutputDir) {
@@ -216,47 +236,72 @@ public class CodeGenerator {
     }
 
     public CodeGenerator controllerTemplatePath(String controllerTemplatePath) {
-        this.controllerTemplatePath = controllerTemplatePath;
+        if (StringUtil.isNotBlank(controllerTemplatePath)) {
+            this.controllerTemplatePath = controllerTemplatePath;
+        }
         return this;
     }
 
     public CodeGenerator mapperXmlOutputPath(String mapperXmlOutputPath) {
-        this.mapperXmlOutputPath = mapperXmlOutputPath;
+        if (StringUtil.isNotBlank(mapperXmlOutputPath)) {
+            this.mapperXmlOutputPath = mapperXmlOutputPath;
+        }
+        return this;
+    }
+
+    public CodeGenerator javaOutputPath(String javaOutputPath) {
+        if (StringUtil.isNotBlank(javaOutputPath)) {
+            this.javaOutputPath = javaOutputPath;
+        }
         return this;
     }
 
     public CodeGenerator templatesPath(String templatesPath) {
-        this.templatesPath = templatesPath;
+        if (StringUtil.isNotBlank(templatesPath)) {
+            this.templatesPath = templatesPath;
+        }
         return this;
     }
 
     public CodeGenerator mapperXmlTemplatePath(String mapperXmlTemplatePath) {
-        this.mapperXmlTemplatePath = mapperXmlTemplatePath;
+        if (StringUtil.isNotBlank(mapperXmlTemplatePath)) {
+            this.mapperXmlTemplatePath = mapperXmlTemplatePath;
+        }
         return this;
     }
 
     public CodeGenerator mapperTemplatePath(String mapperTemplatePath) {
-        this.mapperTemplatePath = mapperTemplatePath;
+        if (StringUtil.isNotBlank(mapperTemplatePath)) {
+            this.mapperTemplatePath = mapperTemplatePath;
+        }
         return this;
     }
 
     public CodeGenerator entityTemplatePath(String entityTemplatePath) {
-        this.entityTemplatePath = entityTemplatePath;
+        if (StringUtil.isNotBlank(entityTemplatePath)) {
+            this.entityTemplatePath = entityTemplatePath;
+        }
         return this;
     }
 
     public CodeGenerator serviceTemplatePath(String serviceTemplatePath) {
-        this.serviceTemplatePath = serviceTemplatePath;
+        if (StringUtil.isNotBlank(serviceTemplatePath)) {
+            this.serviceTemplatePath = serviceTemplatePath;
+        }
         return this;
     }
 
     public CodeGenerator serviceImplTemplatePath(String serviceImplTemplatePath) {
-        this.serviceImplTemplatePath = serviceImplTemplatePath;
+        if (StringUtil.isNotBlank(serviceImplTemplatePath)) {
+            this.serviceImplTemplatePath = serviceImplTemplatePath;
+        }
         return this;
     }
 
     public CodeGenerator entityNameFormat(String entityNameFormat) {
-        this.entityNameFormat = entityNameFormat;
+        if (StringUtil.isNotBlank(entityNameFormat)) {
+            this.entityNameFormat = entityNameFormat;
+        }
         return this;
     }
 
