@@ -48,14 +48,23 @@ public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFact
 //        throw new UnsupportedOperationException("getLoginTimeout is unsupported.");
 //    }
 
+    @Override
+    @SuppressWarnings("unchecked")
     public <T> T unwrap(Class<T> iface) throws SQLException {
-        // TODO Auto-generated method stub
-        return null;
+        if (iface.isInstance(this)) {
+            return (T) this;
+        }
+
+        if (iface.isInstance(this.pool)) {
+            return (T) this.pool;
+        }
+
+        throw new SQLException("Cannot unwrap to " + iface.getName());
     }
 
+    @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
-        // TODO Auto-generated method stub
-        return false;
+        return iface.isInstance(this) || (iface.isInstance(this.pool));
     }
 
     public Object getObjectInstance(Object object, Name name, Context nameCtx, Hashtable<?, ?> environment) throws Exception {
