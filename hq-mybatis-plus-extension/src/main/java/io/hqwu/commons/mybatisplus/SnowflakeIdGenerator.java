@@ -19,7 +19,7 @@ import io.hqwu.commons.util.StringUtil;
 public class SnowflakeIdGenerator extends DefaultIdentifierGenerator {
 
     public SnowflakeIdGenerator() {
-        super((Sequence) null);
+        super(new Sequence(null));
     }
 
     public SnowflakeIdGenerator(Sequence sequence) {
