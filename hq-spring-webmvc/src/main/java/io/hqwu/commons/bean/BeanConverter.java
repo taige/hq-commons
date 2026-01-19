@@ -13,7 +13,6 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.annotation.AnnotationConfigurationException;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
-import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.beans.IntrospectionException;
@@ -30,8 +29,11 @@ import java.util.function.Function;
  * User: taige
  * Date: 2020/5/4
  * Time: 21:25
+ *
+ * @deprecated 推荐使用 MapStruct 作为替代方案，性能更好且类型安全。
+ * @see <a href="https://mapstruct.org/">MapStruct</a>
  */
-@Component
+@Deprecated
 public class BeanConverter implements ApplicationContextAware {
     private static final Logger LOGGER = new Logger();
 

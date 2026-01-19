@@ -3,9 +3,9 @@ package io.hqwu.commons.utils;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.hqwu.commons.util.StringUtil;
 import jakarta.validation.ConstraintViolation;
+import org.apache.commons.lang3.ArrayUtils;
 
 import java.lang.reflect.Field;
-import java.util.Arrays;
 import java.util.stream.StreamSupport;
 
 /**
@@ -43,7 +43,7 @@ public class ConstraintViolationUtil {
                     }
                     Object invalidValue = violation.getInvalidValue();
                     if (invalidValue != null && invalidValue.getClass().isArray()) {
-                        invalidValue = Arrays.toString( (Object[]) invalidValue);
+                        invalidValue = ArrayUtils.toString(invalidValue);
                     }
                     msg.append(String.format("`%s` %s (got:%s)",
                             fieldName, violation.getMessage(), invalidValue));

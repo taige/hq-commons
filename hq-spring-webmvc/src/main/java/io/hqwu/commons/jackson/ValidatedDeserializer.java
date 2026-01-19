@@ -11,9 +11,40 @@ import java.io.IOException;
 import java.util.Set;
 
 /**
- * Created with IntelliJ IDEA for pp-gopay-fa
+ * 带有验证功能的 JSON 反序列化器。
+ * <p>
+ * 该类扩展了 Jackson 的 {@link BeanDeserializer}，在反序列化 JSON 对象后自动执行 Bean Validation 校验。
+ * 主要用于在 JSON 数据转换为 Java 对象时，确保对象满足指定的约束条件（如 {@code @NotNull}、{@code @Size} 等）。
+ * </p>
+ *
+ * <p>
+ * 功能特性：
+ * <ul>
+ *   <li>在反序列化完成后自动触发 JSR-380 Bean Validation 校验</li>
+ *   <li>支持校验分组（Validation Groups）功能，通过 {@link ValidatedJson#validateGroups()} 指定</li>
+ *   <li>对于 {@link ValidatedJsonResponse} 类型的对象，当其标识为错误状态时会跳过校验</li>
+ *   <li>校验失败时通过 {@link ViolationExceptionFactory} 生成自定义异常</li>
+ * </ul>
+ * </p>
+ *
+ * <p>
+ * 使用示例：
+ * <pre>
+ * // 配置 ObjectMapper 使用该反序列化器
+ * ObjectMapper mapper = new ObjectMapper();
+ * // ... 注册 ValidatedDeserializer ...
+ *
+ * // JSON 反序列化时会自动校验
+ * MyValidatedObject obj = mapper.readValue(jsonString, MyValidatedObject.class);
+ * </pre>
+ * </p>
  *
  * @author taige (Wu, Hongqiang)
+ * @see BeanDeserializer
+ * @see ValidatedJson
+ * @see ValidatedJsonResponse
+ * @see ViolationExceptionFactory
+ * @see jakarta.validation.Validator
  * Date: 2020/5/31
  * Time: 11:19
  */

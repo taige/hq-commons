@@ -8,9 +8,27 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /**
- * Created with IntelliJ IDEA for pp-gopay-fa
+ * {@link NumbersIn} 注解的消息插值器实现,用于处理验证消息中数组参数的格式化输出。
+ * <p>
+ * 该插值器继承自 {@link AbstractMessageInterpolator},专门用于将 {@link NumbersIn}
+ * 注解的 value 属性(数组类型)格式化为可读的字符串形式,以便在验证失败消息中正确显示。
+ * 支持将 long[] 数组和 Object[] 数组转换为字符串表示形式。
+ * </p>
+ * <p>
+ * 工作流程:
+ * <ul>
+ *   <li>检测当前验证约束是否为 {@link NumbersIn} 类型</li>
+ *   <li>从 {@link HibernateMessageInterpolatorContext} 或约束描述符中提取参数变量</li>
+ *   <li>若参数为数组类型,则使用 {@link Arrays#toString(long[])} 或 {@link Arrays#toString(Object[])} 格式化</li>
+ *   <li>否则委托给内部 messageInterpolator 进行标准插值处理</li>
+ * </ul>
+ * </p>
  *
  * @author taige (Wu, Hongqiang)
+ * @see NumbersIn
+ * @see AbstractMessageInterpolator
+ * @see HibernateMessageInterpolatorContext
+ * @see Arrays
  * Date: 2020/5/12
  * Time: 12:44
  */
