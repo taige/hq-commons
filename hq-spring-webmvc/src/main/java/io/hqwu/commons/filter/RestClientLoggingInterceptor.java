@@ -20,13 +20,38 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
 /**
- * Created with IntelliJ IDEA for hq-spring-webmvc
+ * RestTemplate 的 REST 客户端日志拦截器
  *
- * logging interceptor for RestTemplate as a rest client
+ * <p>用于拦截 {@link org.springframework.web.client.RestTemplate} 发起的 HTTP 请求和响应，
+ * 并记录详细的调用日志，包括请求方法、URI、请求头、请求体、响应状态码、响应头、响应体以及耗时等信息。</p>
  *
- * User: taige
- * Date: 2020/3/31
- * Time: 10:35
+ * <p>日志级别：
+ * <ul>
+ *   <li>INFO 级别：记录请求的基本信息（方法、URI、请求头）和响应的基本信息（状态码、响应头、耗时）</li>
+ *   <li>DEBUG 级别：额外记录请求体和响应体的详细内容（仅文本类型，二进制数据会记录类型和长度）</li>
+ * </ul>
+ * </p>
+ *
+ * <p><strong>注意：</strong>为了安全地记录响应体，必须使用
+ * {@link org.springframework.http.client.BufferingClientHttpRequestFactory} 包装 RestTemplate 的请求工厂，
+ * 以便响应体可以被多次读取。否则响应流读取后将无法在业务代码中再次使用。</p>
+ *
+ * <p>示例用法：
+ * <pre>{@code
+ * RestTemplate restTemplate = new RestTemplate(
+ *     new BufferingClientHttpRequestFactory(new SimpleClientHttpRequestFactory())
+ * );
+ * restTemplate.getInterceptors().add(
+ *     new RestClientLoggingInterceptor("MyRestClient")
+ * );
+ * }</pre>
+ * </p>
+ *
+ * @author taige
+ * @see org.springframework.http.client.ClientHttpRequestInterceptor
+ * @see org.springframework.web.client.RestTemplate
+ * @see org.springframework.http.client.BufferingClientHttpRequestFactory
+ * @since 2020/3/31
  */
 public class RestClientLoggingInterceptor implements ClientHttpRequestInterceptor {
     private final Logger LOGGER;
@@ -58,7 +83,11 @@ public class RestClientLoggingInterceptor implements ClientHttpRequestIntercepto
         
         LOGGER.info("[%s]%sing : %s, Headers: %s", logTag, method, requestUri, request.getHeaders());
         if (LOGGER.isDebugEnabled() && ! HttpMethod.GET.equals(method) && ! HttpMethod.HEAD.equals(method)) {
-            LOGGER.debug("[%s]Request body: %s", logTag, new String(body, StandardCharsets.UTF_8));
+            if (isTextType(request.getHeaders().getContentType())) {
+                LOGGER.debug("[%s]Request body: %s", logTag, new String(body, StandardCharsets.UTF_8));
+            } else {
+                LOGGER.debug("[%s]Request body: [Binary data] Content-Type: %s, Length: %d", logTag, request.getHeaders().getContentType(), body.length);
+            }
         }
 
         long startMS = System.currentTimeMillis();
@@ -68,13 +97,24 @@ public class RestClientLoggingInterceptor implements ClientHttpRequestIntercepto
                 method, requestUri, response.getStatusCode(), headers, Formatter.formatNS(System.currentTimeMillis() - startMS));
 
         if (LOGGER.isDebugEnabled()) {
-            Charset contentCharset = Optional.ofNullable(Optional.ofNullable(headers.getContentType())
-                    .orElse(MediaType.APPLICATION_JSON).getCharset()).orElse(StandardCharsets.UTF_8);
-            String responseBody = StreamUtils.copyToString(response.getBody(), contentCharset);
-            LOGGER.debug("[%s]Response body: %s", logTag, responseBody);
+            if (isTextType(headers.getContentType())) {
+                Charset contentCharset = Optional.ofNullable(Optional.ofNullable(headers.getContentType())
+                        .orElse(MediaType.APPLICATION_JSON).getCharset()).orElse(StandardCharsets.UTF_8);
+                String responseBody = StreamUtils.copyToString(response.getBody(), contentCharset);
+                LOGGER.debug("[%s]Response body: %s", logTag, responseBody);
+            } else {
+                LOGGER.debug("[%s]Response body: [Binary data] Content-Type: %s, Length: %d", logTag, headers.getContentType(), headers.getContentLength());
+            }
         }
 
         return response;
+    }
+
+    private boolean isTextType(MediaType mediaType) {
+        if (mediaType == null) {
+            return false;
+        }
+        return "text".equals(mediaType.getType()) || mediaType.getSubtype().contains("json") || mediaType.getSubtype().contains("xml") || mediaType.getSubtype().contains("html");
     }
 
 }

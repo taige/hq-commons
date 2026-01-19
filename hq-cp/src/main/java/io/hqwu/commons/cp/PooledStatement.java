@@ -25,7 +25,7 @@ class PooledStatement implements InvocationHandler {
     /**
      * 归属连接
      */
-    private final PooledConnection connection;
+    private final PooledConnection pooledConnection;
     /**
      * 语句Id
      */
@@ -95,7 +95,7 @@ class PooledStatement implements InvocationHandler {
     private String sqlDoing;
 
     PooledStatement(PooledConnection conn, Statement stmt, int stmtId) throws SQLException {
-        connection = conn;
+        pooledConnection = conn;
         statementId = stmtId;
         statementName = conn.getConnectionName() + ".STMT#" + stmtId;
         real_statement = stmt;
@@ -149,13 +149,19 @@ class PooledStatement implements InvocationHandler {
         if ("toString".equals(methodDoing) && (args == null || args.length == 0)) {
             return toString();//不代理
         }
+
+        // Ensure statement is open for business logic operations (excluding close/isClosed etc.)
+        if (!checkOut.get() && !"close".equals(methodDoing) && !"isClosed".equals(methodDoing)) {
+            throw new SQLException("Statement has been closed", "HY010"); // HY010: Function sequence error
+        }
+
         try {
             busying = System.nanoTime();
             methodBusying = methodDoing;
             Object obj = _invoke(proxy, method, args);
             if (methodDoing.startsWith("execute") && ! methodDoing.startsWith("executeQuery")) {
                 if (! methodDoing.equals("execute") || ! (Boolean) obj) {
-                    connection.setDirty();
+                    pooledConnection.setDirty();
                 }
             }
             return obj;
@@ -172,10 +178,10 @@ class PooledStatement implements InvocationHandler {
                     LOGGER.error("unexpected exception occurs on ", methodDoing, "(", getMaskedSql(), ")", e);
                 }
             }
-            if (! (e instanceof SQLException) || connection.isFetalException((SQLException) e)) {
+            if (! (e instanceof SQLException) || pooledConnection.isFetalException((SQLException) e)) {
                 close();
                 //sql执行失败不新建连接,直接关闭物理链接,等待Connection的close调用,modify by shenjl at 2015-03-09
-                connection.setFatalExceptionHappened(true);
+                pooledConnection.setFatalExceptionHappened(true);
                 //connection.recover(e);
             }
             throw e;
@@ -207,9 +213,9 @@ class PooledStatement implements InvocationHandler {
                     updateCount = null;
                 }
                 if (this instanceof PooledPreparedStatement) {
-                    connection.checkIn((PooledPreparedStatement) this);
+                    pooledConnection.checkIn((PooledPreparedStatement) this);
                 } else {
-                    connection.checkIn(this);
+                    pooledConnection.checkIn(this);
                 }
                 if (isVerbose()) {
                     LOGGER.trace(statementName, ".close() use ", Formatter.formatNS(System.nanoTime() - start), " ns");
@@ -239,14 +245,23 @@ class PooledStatement implements InvocationHandler {
                 if (isPrintSQL()) {
                     printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", ret4log, "]");
                 }
+            } else if (methodDoing.equals("getMoreResults")) {
+                ret = method.invoke(real_statement, args);
+                Object ret4log = onExecuteMethodDone(methodDoing, ret);
+                if (isVerbose() || isPrintSQL()) {
+                    LOGGER.debug(statementName, ".", methodDoing, "(...)", "[", ret4log, "] use ", Formatter.formatNS(System.nanoTime() - start), " ns");
+                }
             } else {
                 if (methodDoing.equals("getResultSet") && resultSet != null) {
-                    // maybe incorrect
                     ret = resultSet;
                 } else if (methodDoing.equals("getUpdateCount") && updateCount != null) {
                     ret = updateCount.intValue();
                 } else if (methodDoing.equals("getLargeUpdateCount") && updateCount != null) {
                     ret = updateCount;
+                } else if (methodDoing.equals("isClosed")) {
+                    ret = ! checkOut.get();
+                } else if (methodDoing.equals("getConnection")) {
+                    ret = pooledConnection.getProxy();
                 } else {
                     ret = method.invoke(real_statement, args);
                 }
@@ -264,17 +279,20 @@ class PooledStatement implements InvocationHandler {
 //        boolean b = real_statement.execute("");
 //        int n = real_statement.executeUpdate("");
 //        long l = real_statement.executeLargeUpdate("");
-        if (methodDoing.equals("execute")) {
+        if (methodDoing.equals("execute") || methodDoing.equals("getMoreResults")) {
             // true if the first result is a ResultSet object;
             // false if it is an update count or there are no results
             if ((Boolean) ret) {
+                updateCount = -1L;
                 LoggableResultSet lrs = LoggableResultSet.newInstance(this, real_statement.getResultSet());
                 resultSet = lrs == null ? null : lrs.getResultSet();
                 return lrs == null ? "rs=null" : "rs=#" + lrs.getRsId();
             } else {
+                resultSet = null;
                 updateCount = (long) real_statement.getUpdateCount();
             }
         } else {
+            resultSet = null;
             if (int.class.isAssignableFrom(ret.getClass())
                     || Integer.class.isAssignableFrom(ret.getClass())) {
                 updateCount = (long) (int) ret;
@@ -289,11 +307,11 @@ class PooledStatement implements InvocationHandler {
     }
 
     private long getInfoSQLThreshold() {
-        return connection.getConnectionPool().getInfoSQLThreshold();
+        return pooledConnection.getConnectionPool().getInfoSQLThreshold();
     }
 
     private long getWarnSQLThreshold() {
-        return connection.getConnectionPool().getWarnSQLThreshold();
+        return pooledConnection.getConnectionPool().getWarnSQLThreshold();
     }
 
     /**
@@ -325,8 +343,8 @@ class PooledStatement implements InvocationHandler {
     }
 
     String getMaskedSql() {
-        HqcpConfig config = connection.getConnectionPool().getConfig();
-        SqlMasker sqlMasker = connection.getConnectionPool().getSqlMasker();
+        HqcpConfig config = pooledConnection.getConnectionPool().getConfig();
+        SqlMasker sqlMasker = pooledConnection.getConnectionPool().getSqlMasker();
         if (config.isMaskSql() && sqlMasker != null) {
             return sqlMasker.maskSensitiveFields(getSqlDoing());
         }
@@ -397,11 +415,11 @@ class PooledStatement implements InvocationHandler {
     }
     
     public boolean isVerbose() {
-        return connection.isVerbose();
+        return pooledConnection.isVerbose();
     }
 
     public boolean isPrintSQL() {
-        return connection.isPrintSQL();
+        return pooledConnection.isPrintSQL();
     }
 
     public long getCheckOutTime() {

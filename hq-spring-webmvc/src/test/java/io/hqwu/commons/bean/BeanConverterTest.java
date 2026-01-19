@@ -5,13 +5,13 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import io.hqwu.commons.annotation.SourceProperty;
 import io.hqwu.commons.bean.converters.DateTime2String;
+import jakarta.validation.constraints.*;
 import lombok.*;
 import lombok.experimental.Accessors;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cglib.beans.BeanCopier;
 
-import javax.validation.constraints.*;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;

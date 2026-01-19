@@ -27,6 +27,16 @@ CREATE TABLE IF NOT EXISTS `gpf_areas` (
   KEY `areas.parent_id` (`parent_id`)
 );
 
+--
+-- table `tinyint_test`
+--
+CREATE TABLE IF NOT EXISTS `tinyint_test` (
+  `id` int NOT NULL,
+  `status` tinyint(2) DEFAULT NULL,
+  `flag` tinyint(1) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+);
+
 INSERT INTO `gpf_areas` (`id`, `name`, `parent_id`) VALUES
 (1, '北京', NULL),
 (2, '上海', NULL),

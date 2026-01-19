@@ -3,13 +3,13 @@ package io.hqwu.commons.annotation.constraints.support;
 import io.hqwu.commons.annotation.constraints.AnyFieldsValidated;
 import io.hqwu.commons.util.ClassUtil;
 import io.hqwu.commons.util.Logger;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import org.hibernate.validator.internal.engine.constraintvalidation.ConstraintValidatorContextImpl;
 
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotEmpty;
-import javax.validation.constraints.NotNull;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.*;
@@ -21,9 +21,20 @@ import static io.hqwu.commons.annotation.constraints.AnyFieldsValidated.AnyField
 
 
 /**
- * Created with IntelliJ IDEA for hq-commons-parent
+ * {@link AnyFieldsValidated} 注解的校验器实现。<br/>
+ *
+ * 用于校验对象中被 {@link AnyField} 标注的字段：至少有一个字段满足指定约束 <br/>
+ * （{@link NotBlank}、{@link NotEmpty} 或 {@link NotNull}）。<br/>
+ *
+ * 支持按校验组（groups）过滤参与校验的字段；若所有相关字段均不满足约束，则构造相应的违例信息。<br/>
  *
  * @author taige (Wu, Hongqiang)
+ * @see AnyFieldsValidated
+ * @see AnyField
+ * @see ConstraintValidator
+ * @see NotBlank
+ * @see NotEmpty
+ * @see NotNull
  * Date: 2021-11-16
  * Time: 11:11
  */

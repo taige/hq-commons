@@ -12,12 +12,12 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
-    <spring-boot.version>2.7.18</spring-boot.version>
+    <spring-boot.version>3.5.9</spring-boot.version>
     <commons-io.version>2.15.1</commons-io.version>
     <commons-text.version>1.11.0</commons-text.version>
     <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
     <mybatis-plus.version>3.5.11</mybatis-plus.version>
-    <dubbo.version>2.7.12</dubbo.version>
+<!--    <dubbo.version>2.7.12</dubbo.version>-->
     <jsqlparser.version>4.9</jsqlparser.version>
 
     <test.logger.level>WARN</test.logger.level>
@@ -35,7 +35,7 @@
     <module>hq-cp-boot-starter</module>
     <module>hq-mybatis-plus-extension</module>
     <module>hq-spring-webmvc</module>
-    <module>hq-dubbo-ext</module>
+<!--    <module>hq-dubbo-ext</module>-->
   </modules>
 
   <distributionManagement>
@@ -59,11 +59,6 @@
         <version>${spring-boot.version}</version>
         <type>pom</type>
         <scope>import</scope>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.dubbo</groupId>
-        <artifactId>dubbo</artifactId>
-        <version>${dubbo.version}</version>
       </dependency>
       <dependency>
         <groupId>commons-io</groupId>
@@ -107,6 +102,7 @@
         <version>3.11.0</version>
         <configuration>
           <release>17</release>
+          <parameters>true</parameters>
         </configuration>
       </plugin>
       <plugin>

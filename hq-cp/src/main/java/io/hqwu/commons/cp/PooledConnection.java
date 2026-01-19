@@ -231,8 +231,8 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         return false;
     }
 
-    public Connection getConnection() {
-        return real_connection;
+    public Connection getProxy() {
+        return connection;
     }
 
     public void lock() throws InterruptedException {
@@ -304,7 +304,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         if (mname.equals("toString") && (args == null || args.length == 0)) {
             return toString();
         }
-        if (closed.get() && !mname.equals("close")) {
+        if (closed.get() && !mname.equals("close") && !mname.equals("isClosed")) {
             makeRealConnection();
         }
         try {
@@ -336,6 +336,9 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 if (isPrintSQL() || isVerbose()) {
                     log.debug(connectionName, ".close()[" , isFatalExceptionHappened() ,"] use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
+            } else if (mname.equals("isClosed")) {
+                // 如果未检出(!isCheckOut)，或内部已标记关闭，或物理连接已关闭，则返回 true
+                ret = !isCheckOut() || closed.get() || (real_connection != null && real_connection.isClosed());
             } else if (mname.equals("createStatement")) {
                 ret = createStatement(method, args);
                 if (isVerbose()) {

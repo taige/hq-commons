@@ -1,0 +1,192 @@
+{
+  "properties": [
+    {
+      "name": "spring.datasource.hqcp.url",
+      "type": "java.lang.String",
+      "description": "连接URL",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot"
+    },
+    {
+      "name": "spring.datasource.hqcp.driver-class-name",
+      "type": "java.lang.String",
+      "description": "jdbc驱动类",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot"
+    },
+    {
+      "name": "spring.datasource.hqcp.username",
+      "type": "java.lang.String",
+      "description": "数据库用户名",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot"
+    },
+    {
+      "name": "spring.datasource.hqcp.password",
+      "type": "java.lang.String",
+      "description": "数据库用户口令",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot"
+    },
+    {
+      "name": "spring.datasource.hqcp.min-connections",
+      "type": "java.lang.Integer",
+      "description": "池中最小连接数。取值范围 0 - 100，默认 1",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 1
+    },
+    {
+      "name": "spring.datasource.hqcp.max-connections",
+      "type": "java.lang.Integer",
+      "description": "池中最大连接数。取值范围 1 - 1000，默认 10",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 10
+    },
+    {
+      "name": "spring.datasource.hqcp.idle-timeout-sec",
+      "type": "java.lang.Long",
+      "description": "连接最大空闲时间(单位：秒seconds)，空闲超过该时间的连接将被检测或回收。取值范围 10s - 3600s，默认 5 * 60s",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 300
+    },
+    {
+      "name": "spring.datasource.hqcp.checkout-timeout-millisec",
+      "type": "java.lang.Long",
+      "description": "等待空闲连接时的超时时间(单位：milliseconds)。<0 一直等待，直到有空闲连接(危险！如果程序有bug可能导致一直等待)；=0 不等待，立刻抛SQLException；最大值 600 * 1000ms，默认 10 * 1000ms",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 10000
+    },
+    {
+      "name": "spring.datasource.hqcp.lifetime-sec",
+      "type": "java.lang.Long",
+      "description": "连接存活时间(单位：秒seconds)，存活超过这个时间的连接将被回收。<=0 不回收；最大值 24 * 3600s，默认：0 不回收",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 0
+    },
+    {
+      "name": "spring.datasource.hqcp.query-timeout",
+      "type": "java.lang.Integer",
+      "description": "query timeout (seconds)。<= 0 - no timeout，默认 60s",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 60
+    },
+    {
+      "name": "spring.datasource.hqcp.login-timeout",
+      "type": "java.lang.Integer",
+      "description": "default login timeout 10 seconds",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 10
+    },
+    {
+      "name": "spring.datasource.hqcp.check-statement",
+      "type": "java.lang.String",
+      "description": "检测连接是否可用的查询语句。会根据数据库类型自动配置：oracle - select systimestamp from dual；mysql - select now()；db2 - values(current timestamp)",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot"
+    },
+    {
+      "name": "spring.datasource.hqcp.commit-on-close",
+      "type": "java.lang.Boolean",
+      "description": "关闭连接时自动提交事务。默认 false",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": false
+    },
+    {
+      "name": "spring.datasource.hqcp.connection-info",
+      "type": "java.lang.String",
+      "description": "connection properties on DriverManager.getConnection(url,info)，用 & 分割属性",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot"
+    },
+    {
+      "name": "spring.datasource.hqcp.info-sql-threshold",
+      "type": "java.lang.Long",
+      "description": "printSQL == true时，打印INFO级别的SQL的耗时阈值(ms)。<=0 - 不打印INFO级别SQL，默认 10ms",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 10
+    },
+    {
+      "name": "spring.datasource.hqcp.warn-sql-threshold",
+      "type": "java.lang.Long",
+      "description": "printSQL == true时，打印WARN级别的SQL的耗时阈值(ms)。<=0 - 不打印 WARN 级别SQL，默认 100ms",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 100
+    },
+    {
+      "name": "spring.datasource.hqcp.jmx-level",
+      "type": "java.lang.Integer",
+      "description": "0 - [default] no jmx；1 - manage ConnectionFactory instance；2 - manage PooledConnection instance",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 0
+    },
+    {
+      "name": "spring.datasource.hqcp.lazy-init",
+      "type": "java.lang.Boolean",
+      "description": "lazy init pool。true: init min connections in Monitor thread, else init in new Hqcp/getConnection() thread, i.e. client thread。默认 false",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": false
+    },
+    {
+      "name": "spring.datasource.hqcp.max-pre-statements",
+      "type": "java.lang.Integer",
+      "description": "池中最多缓存的PreparedStatement数。超过该值的话会close最早未使用的PreparedStatement。取值范围 5 - 200，默认 10",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 10
+    },
+    {
+      "name": "spring.datasource.hqcp.max-statements",
+      "type": "java.lang.Integer",
+      "description": "池中最多缓存的Statement数。超过该值的话会抛SQLException，说明程序存在极不合理的实现，即一个过程中同时创建了太多Statement且没有及时close。取值范围 10 - 1000，默认 100",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": 100
+    },
+    {
+      "name": "spring.datasource.hqcp.print-sql",
+      "type": "java.lang.Boolean",
+      "description": "记录SQL语句及执行时间。默认 true",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.datasource.hqcp.mask-sql",
+      "type": "java.lang.Boolean",
+      "description": "打印log的时候是否脱敏敏感字段。默认 false",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": false
+    },
+    {
+      "name": "spring.datasource.hqcp.sensitive-fields",
+      "type": "java.util.Set<java.lang.String>",
+      "description": "敏感字段集",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot"
+    },
+    {
+      "name": "spring.datasource.hqcp.mask-pattern",
+      "type": "java.lang.String",
+      "description": "脱敏模式，如\"***\", \"####\", \"????\", \"*#?●○\"。默认 ****",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": "****"
+    },
+    {
+      "name": "spring.datasource.hqcp.transaction-mode",
+      "type": "java.lang.Boolean",
+      "description": "默认获取的连接的事务模式。true: 事务模式，即autocommit=false；false: [默认值] 非事务模式，即autocommit=true",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": false
+    },
+    {
+      "name": "spring.datasource.hqcp.verbose",
+      "type": "java.lang.Boolean",
+      "description": "记录除SQL语句及执行时间外的其他信息。默认 false",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": false
+    },
+    {
+      "name": "spring.datasource.hqcp.use-oracle-implicit-cache",
+      "type": "java.lang.Boolean",
+      "description": "Indicates if oracle implicit preparedstatement cache needed",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot",
+      "defaultValue": true
+    },
+    {
+      "name": "spring.datasource.hqcp.password-key",
+      "type": "java.lang.String",
+      "description": "解密password的密钥",
+      "sourceType": "io.hqwu.commons.cp.HqcpDataSourceBoot"
+    }
+  ]
+}

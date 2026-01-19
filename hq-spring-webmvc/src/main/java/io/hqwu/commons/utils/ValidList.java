@@ -1,6 +1,7 @@
 package io.hqwu.commons.utils;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
+
 import java.util.*;
 import java.util.function.UnaryOperator;
 
