@@ -78,5 +78,4 @@ jobs:
       # 5. 部署 SNAPSHOT 版本到阿里云效
       - name: Deploy SNAPSHOT to Aliyun Package
         run: |
-          # TODO: 请将下面的 URL 替换为你的阿里云效仓库地址
-          mvn -B deploy:deploy -DskipTests -DaltSnapshotDeploymentRepository=aliyun-maven::default::$ALIYUN_PACKAGES_SNAPSHOT_URL
+          mvn -B package deploy:deploy -DskipTests -DaltSnapshotDeploymentRepository=aliyun-maven::default::$ALIYUN_PACKAGES_SNAPSHOT_URL
