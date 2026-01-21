@@ -1,4 +1,4 @@
-name: Deploy Snapshot to Github Packages
+name: Deploy Snapshot to Github Packages and Aliyun
 
 # 触发条件：在 develop 分支有推送时自动触发，支持手动触发
 on:
@@ -26,6 +26,13 @@ jobs:
       contents: read    # 读取仓库内容
       packages: write   # 写入GitHub Packages
 
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ALIYUN_USERNAME: ${{ secrets.ALIYUN_USERNAME }}
+      ALIYUN_PASSWORD: ${{ secrets.ALIYUN_PASSWORD }}
+      ALIYUN_PACKAGES_SNAPSHOT_URL: ${{ vars.ALIYUN_PACKAGES_SNAPSHOT_URL }}
+
     steps:
       # 1. 检出代码
       - name: Checkout code
@@ -39,13 +46,37 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          server-id: github   # 与pom.xml中的id对应
           cache: 'maven'      # 自动缓存 Maven 依赖
 
-      # 3. 部署 SNAPSHOT 版本到GitHub Packages
-      - name: Deploy SNAPSHOT Artifact
+      # 3. Configure Maven Settings
+      - name: Configure Maven Settings
         run: |
-          mvn -B clean deploy
-        env:
-          GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          mkdir -p ~/.m2
+          cat <<EOF > ~/.m2/settings.xml
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+            <servers>
+              <server>
+                <id>github</id>
+                <username>\${env.GITHUB_ACTOR}</username>
+                <password>\${env.GITHUB_TOKEN}</password>
+              </server>
+              <server>
+                <id>aliyun-maven</id>
+                <username>\${env.ALIYUN_USERNAME}</username>
+                <password>\${env.ALIYUN_PASSWORD}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      # 4. 部署 SNAPSHOT 版本到GitHub Packages
+      - name: Deploy SNAPSHOT to Github Packages
+        run: mvn -B clean deploy
+
+      # 5. 部署 SNAPSHOT 版本到阿里云效
+      - name: Deploy SNAPSHOT to Aliyun Package
+        run: |
+          # TODO: 请将下面的 URL 替换为你的阿里云效仓库地址
+          mvn -B deploy:deploy -DskipTests -DaltSnapshotDeploymentRepository=aliyun-maven::default::$ALIYUN_PACKAGES_SNAPSHOT_URL
