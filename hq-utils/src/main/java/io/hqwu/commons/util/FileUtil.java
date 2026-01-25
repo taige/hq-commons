@@ -12,14 +12,19 @@ import java.util.Hashtable;
 import java.util.Map;
 
 /**
- * Description:文件操作类:文件读写/文件拷贝/文件移动/文件删除
- * 
- * @author shenjianlin <a href="mailto:ustbsjl@gmail.com">ustbsjl@gmail.com</a> <br>
- *          QQ: 79043549
+ * 文件操作工具类，扩展自 {@link org.apache.commons.io.FileUtils}。
+ * <p>
+ * 本类提供了增强的文件读写与管理功能，主要涵盖：
+ * <ul>
+ *     <li><b>资源加载：</b> 兼容文件系统路径与类路径（ClassPath）的文件读取与定位。</li>
+ *     <li><b>对象序列化：</b> 集成 {@link org.apache.commons.lang3.SerializationUtils} 实现对象的持久化与反序列化。</li>
+ *     <li><b>流转换：</b> 支持将指定路径的文件转换为 {@link java.io.InputStream} 或 {@link java.io.BufferedInputStream}。</li>
+ *     <li><b>变更监控：</b> 提供文件修改检测机制，支持对配置文件及字节码文件的更新状态进行跟踪。</li>
+ * </ul>
+ *
+ * @author shenjianlin
  * @version 1.0 2013-8-12
- * @history
  */
-
 public class FileUtil extends FileUtils {
     private static final Logger _log = LoggerFactory.getLogger(FileUtil.class);
 

@@ -1,18 +1,20 @@
-package io.hqwu.commons.util;
+package io.hqwu.commons.util.enums;
 
 /**
- * 加密算法类型
- * 
- * @version $Id: EncryptionTypeEnum.java
+ * 加密模式枚举类。
+ * <p>
+ * 本枚举定义了系统支持的加密算法类型，涵盖了常见的非对称加密（RSA）与对称加密（AES）模式。
+ * 主要用于在安全工具类（如 {@code EncryptionUtil}）或加密服务中作为参数，以指定具体的加密策略和算法强度。
+ * </p>
  */
 public enum EncryptionModeEnum {
-    /**RSA1024加密算法*/
+    /** RSA1024加密算法 */
     RSA1024("rsa1024", "RSA1024加密算法"),
 
-    /**RSA2048加密算法*/
+    /** RSA2048加密算法 */
     RSA2048("rsa2048", "RSA2048加密算法"),
 
-    /**AES对称加密算法*/
+    /** AES对称加密算法 */
     AES("aes", "AES对称加密算法");
 
     /**code*/

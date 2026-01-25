@@ -18,10 +18,20 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Created with IntelliJ IDEA for unpay-common
- * User: taige
- * Date: 2018/5/30
- * Time: 下午8:41
+ * 安全服务本地实现类。
+ *
+ * <p>该类实现了 {@link SecurityService} 接口，集成了多种安全算法与工具类（如 {@link SecurityUtil} 和 {@link RSACoderUtil}），
+ * 为系统提供统一的安全服务能力。主要功能包括：
+ * <ul>
+ *   <li>对称加密：提供 AES 算法的加解密功能。</li>
+ *   <li>非对称加密：提供 RSA 算法的公钥加密与私钥解密。</li>
+ *   <li>数字签名：支持 SHA256withRSA 等算法的签名生成与验签。</li>
+ *   <li>消息摘要：支持 HMAC 算法的消息认证码计算。</li>
+ *   <li>密钥管理：支持 AES 密钥及 RSA 密钥对的生成，并配合 {@link KeyManageService} 完成密钥的解密与本地缓存。</li>
+ * </ul>
+ *
+ * @author taige
+ * @since 2018/5/30
  */
 public class SecurityServiceLocalImpl implements SecurityService, ApplicationContextAware {
     private static final Logger LOGGER = new Logger();

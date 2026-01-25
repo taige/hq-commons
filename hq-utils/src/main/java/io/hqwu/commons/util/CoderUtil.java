@@ -3,9 +3,15 @@ package io.hqwu.commons.util;
 import java.security.MessageDigest;
 
 /**
- * 散列算法
- * 
- * @version $Id: CoderUtil.java
+ * 编码与加密工具类。
+ * <p>
+ * 提供常用的数据处理与安全散列算法，主要功能包括：
+ * <ul>
+ *   <li>基于 {@link Base64Util} 的 Base64 编码与解码</li>
+ *   <li>基于 {@link MessageDigest} 的 MD5 摘要计算</li>
+ *   <li>基于 {@link MessageDigest} 的 SHA 摘要计算</li>
+ * </ul>
+ * 适用于数据传输加密、数字签名摘要生成及基础的数据转换场景。
  */
 public class CoderUtil {
     public static final String KEY_SHA = "SHA";

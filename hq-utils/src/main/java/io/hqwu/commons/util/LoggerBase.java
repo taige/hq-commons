@@ -15,7 +15,23 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
+/**
+ * 日志工具基础类，提供统一的日志记录功能。
+ * <p>
+ * 主要功能特性：
+ * <ul>
+ *   <li>支持多种日志格式：SLF4J 占位符 ({}) 和 Java Formatter (%s, %d 等)</li>
+ *   <li>提供访问日志（ACCESS）和性能日志（PERFORMANCE）记录</li>
+ *   <li>支持异常堆栈信息自动追加</li>
+ *   <li>提供方法执行耗时统计和性能阈值检测</li>
+ * </ul>
+ * </p>
+ *
+ * @author hqwu
+ * @see org.slf4j.Logger
+ * @see org.slf4j.spi.LocationAwareLogger
+ * @see Logger
+ */
 class LoggerBase {
 
     private static final org.slf4j.Logger testLogger = LoggerFactory.getLogger(LoggerBase.class);
@@ -192,75 +208,11 @@ class LoggerBase {
         return al;
     }
 
-    public void tracef(String format, Object... objects) {
-        logf(Level.TRACE, format, objects);
-    }
-
-    public void trace(Object... objects) {
-        log(Level.TRACE, objects);
-    }
-
-    public void trace(Object object) {
-        log(Level.TRACE, object);
-    }
-
-    public void debugf(String format, Object... objects) {
-        logf(Level.DEBUG, format, objects);
-    }
-
-    public void debug(Object... objects) {
-        log(Level.DEBUG, objects);
-    }
-
-    public void debug(Object object) {
-        log(Level.DEBUG, object);
-    }
-
-    public void infof(String format, Object... objects) {
-        logf(Level.INFO, format, objects);
-    }
-
-    public void info(Object... objects) {
-        log(Level.INFO, objects);
-    }
-
-    public void info(Object object) {
-        log(Level.INFO, object);
-    }
-
-    public void warnf(String format, Object... objects) {
-        logf(Level.WARN, format, objects);
-    }
-
-    public void warn(Object... objects) {
-        log(Level.WARN, objects);
-    }
-
-    public void warn(Object object) {
-        log(Level.WARN, object);
-    }
-
-    public void errorf(String format, Object... objects) {
-        logf(Level.ERROR, format, objects);
-    }
-
-    public void error(Object... objects) {
-        log(Level.ERROR, objects);
-    }
-
-    public void error(Object object) {
-        log(Level.ERROR, object);
-    }
-
     private void callLog(Marker marker, Level level, String format, Object... objects) {
         Object[] args = new Object[objects.length + 1];
         args[0] = format;
         System.arraycopy(objects, 0, args, 1, objects.length);
         log(marker, level, args);
-    }
-
-    protected void logf(Level level, String format, Object... objects) {
-        this.logf(null, level, format, objects);
     }
 
     protected void logf(Marker marker, Level level, String format, Object... objects) {
@@ -302,10 +254,6 @@ class LoggerBase {
                 callLog(marker, level, format, objects);
             }
         }
-    }
-
-    protected void log(Level level, Object...  objects) {
-        this.log(null, level, objects);
     }
 
     protected void log(Marker marker, Level level, Object...  objects) {
@@ -365,6 +313,10 @@ class LoggerBase {
         (new Throwable()).printStackTrace(pw);
         String stack = sw.toString();
 
+        return resolveClassName(CLASSNAME, stack);
+    }
+
+    static String resolveClassName(String CLASSNAME, String stack) {
         // Given the current structure of the package, the line
         // containing "org.apache.log4j.Category." should be printed just
         // before the caller.
@@ -439,8 +391,12 @@ class LoggerBase {
             return "sec";
         } else if (unit == TimeUnit.MINUTES) {
             return "min";
+        } else if (unit == TimeUnit.HOURS) {
+            return "hour";
+//        } else if (unit == TimeUnit.DAYS) {
+//            return "day";
         }
-        return "...";
+        return "day";
     }
 
     /**

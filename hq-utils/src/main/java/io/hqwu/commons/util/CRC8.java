@@ -1,13 +1,35 @@
 package io.hqwu.commons.util;
 
+import lombok.experimental.UtilityClass;
 
 /**
- * Created with IntelliJ IDEA for hq-commons
+ * CRC8 校验码工具类。
+ * <p>
+ * 该工具类提供了 CRC8（循环冗余校验码）的计算功能，用于数据完整性校验。
+ * CRC8 使用 8 位校验码，适用于对数据传输或存储中的错误进行检测。
+ * </p>
+ *
+ * <p>
+ * 主要功能特性：
+ * <ul>
+ *   <li>基于查表法实现 CRC8 计算，提高计算效率。</li>
+ *   <li>支持对完整字节数组或指定范围的数据进行校验。</li>
+ *   <li>支持级联校验，可基于之前的校验值继续计算。</li>
+ * </ul>
+ * </p>
+ *
+ * <p>
+ * 使用示例：
+ * <pre>{@code
+ * byte[] data = "Hello".getBytes();
+ * byte crc = CRC8.calcCrc8(data);
+ * }</pre>
+ * </p>
  *
  * @author taige (Wu, Hongqiang)
- * Date: 2021-01-14
- * Time: 10:04 p.m.
+ * @since 2021-01-14
  */
+@UtilityClass
 public class CRC8 {
 
     private static final byte[] CRC8_TAB = {

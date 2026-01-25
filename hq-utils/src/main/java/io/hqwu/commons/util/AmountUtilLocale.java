@@ -6,10 +6,19 @@ import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Created with IntelliJ IDEA
- * User: taige
- * Date: 2018/4/19
- * Time: 下午2:39
+ * 金额处理工具类，支持多语言/区域设置（Locale-aware）。
+ * <p>
+ * 该工具类利用 {@link java.util.Locale} 和 {@link java.text.DecimalFormatSymbols}
+ * 处理不同地区的金额格式化需求。主要功能包括：
+ * <ul>
+ *     <li><b>分转元：</b>将长整型（分）转换为带小数点的字符串（元），支持指定精度及是否开启千分位。</li>
+ *     <li><b>元转分：</b>将字符串（元）解析为长整型（分），能够自动识别并处理不同地区的千分位分隔符和小数点。</li>
+ *     <li><b>千分位格式化：</b>对大数字进行分组显示，增强人工阅读性。</li>
+ * </ul>
+ * </p>
+ *
+ * @author taige
+ * @since 2018/4/19
  */
 public class AmountUtilLocale {
 

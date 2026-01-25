@@ -1,15 +1,28 @@
 package io.hqwu.commons.util;
 
+import lombok.experimental.UtilityClass;
+
 import java.util.Arrays;
 import java.util.zip.CRC32;
 
 /**
- * Created with IntelliJ IDEA for hq-commons
+ * Base62 进制转换工具类。
  *
+ * <p>提供 10 进制数字（long）与 62 进制字符串之间的相互转换功能。
+ * 62 进制字符集由数字 0-9、大写字母 A-Z 和小写字母 a-z 组成。
+ *
+ * <p>主要功能：
+ * <ul>
+ *     <li>支持 long 类型数字的 Base62 编码与解码。</li>
+ *     <li>支持指定最小长度的编码输出（通过 {@link StringUtil#leftPad} 补位）。</li>
+ *     <li>支持集成 CRC32 校验码（使用 {@link CRC32}），用于增强数据传输或存储时的完整性校验。</li>
+ * </ul>
+ *
+ * @see java.util.zip.CRC32
+ * @see io.hqwu.commons.util.StringUtil
  * @author taige (Wu, Hongqiang)
- * Date: 2021-01-15
- * Time: 1:14 p.m.
  */
+@UtilityClass
 public class Base62Util {
     public static final String MAX_VALUE = "AzL8n0Y58m7";
 

@@ -1,5 +1,8 @@
 package io.hqwu.commons.util;
 
+import io.hqwu.commons.util.enums.EncryptionModeEnum;
+import io.hqwu.commons.util.enums.SignTypeEnum;
+
 import javax.crypto.Cipher;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -11,9 +14,40 @@ import java.security.spec.X509EncodedKeySpec;
 
 
 /**
- * 加解密工具类.
+ * RSA 加解密工具类。
+ * <p>
+ * 提供基于 RSA 非对称加密算法的加密、解密、签名和验签功能，支持：
+ * <ul>
+ *   <li>公钥加密与私钥解密</li>
+ *   <li>私钥签名与公钥验签</li>
+ *   <li>多种加密模式（RSA1024/RSA2048）</li>
+ *   <li>多种签名算法（SHA1WithRSA/SHA256WithRSA）</li>
+ *   <li>分段加解密处理，突破RSA单次加密长度限制</li>
+ * </ul>
+ * </p>
  *
- * @version $Id: RSACoderUtil.java
+ * <p>
+ * 使用示例：
+ * <pre>
+ * // 加密
+ * String encrypted = RSACoderUtil.encrypt(plainText, "UTF-8", publicKey);
+ *
+ * // 解密
+ * String decrypted = RSACoderUtil.decrypt(encrypted, privateKey, "UTF-8");
+ *
+ * // 签名
+ * String signature = RSACoderUtil.sign(data, "UTF-8", privateKey);
+ *
+ * // 验签
+ * boolean valid = RSACoderUtil.verify(data.getBytes("UTF-8"), publicKey, signature);
+ * </pre>
+ * </p>
+ *
+ * @author hqwu
+ * @see CoderUtil 散列算法工具类
+ * @see Base64Util Base64编码工具类
+ * @see EncryptionModeEnum 加密模式枚举
+ * @see SignTypeEnum 签名类型枚举
  */
 public class RSACoderUtil extends CoderUtil {
 
@@ -180,11 +214,9 @@ public class RSACoderUtil extends CoderUtil {
         } catch (IOException e) {
             throw new GeneralSecurityException(e);
         } finally {
-            if (bout != null) {
-                try {
-                    bout.close();
-                } catch (IOException e) {
-                }
+            try {
+                bout.close();
+            } catch (IOException e) {
             }
         }
 
@@ -354,15 +386,9 @@ public class RSACoderUtil extends CoderUtil {
      */
     private static int getMaxEncryptBlockSize(KeyFactory keyFactory, Key key) throws GeneralSecurityException {
         //默认先设置成RSA1024的最大加密长度
-        int maxLength = 117;
-        try {
-            RSAPublicKeySpec publicKeySpec = keyFactory.getKeySpec(key, RSAPublicKeySpec.class);
-            int keyLength = publicKeySpec.getModulus().bitLength();
-            maxLength = keyLength / 8 - 11;
-        } catch (GeneralSecurityException e) {
-            throw e;
-        }
-        return maxLength;
+        RSAPublicKeySpec publicKeySpec = keyFactory.getKeySpec(key, RSAPublicKeySpec.class);
+        int keyLength = publicKeySpec.getModulus().bitLength();
+        return keyLength / 8 - 11;
     }
 
     /**
@@ -391,15 +417,9 @@ public class RSACoderUtil extends CoderUtil {
      */
     private static int getMaxDecryptBlockSize(KeyFactory keyFactory, Key key) throws GeneralSecurityException {
         //默认先设置成RSA1024的最大解密长度
-        int maxLength = 128;
-        try {
-            RSAPrivateKeySpec publicKeySpec = keyFactory.getKeySpec(key, RSAPrivateKeySpec.class);
-            int keyLength = publicKeySpec.getModulus().bitLength();
-            maxLength = keyLength / 8;
-        } catch (GeneralSecurityException e) {
-            throw e;
-        }
-        return maxLength;
+        RSAPrivateKeySpec publicKeySpec = keyFactory.getKeySpec(key, RSAPrivateKeySpec.class);
+        int keyLength = publicKeySpec.getModulus().bitLength();
+        return keyLength / 8;
     }
 
     /**

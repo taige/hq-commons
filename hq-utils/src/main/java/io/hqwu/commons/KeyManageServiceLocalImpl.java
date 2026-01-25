@@ -6,10 +6,17 @@ import org.apache.commons.codec.binary.Base64;
 import java.security.GeneralSecurityException;
 
 /**
- * Created with IntelliJ IDEA for unpay-common
- * User: taige
- * Date: 2018/6/8
- * Time: 上午11:22
+ * {@link KeyManageService} 的本地实现类。
+ * <p>
+ * 该类主要负责提供本地化的密钥管理与加解密服务。它通过预定义的全局主密钥，
+ * 配合 {@link SecurityUtil} 工具类实现数据的安全加密与解密操作。
+ * 适用于需要对敏感信息进行基础加解密处理的业务场景。
+ * </p>
+ *
+ * @author Wu, Hongqiang
+ * @see KeyManageService
+ * @see SecurityUtil
+ * @since 2018/6/8
  */
 public class KeyManageServiceLocalImpl implements KeyManageService {
 

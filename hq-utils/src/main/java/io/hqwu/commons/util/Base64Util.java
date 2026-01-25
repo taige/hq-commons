@@ -1,9 +1,17 @@
 package io.hqwu.commons.util;
 
 /**
- * Base64
-
- * @version $Id: Base64Util.java
+ * Base64 编码与解码工具类。
+ *
+ * <p>该类继承自 {@link CoderUtil}，提供了字节数组与 Base64 字符串之间的相互转换功能。</p>
+ *
+ * <p>主要特性：</p>
+ * <ul>
+ *   <li>支持标准 Base64 编码：遵循 RFC 2045 规范。</li>
+ *   <li>支持备选（Alternate）Base64 编码：采用不含大写字母的自定义字符表，适用于对大小写不敏感或会发生大小写折叠的环境。</li>
+ * </ul>
+ *
+ * @see CoderUtil
  */
 public class Base64Util extends CoderUtil {
     /**

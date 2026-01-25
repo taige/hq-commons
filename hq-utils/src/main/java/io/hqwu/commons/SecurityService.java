@@ -3,10 +3,22 @@ package io.hqwu.commons;
 import java.security.GeneralSecurityException;
 
 /**
- * Created with IntelliJ IDEA for unpay-common
- * User: taige
- * Date: 2018/5/30
- * Time: 下午5:33
+ * 安全服务接口，提供统一的加密、解密、签名验证及密钥管理功能。
+ *
+ * <p>该接口封装了常用的安全算法操作，主要包括：
+ * <ul>
+ *   <li><b>密钥管理：</b> 支持生成对称密钥（如 AES）和非对称密钥对（如 RSA）。生成的私钥或对称密钥通常以加密后的“别名”形式存在。</li>
+ *   <li><b>对称加密：</b> 提供 AES 算法的加解密，支持指定加密模式（ECB/CBC/CFB/OFB）和填充方式（PKCS5Padding 等）。</li>
+ *   <li><b>非对称加密：</b> 提供 RSA 公钥加密和私钥解密功能。</li>
+ *   <li><b>数字签名：</b> 提供基于 RSA 的签名生成与验证，支持 SHA1withRSA、SHA256withRSA 等算法。</li>
+ *   <li><b>消息认证：</b> 支持 HMAC 算法（如 HmacSHA256）计算。</li>
+ * </ul>
+ *
+ * <p>所有输入输出的密钥、密文及签名通常采用 Base64 编码。
+ *
+ * @author taige
+ * @see B64KeyPair
+ * @since 2018/5/30
  */
 public interface SecurityService {
 

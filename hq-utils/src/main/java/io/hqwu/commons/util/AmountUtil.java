@@ -1,15 +1,26 @@
 package io.hqwu.commons.util;
 
+import lombok.experimental.UtilityClass;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Formatter;
 
 /**
- * Created with IntelliJ IDEA
- * User: taige
- * Date: 2018/4/19
- * Time: 下午2:39
+ * 金额处理工具类。
+ * <p>
+ * 本工具类提供了一系列静态方法用于处理货币金额，主要功能包括：
+ * <ul>
+ *     <li><strong>分元转换：</strong>支持将 {@code long} 类型的分转换为带小数点的元字符串，以及将元字符串解析回分。</li>
+ *     <li><strong>格式化处理：</strong>支持自定义小数精度（1-9位）及千分位分隔符（如 1,234.56）的添加。</li>
+ *     <li><strong>比例运算：</strong>提供基于百分比的金额乘法计算，内置四舍五入逻辑。</li>
+ * </ul>
+ *
+ * @see java.math.BigDecimal
+ * @see java.util.Formatter
+ * @see java.math.RoundingMode
  */
+@UtilityClass
 public class AmountUtil {
 
     public static final BigDecimal ONE_HUNDRED = BigDecimal.valueOf(100);

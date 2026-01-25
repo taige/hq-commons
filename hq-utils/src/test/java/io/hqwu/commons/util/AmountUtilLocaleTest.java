@@ -450,4 +450,13 @@ public class AmountUtilLocaleTest {
         );
 
     }
+
+    @Test
+    public void test_formatThousands() throws Exception {
+        AmountUtilLocale moneyUtil = AmountUtilLocale.getInstance();
+
+        // 测试长度为3的倍数的数字（覆盖lines 161-162）
+        assertEquals("123,456", moneyUtil.formatThousands(123456, null));
+        assertEquals("123,456,789", moneyUtil.formatThousands(123456789, null));
+    }
 }

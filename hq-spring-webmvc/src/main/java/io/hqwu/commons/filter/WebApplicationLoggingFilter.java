@@ -8,6 +8,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -77,6 +79,8 @@ import java.util.stream.Collectors;
  * @see RestClientLoggingInterceptor
  * @since 2020/4/5
  */
+@Getter
+@Setter
 public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
     private static final Logger LOGGER = new Logger();
 
@@ -91,34 +95,6 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
     private boolean enabled = true;
 
     private String traceIdHeaderName;
-
-    public String getBeforeMessagePrefix() {
-        return beforeMessagePrefix;
-    }
-
-    public String getBeforeMessageSuffix() {
-        return beforeMessageSuffix;
-    }
-
-    public String getAfterMessagePrefix() {
-        return afterMessagePrefix;
-    }
-
-    public String getAfterMessageSuffix() {
-        return afterMessageSuffix;
-    }
-
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    public String getTraceIdHeaderName() {
-        return traceIdHeaderName;
-    }
-
-    public void setTraceIdHeaderName(String traceIdHeaderName) {
-        this.traceIdHeaderName = traceIdHeaderName;
-    }
 
     @Override
     protected boolean shouldLog(HttpServletRequest request) {
@@ -336,10 +312,6 @@ public class WebApplicationLoggingFilter extends AbstractRequestLoggingFilter {
 
         msg.append(this.afterMessageSuffix);
         return msg.toString();
-    }
-
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
     }
 
     private StringBuilder buildMessageHead(HttpServletRequest request, String prefix) {

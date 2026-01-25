@@ -1,5 +1,34 @@
 package io.hqwu.commons.util;
 
+import lombok.experimental.UtilityClass;
+
+/**
+ * 字符串格式化工具类。
+ * <p>
+ * 该工具类提供了一系列字符串格式化方法，主要功能包括：
+ * <ul>
+ *   <li>数字格式化：将数字左对齐或右对齐到固定长度</li>
+ *   <li>字符串对齐：支持左对齐和右对齐，可指定填充字符</li>
+ *   <li>字符串裁剪：支持从左侧或右侧裁剪字符串到指定长度</li>
+ *   <li>数字可读化：为长整型数字添加千分位分隔符，便于阅读</li>
+ * </ul>
+ * </p>
+ *
+ * <p>
+ * 主要应用场景：
+ * <ul>
+ *   <li>日志输出格式化</li>
+ *   <li>控制台表格显示</li>
+ *   <li>性能指标展示（如纳秒时间格式化）</li>
+ *   <li>固定宽度文本处理</li>
+ * </ul>
+ * </p>
+ *
+ * @author taige (Wu, Hongqiang)
+ * @see StringUtil
+ * @since 1.0
+ */
+@UtilityClass
 public class Formatter {
     
     public static String fmtNumR(long num) {

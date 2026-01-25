@@ -1,9 +1,12 @@
-package io.hqwu.commons.util;
+package io.hqwu.commons.util.enums;
 
 /**
- * 签名模式.
-
- * @version $Id: SignModeEnum.java
+ * 签名类型枚举类。
+ *
+ * <p>该类定义了系统中支持的数字签名模式，主要用于安全校验、接口签名验证等场景。
+ * 映射了签名编码（如 RSA, RSA2）与具体的签名算法（如 SHA1withRSA, SHA256withRSA）。
+ *
+ * <p>通常在签名工具类或安全配置中使用，用于指定加签和验签时所采用的算法标准。
  */
 public enum SignTypeEnum {
 

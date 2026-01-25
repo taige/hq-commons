@@ -22,6 +22,8 @@
     <mybatis-plus.version>3.5.11</mybatis-plus.version>
 <!--    <dubbo.version>2.7.12</dubbo.version>-->
     <jsqlparser.version>4.9</jsqlparser.version>
+    <jacoco.version>0.8.12</jacoco.version>
+    <lombok.version>1.18.42</lombok.version>
 
     <test.logger.level>WARN</test.logger.level>
   </properties>
@@ -38,7 +40,8 @@
     <module>hq-cp-boot-starter</module>
     <module>hq-mybatis-plus-extension</module>
     <module>hq-spring-webmvc</module>
-<!--    <module>hq-dubbo-ext</module>-->
+    <module>report-aggregate</module>
+    <!--    <module>hq-dubbo-ext</module>-->
   </modules>
 
   <distributionManagement>
@@ -83,15 +86,97 @@
         <artifactId>jsqlparser</artifactId>
         <version>${jsqlparser.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>${lombok.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
   <build>
     <plugins>
+      <!-- JaCoCo 代码覆盖率插件 -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco.version}</version>
+        <configuration>
+          <!-- 排除某些类或包 -->
+          <excludes>
+            <exclude>**/entity/**</exclude>
+            <exclude>**/dto/**</exclude>
+            <exclude>**/enums/**</exclude>
+            <exclude>**/config/**</exclude>
+            <exclude>**/*Exception.class</exclude>
+            <exclude>**/*Application.class</exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <!-- 在测试前准备 JaCoCo Agent -->
+          <execution>
+            <id>prepare-agent</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <!-- 检查覆盖率是否达到最低标准（可选） -->
+          <execution>
+            <id>jacoco-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <configuration>
+              <haltOnFailure>false</haltOnFailure> <!-- 不中断测试，仅报告覆盖率问题 -->
+              <rules>
+                <rule>
+                  <!-- 80% 是行业分水岭, 新项目 90% -->
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <!-- INSTRUCTION 比 LINE 稍微精确一点点 -->
+                      <counter>INSTRUCTION</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                    <limit>
+                      <counter>BRANCH</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+                <rule>
+                  <element>CLASS</element>
+                  <limits>
+                    <!-- 圈复杂度 (Complexity) 代表代码的逻辑路径数量 -->
+                    <limit>
+                      <counter>COMPLEXITY</counter>
+                      <value>MISSEDCOUNT</value>
+                      <maximum>20</maximum>
+                    </limit>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.80</minimum> <!-- 0.50 ~ 0.80 -->
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${maven-surefire-plugin.version}</version>
+        <configuration>
+          <excludes>
+            <!-- 排除集成测试类 -->
+            <exclude>**/*IntTest.java</exclude>
+          </excludes>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

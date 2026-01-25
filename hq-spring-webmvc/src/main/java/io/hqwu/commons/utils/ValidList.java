@@ -6,11 +6,24 @@ import java.util.*;
 import java.util.function.UnaryOperator;
 
 /**
- * Created with IntelliJ IDEA for hq-spring-webmvc
+ * 支持Jakarta Validation的List包装类。
+ * <p>
+ * 该类实现了{@link List}接口,并在内部持有一个{@link ArrayList}实例。
+ * 通过在内部list字段上添加{@link jakarta.validation.Valid}注解,
+ * 使得当此类作为请求参数或Bean的属性时,能够触发对List中每个元素的级联校验。
+ * </p>
  *
+ * <p>
+ * 主要用于Spring MVC等框架中,当需要对List类型的请求参数进行JSR-380/Jakarta Validation校验时使用。
+ * 所有的List操作都委托给内部的list字段实现。
+ * </p>
+ *
+ * @param <E> 列表中元素的类型
  * @author taige (Wu, Hongqiang)
- * Date: 2020/6/16
- * Time: 16:01
+ * @see List
+ * @see jakarta.validation.Valid
+ * @see ArrayList
+ * @since 2020/6/16
  */
 public class ValidList<E> implements List<E> {
 

@@ -12,15 +12,22 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 
 /**
- * Description:网络IO工具类：流读写/流关闭/流转换/字节编码处理
+ * 网络 IO 工具类，扩展自 {@link org.apache.commons.io.IOUtils}。
  *
- * @author: shenjianlin <a href="mailto:ustbsjl@gmail.com">ustbsjl@gmail.com</a> <br>
- * QQ: 79043549
- * @version: 1.0 2013-8-12
- * @history:
+ * <p>该类提供了针对网络通信场景的增强功能：
+ * <ul>
+ *   <li><b>编码转换</b>：支持 BCD 编码与 ASCII 字符串的互转（基于 {@link org.apache.commons.codec.binary.Hex}）。</li>
+ *   <li><b>字节操作</b>：提供高效的字节数组连接与合并工具。</li>
+ *   <li><b>网络序处理</b>：实现数值类型（short, int, long）与网络字节序（Big-Endian）的编解码。</li>
+ *   <li><b>资源管理</b>：提供对 {@link Closeable} 资源的静默关闭，支持反射调用非标准 close 方法。</li>
+ *   <li><b>流读取</b>：支持从 {@link InputStream} 中完整读取指定长度或全部字节数据。</li>
+ * </ul>
+ *
+ * @author shenjianlin
+ * @version 1.0
  * @see org.apache.commons.io.IOUtils
+ * @see org.apache.commons.codec.binary.Hex
  */
-
 public final class IOUtil extends IOUtils {
     private static final Logger _log = LoggerFactory.getLogger(IOUtil.class);
 

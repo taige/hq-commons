@@ -1,16 +1,33 @@
 package io.hqwu.commons.util;
 
+import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.ClassUtils;
 
 import java.lang.reflect.Field;
 import java.util.List;
 
 /**
- * Created with IntelliJ IDEA.
- * User: wyshenjianlin
- * Date: 13-9-11
- * Time: 下午3:22
+ * 类工具类。
+ * <p>
+ * 该工具类继承自 {@link org.apache.commons.lang3.ClassUtils}，提供了类操作的扩展功能，
+ * 包括类包路径转换、SDK包判断、字段获取等功能。
+ * </p>
+ * <p>
+ * 主要功能特性：
+ * <ul>
+ *   <li>包路径转换：将类的包名转换为文件系统路径格式（使用 "/" 分隔）。</li>
+ *   <li>SDK包判断：判断指定类是否属于JDK内置包或框架核心包。</li>
+ *   <li>字段获取：递归获取类及其父类的所有声明字段。</li>
+ * </ul>
+ * </p>
+ *
+ * @author wyshenjianlin
+ * @see org.apache.commons.lang3.ClassUtils
+ * @see java.lang.reflect.Field
+ * @see io.hqwu.commons.util.StringUtil
+ * @since 2013-09-11
  */
+@UtilityClass
 public class ClassUtil extends ClassUtils {
     private static final String[] SDK_PACKAGES_PREFIX = {"java", "sun.", "oracle.", "org.springframework."};
 

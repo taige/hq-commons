@@ -137,4 +137,28 @@ class ConstraintViolationUtilTest {
 
         assertEquals("`username` error (got:{a,b})", result);
     }
+
+    @Test
+    @DisplayName("Should handle class-level violations in debug mode (覆盖第44行 debug=true 分支)")
+    void testToString_ClassLevelDebugMode() {
+        TestBean bean = new TestBean();
+        // Empty/null field name triggers class-level violation logic
+        setupViolation(bean, null, "obj", "class validation error");
+
+        String result = ConstraintViolationUtil.toString(violation, true);
+
+        // In debug mode with empty field name, should use full class name
+        assertEquals("`" + TestBean.class.getName() + "` class validation error (got:obj)", result);
+    }
+
+    @Test
+    @DisplayName("Should handle null invalidValue (覆盖第47行 invalidValue==null 分支)")
+    void testToString_NullInvalidValue() {
+        TestBean bean = new TestBean();
+        setupViolation(bean, "username", null, "cannot be null");
+
+        String result = ConstraintViolationUtil.toString(violation, false);
+
+        assertEquals("`username` cannot be null (got:null)", result);
+    }
 }

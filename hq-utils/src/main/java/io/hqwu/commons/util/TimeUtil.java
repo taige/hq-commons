@@ -1,5 +1,6 @@
 package io.hqwu.commons.util;
 
+import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.apache.commons.lang3.time.DateUtils;
@@ -11,13 +12,58 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Description:日期时间工具类:获取/转换时间
+ * 日期时间工具类，提供日期时间的获取、转换、格式化和偏移计算等功能。
+ * <p>
+ * 该工具类继承自 Apache Commons Lang 的 {@link DateUtils}，并封装了 {@link DateFormatUtils} 的常用方法，
+ * 提供了更便捷的日期时间操作接口。主要功能包括：
+ * <ul>
+ *   <li>获取当前系统日期和时间的格式化字符串（支持多种预定义格式）</li>
+ *   <li>日期偏移计算（按天数前移或后移）</li>
+ *   <li>线程休眠工具方法（支持毫秒、秒、纳秒）</li>
+ *   <li>日期时间格式化（支持 {@link Date}、{@link Calendar}、时间戳）</li>
+ *   <li>时区转换和处理（支持 GMT 系列时区）</li>
+ * </ul>
+ * </p>
  *
- * @version 1.0 2013-8-12
+ * <p>
+ * <strong>常用日期格式常量：</strong>
+ * <ul>
+ *   <li>{@link #PATTERN_YYYYMMDD} - yyyyMMdd，如 20130812</li>
+ *   <li>{@link #PATTERN_YYMMDD} - yyMMdd，如 130812</li>
+ *   <li>{@link #PATTERN_YYYYMMDDHHMMSS} - yyyyMMddHHmmss，如 20130812092030</li>
+ *   <li>{@link #PATTERN_HHMMSS} - HHmmss，如 092030</li>
+ * </ul>
+ * </p>
  *
+ * <p>
+ * <strong>使用示例：</strong>
+ * <pre>{@code
+ * // 获取当前日期时间
+ * String date8 = TimeUtil.getCurrentDate8();           // 20130812
+ * String dateTime14 = TimeUtil.getCurrentDateTime14(); // 20130812092030
+ *
+ * // 日期偏移计算
+ * String nextDay = TimeUtil.daysOffset("20130812", null, 1);  // 20130813
+ * String prevDay = TimeUtil.daysOffset("20130812", null, -1); // 20130811
+ *
+ * // 时区转换
+ * String gmtDate = TimeUtil.getCurrentDate8("GMT+8"); // 获取 GMT+8 时区的当前日期
+ *
+ * // 线程休眠
+ * TimeUtil.sleepSec(5, "等待外部服务响应");
+ * }</pre>
+ * </p>
+ *
+ * @author hqwu
+ * @version 1.0 2013-08-12
  * @see DateUtils
  * @see DateFormatUtils
+ * @see java.util.Date
+ * @see java.util.Calendar
+ * @see java.util.TimeZone
+ * @since 1.0
  */
+@UtilityClass
 public final class TimeUtil extends DateUtils {
     private static final Logger _log = LoggerFactory.getLogger(TimeUtil.class);
     /**
