@@ -1,5 +1,6 @@
 package io.hqwu.commons.cp;
 
+import io.hqwu.commons.cp.util.SqlMasker;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -554,6 +555,284 @@ class PooledStatementTest {
 
         assertSame(warning, proxy.getWarnings());
         proxy.clearWarnings();
+
+        proxy.close();
+        verify(mockPooledConnection, mockRealStatement);
+    }
+
+    /**
+     * Test: checkOut when already checked out by same thread (line 116)
+     */
+    @Test
+    void testCheckOutAlreadyCheckedOutSameThread() throws SQLException {
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+
+        replay(mockPooledConnection, mockRealStatement);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy1 = pooledStatement.checkOut();
+
+        // Try to check out again from the same thread - should return the same proxy
+        Statement proxy2 = pooledStatement.checkOut();
+
+        assertSame(proxy1, proxy2, "Should return same proxy when checked out by same thread");
+        verify(mockPooledConnection, mockRealStatement);
+    }
+
+    /**
+     * Test: invoke when statement is not checked out (line 150)
+     */
+    @Test
+    void testInvokeWhenNotCheckedOut() throws SQLException {
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+
+        mockPooledConnection.checkIn(anyObject(PooledStatement.class));
+        expectLastCall().once();
+        expect(mockPooledConnection.isVerbose()).andReturn(false).anyTimes();
+
+        replay(mockPooledConnection, mockRealStatement);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy = pooledStatement.checkOut();
+
+        // Close it (check it in)
+        proxy.close();
+
+        // Now try to invoke a method when not checked out
+        SQLException exception = assertThrows(SQLException.class, () -> {
+            proxy.executeQuery("SELECT 1");
+        });
+
+        assertTrue(exception.getMessage().contains("closed"),
+            "Should throw SQLException indicating statement is closed");
+        assertEquals("HY010", exception.getSQLState());
+
+        verify(mockPooledConnection, mockRealStatement);
+    }
+
+    /**
+     * Test: resultSet.close() throws SQLException (line 207)
+     */
+    @Test
+    void testCloseResultSetThrowsException() throws SQLException {
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+        expect(mockPooledConnection.isVerbose()).andReturn(false).anyTimes();
+        expect(mockPooledConnection.isPrintSQL()).andReturn(false).anyTimes();
+
+        ResultSet mockResultSet = createMock(ResultSet.class);
+        expect(mockRealStatement.executeQuery("SELECT 1")).andReturn(mockResultSet);
+
+        // ResultSet close throws exception - should be ignored
+        mockResultSet.close();
+        expectLastCall().andThrow(new SQLException("Close failed")).once();
+
+        mockPooledConnection.checkIn(anyObject(PooledStatement.class));
+        expectLastCall().once();
+
+        replay(mockPooledConnection, mockRealStatement, mockResultSet);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy = pooledStatement.checkOut();
+
+        ResultSet rs = proxy.executeQuery("SELECT 1");
+        assertNotNull(rs);
+
+        // Close statement - should handle ResultSet close exception gracefully
+        proxy.close();
+
+        verify(mockPooledConnection, mockRealStatement, mockResultSet);
+    }
+
+    /**
+     * Test: getLargeUpdateCount (line 303)
+     */
+    @Test
+    void testGetLargeUpdateCount() throws SQLException {
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+        expect(mockPooledConnection.isVerbose()).andReturn(false).anyTimes();
+        expect(mockPooledConnection.isPrintSQL()).andReturn(false).anyTimes();
+        expect(mockPooledConnection.getConnectionPool()).andReturn(mockPool).anyTimes();
+        expect(mockPool.getInfoSQLThreshold()).andReturn(1000L).anyTimes();
+        expect(mockPool.getWarnSQLThreshold()).andReturn(3000L).anyTimes();
+
+        expect(mockRealStatement.executeLargeUpdate("UPDATE test SET x=1")).andReturn(100L);
+        mockPooledConnection.setDirty();
+        expectLastCall().once();
+
+        mockPooledConnection.checkIn(anyObject(PooledStatement.class));
+        expectLastCall().once();
+
+        replay(mockPooledConnection, mockRealStatement, mockPool);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy = pooledStatement.checkOut();
+
+        long updated = proxy.executeLargeUpdate("UPDATE test SET x=1");
+        assertEquals(100L, updated);
+
+        // Get the cached large update count
+        long largeUpdateCount = proxy.getLargeUpdateCount();
+        assertEquals(100L, largeUpdateCount);
+
+        proxy.close();
+        verify(mockPooledConnection, mockRealStatement);
+    }
+
+    /**
+     * Test: isClosed (line 330)
+     */
+    @Test
+    void testIsClosed() throws SQLException {
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+        expect(mockPooledConnection.isVerbose()).andReturn(false).anyTimes();
+
+        mockPooledConnection.checkIn(anyObject(PooledStatement.class));
+        expectLastCall().once();
+
+        replay(mockPooledConnection, mockRealStatement);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy = pooledStatement.checkOut();
+
+        // Statement is checked out, should not be closed
+        assertFalse(proxy.isClosed());
+
+        // Close it
+        proxy.close();
+
+        // After close (check in), should be considered closed
+        assertTrue(proxy.isClosed());
+
+        verify(mockPooledConnection, mockRealStatement);
+    }
+
+    /**
+     * Test: toString (line 342)
+     */
+    @Test
+    void testToString() throws SQLException {
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+
+        replay(mockPooledConnection, mockRealStatement);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy = pooledStatement.checkOut();
+
+        String result = proxy.toString();
+        assertTrue(result.contains("conn-1.STMT#1"), "Should contain statement name");
+
+        verify(mockPooledConnection, mockRealStatement);
+    }
+
+    /**
+     * Test: getMaskedSql with masking enabled (line 349)
+     */
+    @Test
+    void testGetMaskedSqlWithMaskingEnabled() throws SQLException {
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+        expect(mockPooledConnection.isVerbose()).andReturn(false).anyTimes();
+        expect(mockPooledConnection.isPrintSQL()).andReturn(true).anyTimes();
+
+        expect(mockPooledConnection.getConnectionPool()).andReturn(mockPool).anyTimes();
+        expect(mockPool.getConfig()).andReturn(mockConfig).anyTimes();
+        expect(mockConfig.isMaskSql()).andReturn(true).anyTimes();
+        expect(mockPool.getInfoSQLThreshold()).andReturn(1000L).anyTimes();
+        expect(mockPool.getWarnSQLThreshold()).andReturn(3000L).anyTimes();
+
+        SqlMasker mockMasker = createMock(SqlMasker.class);
+        expect(mockPool.getSqlMasker()).andReturn(mockMasker).anyTimes();
+
+        String sql = "SELECT * FROM users WHERE password='secret'";
+        expect(mockMasker.maskSensitiveFields(anyString()))
+            .andReturn("SELECT * FROM users WHERE password='***'").anyTimes();
+
+        expect(mockRealStatement.executeQuery(sql)).andReturn(null);
+
+        mockPooledConnection.checkIn(anyObject(PooledStatement.class));
+        expectLastCall().once();
+
+        replay(mockPooledConnection, mockRealStatement, mockPool, mockConfig, mockMasker);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy = pooledStatement.checkOut();
+
+        // Execute a query to set sqlDoing
+        proxy.executeQuery(sql);
+
+        proxy.close();
+        verify(mockPooledConnection, mockRealStatement, mockPool, mockConfig, mockMasker);
+    }
+
+    /**
+     * Test: printSQL with isPrintSQL() returning false (line 361)
+     */
+    @Test
+    void testPrintSQLWhenDisabled() throws SQLException {
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+        expect(mockPooledConnection.isVerbose()).andReturn(false).anyTimes();
+        expect(mockPooledConnection.isPrintSQL()).andReturn(false).anyTimes();
+
+        expect(mockRealStatement.executeQuery("SELECT 1")).andReturn(null);
+
+        mockPooledConnection.checkIn(anyObject(PooledStatement.class));
+        expectLastCall().once();
+
+        replay(mockPooledConnection, mockRealStatement);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy = pooledStatement.checkOut();
+
+        // Execute query with printSQL disabled - should not print
+        proxy.executeQuery("SELECT 1");
+
+        proxy.close();
+        verify(mockPooledConnection, mockRealStatement);
+    }
+
+    /**
+     * Test: onExecuteMethodDone with object return type that's not int/long (line 437-438)
+     */
+    @Test
+    void testOnExecuteMethodDoneWithObjectReturn() throws SQLException {
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+        expect(mockPooledConnection.isVerbose()).andReturn(false).anyTimes();
+        expect(mockPooledConnection.isPrintSQL()).andReturn(false).anyTimes();
+
+        // executeUpdate returns int[], which is not int or long
+        int[] generatedKeys = {1, 2, 3};
+        expect(mockRealStatement.executeUpdate("INSERT INTO test VALUES (1)", Statement.RETURN_GENERATED_KEYS))
+            .andReturn(3);
+        mockPooledConnection.setDirty();
+        expectLastCall().once();
+
+        mockPooledConnection.checkIn(anyObject(PooledStatement.class));
+        expectLastCall().once();
+
+        replay(mockPooledConnection, mockRealStatement);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy = pooledStatement.checkOut();
+
+        int count = proxy.executeUpdate("INSERT INTO test VALUES (1)", Statement.RETURN_GENERATED_KEYS);
+        assertEquals(3, count);
 
         proxy.close();
         verify(mockPooledConnection, mockRealStatement);

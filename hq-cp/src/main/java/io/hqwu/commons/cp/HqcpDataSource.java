@@ -51,6 +51,9 @@ public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFact
     @Override
     @SuppressWarnings("unchecked")
     public <T> T unwrap(Class<T> iface) throws SQLException {
+        if (iface == null) {
+            throw new SQLException("Interface argument cannot be null");
+        }
         if (iface.isInstance(this)) {
             return (T) this;
         }
@@ -64,6 +67,9 @@ public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFact
 
     @Override
     public boolean isWrapperFor(Class<?> iface) throws SQLException {
+        if (iface == null) {
+            return false;
+        }
         return iface.isInstance(this) || (iface.isInstance(this.pool));
     }
 

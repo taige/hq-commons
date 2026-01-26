@@ -615,4 +615,219 @@ public class HqcpConfigTest {
 //        conn1.close();
 //        conn.close();
 //    }
+
+    /**
+     * Test: setConnectionInfo with empty entry (line 271)
+     */
+    @Test
+    public void testSetConnectionInfoWithEmptyEntry() {
+        config.setConnectionInfo("user=test&&password=pwd");
+        assertEquals("test", config.getConnectionProperties().getProperty("user"));
+        assertEquals("pwd", config.getConnectionProperties().getProperty("password"));
+    }
+
+    /**
+     * Test: setConnectionInfo with entry without value (line 271)
+     */
+    @Test
+    public void testSetConnectionInfoWithNoValue() {
+        config.setConnectionInfo("user=test&flag");
+        assertEquals("test", config.getConnectionProperties().getProperty("user"));
+        assertEquals("", config.getConnectionProperties().getProperty("flag"));
+    }
+
+    /**
+     * Test: _setUrl with invalid URL format (line 282)
+     */
+    @Test
+    public void testSetUrlWithInvalidFormat() {
+        config.setUrl("invalid");
+        // Should not throw exception, just return early
+        assertFalse(config.isOracle());
+        assertFalse(config.isMySQL());
+        assertFalse(config.isDB2());
+    }
+
+    /**
+     * Test: getPassword when password is null (line 376)
+     */
+    @Test
+    public void testGetPasswordWhenNull() {
+        config.setPassword(null);
+        assertNull(config.getPassword());
+    }
+
+    /**
+     * Test: getPassword when password is empty string (line 376)
+     */
+    @Test
+    public void testGetPasswordWhenEmpty() {
+        config.setPassword("");
+        assertNull(config.getPassword());
+    }
+
+    /**
+     * Test: getSecurityService with applicationContext (lines 637-657)
+     */
+    @Test
+    public void testGetSecurityServiceWithApplicationContext() {
+        org.springframework.context.support.StaticApplicationContext ctx =
+            new org.springframework.context.support.StaticApplicationContext();
+
+        io.hqwu.commons.SecurityService localService = new io.hqwu.commons.SecurityServiceLocalImpl();
+        ctx.getBeanFactory().registerSingleton("securityService", localService);
+        ctx.refresh();
+
+        config.setApplicationContext(ctx);
+
+        io.hqwu.commons.SecurityService service = config.getSecurityService();
+        assertNotNull(service);
+        assertTrue(service instanceof io.hqwu.commons.SecurityServiceLocalImpl);
+    }
+
+    /**
+     * Test: getSecurityService with BeansException (lines 654-656)
+     */
+    @Test
+    public void testGetSecurityServiceWithBeansException() {
+        org.springframework.context.support.StaticApplicationContext ctx =
+            new org.springframework.context.support.StaticApplicationContext();
+        ctx.refresh();
+        ctx.close(); // Closed context will throw BeansException
+
+        config.setApplicationContext(ctx);
+
+        io.hqwu.commons.SecurityService service = config.getSecurityService();
+        assertNotNull(service);
+        assertTrue(service instanceof io.hqwu.commons.SecurityServiceLocalImpl);
+    }
+
+    /**
+     * Test: reloadProperties when properties is set (lines 692-693)
+     */
+    @Test
+    public void testReloadPropertiesWhenSet() throws SQLException {
+        config.loadFromProperties("jdbc");
+        String originalUrl = config.getUrl();
+
+        // Reload should not throw exception
+        config.reloadProperties();
+
+        // URL should remain the same after reload
+        assertEquals(originalUrl, config.getUrl());
+    }
+
+    /**
+     * Test: reloadProperties when properties is null (line 692)
+     */
+    @Test
+    public void testReloadPropertiesWhenNull() {
+        // Should not throw exception when properties is null
+        config.reloadProperties();
+        // No assertion needed, just ensure no exception
+    }
+
+    /**
+     * Test: _loadProperties with FileNotFoundException (line 717)
+     */
+    @Test
+    public void testLoadPropertiesWithNonExistentFile() {
+        // This will trigger the FileNotFoundException path
+        assertThrows(SQLException.class, () -> {
+            config.loadFromProperties("non_existent_file_xyz");
+        });
+    }
+
+    /**
+     * Test: printConfig with null logger (lines 809)
+     */
+    @Test
+    public void testPrintConfigWithNullLogger() {
+        config.setUrl("jdbc:mysql://localhost/test");
+        config.setUsername("test");
+        config.setPassword("password");
+
+        // Should use internal LOGGER when null is passed
+        config.printConfig(null);
+
+        // No exception should be thrown
+    }
+
+    /**
+     * Test: setSecurityService (line 637)
+     */
+    @Test
+    public void testSetSecurityService() {
+        io.hqwu.commons.SecurityService customService = new io.hqwu.commons.SecurityServiceLocalImpl();
+        config.setSecurityService(customService);
+
+        assertEquals(customService, config.getSecurityService());
+    }
+
+    /**
+     * Test: getPasswordKey with system property
+     */
+    @Test
+    public void testGetPasswordKeyWithSystemProperty() {
+        String originalKey = System.getProperty("JDBC_SECRET_KEY");
+        try {
+            System.setProperty("JDBC_SECRET_KEY", "test-key-from-system");
+            HqcpConfig newConfig = new HqcpConfig();
+
+            String key = newConfig.getPasswordKey();
+            assertEquals("test-key-from-system", key);
+        } finally {
+            if (originalKey != null) {
+                System.setProperty("JDBC_SECRET_KEY", originalKey);
+            } else {
+                System.clearProperty("JDBC_SECRET_KEY");
+            }
+        }
+    }
+
+    /**
+     * Test: getPasswordKey with environment variable (fallback)
+     */
+    @Test
+    public void testGetPasswordKeyDefault() {
+        HqcpConfig newConfig = new HqcpConfig();
+        String key = newConfig.getPasswordKey();
+
+        // Should return default key if no system property or env var
+        assertNotNull(key);
+        assertTrue(key.length() > 0);
+    }
+
+    /**
+     * Test: decryptPassword with non-base64 string
+     */
+    @Test
+    public void testDecryptPasswordNonBase64() {
+        config.setPassword("plaintext");
+        assertEquals("plaintext", config.getPassword());
+    }
+
+    /**
+     * Test: decryptPassword with base64 but not encrypted
+     */
+    @Test
+    public void testDecryptPasswordBase64NotEncrypted() {
+        // Base64 encoded "plaintext"
+        config.setPassword("cGxhaW50ZXh0");
+        assertNotNull(config.getPassword());
+    }
+
+    /**
+     * Test: getSecurityService without applicationContext
+     */
+    @Test
+    public void testGetSecurityServiceWithoutContext() {
+        HqcpConfig newConfig = new HqcpConfig();
+        io.hqwu.commons.SecurityService service = newConfig.getSecurityService();
+
+        assertNotNull(service);
+        assertTrue(service instanceof io.hqwu.commons.SecurityServiceLocalImpl);
+    }
 }
+
+

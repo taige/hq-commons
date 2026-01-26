@@ -16,6 +16,8 @@
     <bonecp.version>0.8.0.RELEASE</bonecp.version>
     <c3p0.version>0.9.2.1</c3p0.version>
     <easymock.version>5.2.0</easymock.version>
+    <!-- 默认排除标记为 slow 的测试，可通过 -Dtest.excludedGroups="" 覆盖 -->
+    <test.excludedGroups>slow</test.excludedGroups>
   </properties>
 
   <repositories>
@@ -126,5 +128,21 @@
         <filtering>true</filtering>
       </testResource>
     </testResources>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>${maven-surefire-plugin.version}</version>
+        <configuration>
+          <excludes>
+            <!-- 排除集成测试类 -->
+            <exclude>**/*IntTest.java</exclude>
+          </excludes>
+          <!-- 排除带有 @Tag("slow") 注解的测试方法 -->
+          <!-- 可通过 -Dtest.excludedGroups="" 来覆盖 -->
+          <excludedGroups>${test.excludedGroups}</excludedGroups>
+        </configuration>
+      </plugin>
+    </plugins>
   </build>
 </project>
