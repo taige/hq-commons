@@ -37,6 +37,53 @@ import java.util.function.Function;
  *     <li><b>数值兼容：</b> 内置常见数值类型（如 Integer, Long, BigDecimal 等）之间的自动转换。</li>
  * </ul>
  *
+ * <p><b>已知限制（待实现功能）：</b>
+ * <ol>
+ *     <li><b>Map 类型的嵌套转换（Line 374）：</b>
+ *         <ul>
+ *             <li>当前不支持 Map 中元素的递归类型转换</li>
+ *             <li>Map 属性会被直接复制引用，元素类型不会自动转换</li>
+ *             <li>限制影响：无法将 {@code Map<K, SrcType>} 自动转换为 {@code Map<K, TargetType>}</li>
+ *             <li>原因：泛型类型在运行时擦除，难以自动推断键值类型</li>
+ *         </ul>
+ *     </li>
+ *     <li><b>Number 到基本类型的转换（Line 378）：</b>
+ *         <ul>
+ *             <li>number2SpecificClass 方法不支持基本类型（int, long 等）参数</li>
+ *             <li>{@code Number.class.isAssignableFrom(primitiveType)} 对基本类型返回 false</li>
+ *             <li>限制影响：Number 包装类到基本类型的转换不通过专门的转换方法</li>
+ *             <li>原因：基本类型不是对象，反射 API 对其支持有限</li>
+ *             <li>说明：包装类型之间的转换（Integer → Double）正常工作</li>
+ *         </ul>
+ *     </li>
+ *     <li><b>Queue 接口的集合转换（Line 461）：</b>
+ *         <ul>
+ *             <li>不支持 Queue 接口作为目标集合类型</li>
+ *             <li>当前行为：抛出 {@code UnsupportedOperationException}</li>
+ *             <li>限制影响：无法将 List 或其他集合转换为 Queue 接口类型</li>
+ *             <li>原因：需要选择合适的默认实现，存在多种可能（LinkedList, ArrayDeque 等）</li>
+ *             <li>说明：具体的 Queue 实现类（如 LinkedBlockingQueue）可能通过 BeanUtils.instantiateClass 实例化</li>
+ *         </ul>
+ *     </li>
+ *     <li><b>抽象集合类的实例化（Line 464）：</b>
+ *         <ul>
+ *             <li>不支持抽象集合类（AbstractList, AbstractSet 等）作为目标类型</li>
+ *             <li>当前行为：抛出 {@code UnsupportedOperationException}</li>
+ *             <li>限制影响：无法将集合转换为抽象集合类型</li>
+ *             <li>原因：无法直接实例化抽象类</li>
+ *             <li>说明：具体集合类（ArrayList, HashSet）正常工作</li>
+ *         </ul>
+ *     </li>
+ * </ol>
+ *
+ * <p><b>替代方案：</b>
+ * <ul>
+ *     <li>对于 Map 转换：手动实现或使用自定义的 {@link ValueOf} 转换器</li>
+ *     <li>对于基本类型：依赖 BeanCopier 的自动装箱或使用包装类型</li>
+ *     <li>对于 Queue 和抽象集合：使用具体的实现类（ArrayList, LinkedBlockingQueue 等）</li>
+ *     <li>对于复杂场景：推荐使用 MapStruct 等编译时代码生成工具</li>
+ * </ul>
+ *
  * <p>注意：由于反射和动态处理的开销，在高性能要求的静态映射场景下，建议优先使用 MapStruct。
  * 本类主要用于处理 MapStruct 难以覆盖的动态映射或高度抽象的转换需求。
  *
