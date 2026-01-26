@@ -14,39 +14,44 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 /**
- * Created with IntelliJ IDEA for pp-gopay-fa
+ * 关联查询条件封装类。
  *
- * 关联查询时代表 `从表` 的查询条件封装
-
- * 大部分代码从 {@link QueryWrapper} 拷贝而来
+ * <p>主要用于在执行多表关联查询时，封装“从表（Secondary Table）”的查询条件及字段选择逻辑。</p>
+ * <p>该类大部分代码从 {@link QueryWrapper} 拷贝而来，并扩展了对多表场景下 SQL 片段的处理。通过 {@link #lambda(String)}
+ * 方法可以转换为 {@link MainLambdaQueryWrapper}，从而支持强类型的 Lambda 表达式关联查询。</p>
  *
- * User: taige
- * Date: 2020/5/9
- * Time: 11:24
+ * @param <T> 实体类泛型
+ * @author taige
+ * @since 2020/5/9
  */
 public class JoinQueryWrapper<T> extends QueryWrapper<T> {
 
     /**
      * 查询字段
      */
-    private SharedString sqlSelect = new SharedString();
+    private SharedString sqlSelect;
 
     public JoinQueryWrapper() {
         super();
+        sqlSelect = new SharedString();
     }
 
     public JoinQueryWrapper(T entity) {
         super(entity);
+        sqlSelect = new SharedString();
     }
 
     public JoinQueryWrapper(T entity, String... columns) {
-        super(entity, columns);
+        this.sqlSelect = new SharedString();
+        super.setEntity(entity);
+        super.initNeed();
+        if (ArrayUtils.isNotEmpty(columns)) {
+            select(columns);
+        }
     }
 
     /**
-     * 非对外公开的构造方法,只用于生产嵌套 sql
-     *
-     * @param entityClass 本不应该需要的
+     * 非对外公开的构造方法,只用于生成嵌套 sql
      */
     private JoinQueryWrapper(T entity, Class<T> entityClass, AtomicInteger paramNameSeq,
                              Map<String, Object> paramNameValuePairs, MergeSegments mergeSegments, SharedString paramAlias,
@@ -80,6 +85,18 @@ public class JoinQueryWrapper<T> extends QueryWrapper<T> {
     @Override
     public String getSqlSelect() {
         return sqlSelect.getStringValue();
+    }
+
+    /**
+     * 用于生成嵌套 sql
+     * <p>
+     * 故 sqlSelect 不向下传递
+     * </p>
+     */
+    @Override
+    protected JoinQueryWrapper<T> instance() {
+        return new JoinQueryWrapper<>(getEntity(), getEntityClass(), paramNameSeq, paramNameValuePairs, new MergeSegments(),
+                paramAlias, SharedString.emptyString(), SharedString.emptyString(), SharedString.emptyString());
     }
 
     /**

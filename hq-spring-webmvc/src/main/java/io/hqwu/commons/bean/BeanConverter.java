@@ -13,6 +13,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.annotation.AnnotationConfigurationException;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
+import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.beans.IntrospectionException;
@@ -25,15 +26,27 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 
 /**
- * Created with IntelliJ IDEA for pp-gopay-fa
- * User: taige
- * Date: 2020/5/4
- * Time: 21:25
+ * Bean 转换工具类，用于在不同类型的 Java Bean 之间进行属性拷贝与类型转换。
  *
- * @deprecated 推荐使用 MapStruct 作为替代方案，性能更好且类型安全。
+ * <p>该工具类结合了 Spring {@link BeanUtils} 的灵活性与 CGLIB {@link BeanCopier} 的高性能，主要功能包括：
+ * <ul>
+ *     <li><b>自动拷贝：</b> 默认拷贝源对象与目标对象中名称和类型相同的属性。</li>
+ *     <li><b>注解驱动映射：</b> 通过 {@link SourceProperty} 注解指定源属性名称、忽略字段或配置字符串缩略。</li>
+ *     <li><b>自定义转换：</b> 支持通过 {@link ValueOf} 接口及其实现类定义复杂的字段转换逻辑，并支持从 Spring 上下文获取转换器实例。</li>
+ *     <li><b>深度转换：</b> 自动处理嵌套对象以及集合类型（List, Set）的递归转换。</li>
+ *     <li><b>数值兼容：</b> 内置常见数值类型（如 Integer, Long, BigDecimal 等）之间的自动转换。</li>
+ * </ul>
+ *
+ * <p>注意：由于反射和动态处理的开销，在高性能要求的静态映射场景下，建议优先使用 MapStruct。
+ * 本类主要用于处理 MapStruct 难以覆盖的动态映射或高度抽象的转换需求。
+ *
+ * @author taige
+ * @since 2020/5/4
+ * @deprecated 推荐使用 MapStruct 作为替代方案，性能更好且类型安全。但在需要动态转换功能的场景下仍可保留使用。
  * @see <a href="https://mapstruct.org/">MapStruct</a>
  */
 @Deprecated
+@Component
 public class BeanConverter implements ApplicationContextAware {
     private static final Logger LOGGER = new Logger();
 
@@ -358,12 +371,12 @@ public class BeanConverter implements ApplicationContextAware {
                             srcPropertyName == null ? targFieldName : srcPropertyName,
                             targetBean, targFieldName, (Class<Collection<Object>>) targetClass);
                 }
-                // TODO supoort Map
+                // TODO support Map
                 return origValue;
             } else if (Number.class.isAssignableFrom(targetClass)
                     && Number.class.isAssignableFrom(origValue.getClass())) {
                 // todo support primitive type
-                // todo test
+                // DONE test
                 return number2SpecificClass((Number) origValue, (Class<Number>) targetClass);
             } else if (targetClass.isAssignableFrom(String.class)) {
                 LOGGER.trace("default convert everything to String(%s) for property `%s`", origValue, targFieldName);

@@ -5,9 +5,15 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import java.io.Serializable;
 
 /**
- * 支持分页和排序的前端查询请求接口
- * @param <E> 数据库实体类
- * @param <P> 返回给前端的pojo类
+ * 分页与排序查询请求的通用接口。
+ * <p>
+ * 该接口定义了前端发起分页查询时所需的基础参数规范，包括页码、每页数据量、排序字段及排序方向。
+ * 通过集成此接口，可以配合 {@link PageHelper} 快速构建 MyBatis-Plus 的 {@link IPage} 对象，
+ * 从而简化从 Controller 层到 Service 层的数据传递与分页逻辑转换。
+ * </p>
+ *
+ * @param <E> 数据库实体类 (Entity)
+ * @param <P> 返回给前端的 POJO/DTO 类
  */
 public interface PaginationQueryRequest<E, P> extends Serializable {
 

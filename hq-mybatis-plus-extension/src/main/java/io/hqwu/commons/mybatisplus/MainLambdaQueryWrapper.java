@@ -21,16 +21,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 /**
- * Created with IntelliJ IDEA for pp-gopay-fa
+ * 主表 Lambda 查询条件封装器。
  *
- * 关联查询时 代表 `主表` 的查询条件封装。
- *   主要为了实现：在where条件从句上自动添加主表前缀
+ * <p>该类主要用于多表关联查询场景，继承自 {@link AbstractLambdaWrapper} 并实现 {@link Query} 接口。
+ * 核心功能是在构建查询条件时，自动为 SQL 的 WHERE 子句中的字段添加指定的主表前缀（别名），
+ * 从而有效解决多表关联查询时可能出现的字段重名或歧义问题。</p>
  *
- * 大部分代码从 {@link com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper} 拷贝而来
+ * <p>其功能逻辑参考了 {@link com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper}，
+ * 适用于需要手动控制表前缀的复杂 SQL 构造场景。</p>
  *
- * User: taige
- * Date: 2020/5/9
- * Time: 11:13
+ * @param <T> 实体类型
+ * @author taige
+ * @since 2020/5/9
  */
 public class MainLambdaQueryWrapper<T> extends AbstractLambdaWrapper<T, MainLambdaQueryWrapper<T>>
         implements Query<MainLambdaQueryWrapper<T>, T, SFunction<T, ?>> {
