@@ -4,10 +4,9 @@ import io.hqwu.commons.util.Logger;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.sql.Driver;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.lang.reflect.InvocationHandler;
+import java.sql.*;
+import java.util.Objects;
 import java.util.StringTokenizer;
 
 /**
@@ -18,6 +17,29 @@ public class JdbcUtil {
     private static final Logger LOGGER = new Logger();
 
     public final static String CRLF = System.getProperty("line.separator");
+
+    public static boolean isWrapperFor(Class<?> iface, InvocationHandler handler, Object proxy, Wrapper wrapper) throws SQLException {
+        if (iface == null) {
+            return false;
+        }
+        return iface.isInstance(handler)
+                || iface.isInstance(proxy)
+                || wrapper.isWrapperFor(iface);
+    }
+
+    public static <T> T unwrap(Class<T> iface, InvocationHandler handler, Object proxy, Wrapper wrapper) throws SQLException {
+        Objects.requireNonNull(iface);
+        // 1. 如果要的是 Connection 接口，返回 Proxy 自身
+        if (iface.isInstance(proxy)) {
+            return iface.cast(proxy);
+        }
+        // 2. 如果要的是 Handler 类型，返回 this
+        if (iface.isInstance(handler)) {
+            return iface.cast(handler);
+        }
+        // 3. 否则，去底层解包
+        return wrapper.unwrap(iface);
+    }
 
     /**
      * Create a new instance of <code>Driver</code> with the driver class name.

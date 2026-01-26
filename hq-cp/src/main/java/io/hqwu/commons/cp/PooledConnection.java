@@ -336,9 +336,6 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 if (isPrintSQL() || isVerbose()) {
                     log.debug(connectionName, ".close()[" , isFatalExceptionHappened() ,"] use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
-            } else if (mname.equals("isClosed")) {
-                // 如果未检出(!isCheckOut)，或内部已标记关闭，或物理连接已关闭，则返回 true
-                ret = !isCheckOut() || closed.get() || (real_connection != null && real_connection.isClosed());
             } else if (mname.equals("createStatement")) {
                 ret = createStatement(method, args);
                 if (isVerbose()) {
@@ -362,12 +359,27 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 }
             } else if (mname.equals("setAutoCommit") && args.length == 1) {
                 ret = method.invoke(real_connection, args);
-                this.autoCommit = real_connection.getAutoCommit();;
+                this.autoCommit = real_connection.getAutoCommit();
                 if (isVerbose()) {
-                    log.debug(connectionName, ".", mname, "(", args[0] ,") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                    log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                }
+            } else if (mname.equals("isWrapperFor") && args.length == 1) {
+                ret = JdbcUtil.isWrapperFor((Class<?>) args[0], this, proxy, real_connection);
+                if (isVerbose()) {
+                    log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                }
+            } else if (mname.equals("unwrap") && args.length == 1) {
+                ret = JdbcUtil.unwrap((Class<?>) args[0], this, proxy, real_connection);
+                if (isVerbose()) {
+                    log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
             } else {
-                ret = method.invoke(real_connection, args);
+                if (mname.equals("isClosed")) {
+                    // 如果未检出(!isCheckOut)，或内部已标记关闭，或物理连接已关闭，则返回 true
+                    ret = !isCheckOut() || closed.get() || (real_connection != null && real_connection.isClosed());
+                } else {
+                    ret = method.invoke(real_connection, args);
+                }
                 if (isVerbose()) {
                     log.trace(connectionName, ".", mname, "(...) use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }

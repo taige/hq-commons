@@ -352,22 +352,85 @@ public class PooledConnectionTest {
     /**
      * Test Requirement 6: Wrapper Interface
      * Verify that Wrapper interface methods (isWrapperFor, unwrap) are correctly
-     * delegated to the underlying connection, allowing access to vendor-specific extensions.
+     * implemented with the following logic:
+     * 1. Check if the requested interface is implemented by the InvocationHandler (PooledConnection)
+     * 2. Check if the requested interface is implemented by the Proxy itself
+     * 3. Delegate to the underlying connection's isWrapperFor/unwrap
      */
     @Test
     public void testWrapperInterface() throws SQLException {
-        // Define a "Vendor Specific" interface for testing unwrap
-        // Just using Runnable as a dummy interface for this test since we just check delegation
+        // --- Expectations ---
+        expect(mockRealConnection.getAutoCommit()).andReturn(true).anyTimes();
+
+        // Cleanup
+        mockPool.checkIn(anyObject(PooledConnection.class));
+        expectLastCall().once();
+
+        control.replay();
+
+        // --- Execution ---
+        PooledConnection pooledConnection = new PooledConnection(mockPool, 1);
+        Connection proxy = pooledConnection.checkOut(true);
+
+        // Test 1: isWrapperFor with Connection interface (should return true for proxy)
+        assertTrue(proxy.isWrapperFor(Connection.class),
+            "Proxy should be a wrapper for Connection interface");
+
+        // Test 2: unwrap with Connection interface (should return proxy itself)
+        Connection unwrappedConn = proxy.unwrap(Connection.class);
+        assertNotNull(unwrappedConn);
+        assertSame(proxy, unwrappedConn,
+            "Unwrapping Connection should return the proxy itself");
+
+        // Test 3: isWrapperFor with PooledConnection class (handler type)
+        assertTrue(proxy.isWrapperFor(PooledConnection.class),
+            "Proxy should be a wrapper for PooledConnection (the handler)");
+
+        // Test 4: unwrap with PooledConnection class (should return the handler)
+        PooledConnection unwrappedHandler = proxy.unwrap(PooledConnection.class);
+        assertNotNull(unwrappedHandler);
+        assertSame(pooledConnection, unwrappedHandler,
+            "Unwrapping PooledConnection should return the handler itself");
+
+        // Test 5: isWrapperFor with PooledConnectionMBean interface (implemented by handler)
+        assertTrue(proxy.isWrapperFor(PooledConnectionMBean.class),
+            "Proxy should be a wrapper for PooledConnectionMBean (implemented by handler)");
+
+        // Test 6: unwrap with PooledConnectionMBean interface
+        PooledConnectionMBean unwrappedMBean = proxy.unwrap(PooledConnectionMBean.class);
+        assertNotNull(unwrappedMBean);
+        assertSame(pooledConnection, unwrappedMBean,
+            "Unwrapping PooledConnectionMBean should return the handler");
+
+        proxy.close();
+
+        control.verify();
+    }
+
+    /**
+     * Test Requirement 6.1: Wrapper Interface - Delegation to Real Connection
+     * Verify that when the requested interface is not implemented by handler or proxy,
+     * it delegates to the underlying real connection.
+     */
+    @Test
+    public void testWrapperInterfaceDelegation() throws SQLException {
+        // Define a "Vendor Specific" interface for testing delegation
         Class<Runnable> vendorInterface = Runnable.class;
         Runnable mockVendorObject = control.createMock(Runnable.class);
 
         // --- Expectations ---
         expect(mockRealConnection.getAutoCommit()).andReturn(true).anyTimes();
 
-        // 1. isWrapperFor
+        // When checking for Runnable interface:
+        // 1. PooledConnection does not implement Runnable -> false
+        // 2. Proxy does not implement Runnable -> false
+        // 3. Delegate to real connection
         expect(mockRealConnection.isWrapperFor(vendorInterface)).andReturn(true).once();
 
-        // 2. unwrap
+        // When unwrapping Runnable:
+        // 1. Proxy is not instance of Runnable
+        // 2. Handler is not instance of Runnable
+        // 3. Delegate to real connection
         expect(mockRealConnection.unwrap(vendorInterface)).andReturn(mockVendorObject).once();
 
         // Cleanup
@@ -380,14 +443,45 @@ public class PooledConnectionTest {
         PooledConnection pooledConnection = new PooledConnection(mockPool, 1);
         Connection proxy = pooledConnection.checkOut(true);
 
-        // a. Test isWrapperFor
+        // Test isWrapperFor delegation
         boolean isWrapper = proxy.isWrapperFor(vendorInterface);
-        assertTrue(isWrapper, "Should return true as underlying connection supports it");
+        assertTrue(isWrapper, "Should delegate to underlying connection and return true");
 
-        // b. Test unwrap
+        // Test unwrap delegation
         Runnable result = proxy.unwrap(vendorInterface);
         assertNotNull(result);
-        assertSame(mockVendorObject, result, "Should return the object returned by underlying connection");
+        assertSame(mockVendorObject, result,
+            "Should delegate to underlying connection and return the vendor object");
+
+        proxy.close();
+
+        control.verify();
+    }
+
+    /**
+     * Test Requirement 6.2: Wrapper Interface - Null and Invalid Cases
+     */
+    @Test
+    public void testWrapperInterfaceNullAndInvalid() throws SQLException {
+        // --- Expectations ---
+        expect(mockRealConnection.getAutoCommit()).andReturn(true).anyTimes();
+
+        // Cleanup
+        mockPool.checkIn(anyObject(PooledConnection.class));
+        expectLastCall().once();
+
+        control.replay();
+
+        // --- Execution ---
+        PooledConnection pooledConnection = new PooledConnection(mockPool, 1);
+        Connection proxy = pooledConnection.checkOut(true);
+
+        // Test 1: isWrapperFor with null should return false
+        assertFalse(proxy.isWrapperFor(null), "isWrapperFor(null) should return false");
+
+        // Test 2: unwrap with null should throw exception
+        assertThrows(NullPointerException.class, () -> proxy.unwrap(null),
+            "unwrap(null) should throw NullPointerException");
 
         proxy.close();
 

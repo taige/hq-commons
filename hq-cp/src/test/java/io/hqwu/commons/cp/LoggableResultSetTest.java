@@ -154,4 +154,94 @@ class LoggableResultSetTest {
 
         verify(mockPooledStatement, mockRealResultSet, mockMetaData);
     }
+
+    /**
+     * Test Wrapper Interface Support
+     * Verify that isWrapperFor and unwrap work correctly for ResultSet proxy.
+     * The implementation should:
+     * 1. Check if the requested interface is implemented by the InvocationHandler (LoggableResultSet)
+     * 2. Check if the requested interface is implemented by the Proxy itself
+     * 3. Delegate to the underlying resultSet's isWrapperFor/unwrap
+     */
+    @Test
+    void testWrapperSupport() throws SQLException {
+        replay(mockPooledStatement, mockRealResultSet, mockMetaData);
+
+        PooledStatement.LoggableResultSet lrs = PooledStatement.LoggableResultSet.newInstance(mockPooledStatement, mockRealResultSet);
+        ResultSet proxy = lrs.getResultSet();
+
+        // Test 1: isWrapperFor with ResultSet interface (proxy implements it)
+        assertTrue(proxy.isWrapperFor(ResultSet.class),
+            "Proxy should be a wrapper for ResultSet interface");
+
+        // Test 2: unwrap with ResultSet interface (should return proxy itself)
+        ResultSet unwrappedRs = proxy.unwrap(ResultSet.class);
+        assertSame(proxy, unwrappedRs,
+            "Unwrapping ResultSet should return the proxy itself");
+
+        // Test 3: isWrapperFor with LoggableResultSet class (handler type)
+        // Note: LoggableResultSet is a static inner class
+        assertTrue(proxy.isWrapperFor(PooledStatement.LoggableResultSet.class),
+            "Proxy should be a wrapper for LoggableResultSet (the handler)");
+
+        // Test 4: unwrap with LoggableResultSet class (should return the handler)
+        PooledStatement.LoggableResultSet unwrappedHandler = proxy.unwrap(PooledStatement.LoggableResultSet.class);
+        assertSame(lrs, unwrappedHandler,
+            "Unwrapping LoggableResultSet should return the handler itself");
+
+        verify(mockPooledStatement, mockRealResultSet, mockMetaData);
+    }
+
+    /**
+     * Test Wrapper Interface Support - Delegation
+     * Verify that when the requested interface is not implemented by handler or proxy,
+     * it delegates to the underlying real ResultSet.
+     */
+    @Test
+    void testWrapperSupportDelegation() throws SQLException {
+        // Define a vendor-specific interface
+        Class<Runnable> vendorInterface = Runnable.class;
+        Runnable mockVendorObject = createMock(Runnable.class);
+
+        // Delegation expectations
+        expect(mockRealResultSet.isWrapperFor(vendorInterface)).andReturn(true).once();
+        expect(mockRealResultSet.unwrap(vendorInterface)).andReturn(mockVendorObject).once();
+
+        replay(mockPooledStatement, mockRealResultSet, mockMetaData, mockVendorObject);
+
+        PooledStatement.LoggableResultSet lrs = PooledStatement.LoggableResultSet.newInstance(mockPooledStatement, mockRealResultSet);
+        ResultSet proxy = lrs.getResultSet();
+
+        // Test isWrapperFor delegation
+        assertTrue(proxy.isWrapperFor(vendorInterface),
+            "Should delegate to underlying ResultSet and return true");
+
+        // Test unwrap delegation
+        Runnable unwrapped = proxy.unwrap(vendorInterface);
+        assertSame(mockVendorObject, unwrapped,
+            "Should delegate to underlying ResultSet and return the vendor object");
+
+        verify(mockPooledStatement, mockRealResultSet, mockMetaData);
+    }
+
+    /**
+     * Test Wrapper Interface Support - Null Handling
+     */
+    @Test
+    void testWrapperSupportNullHandling() throws SQLException {
+        replay(mockPooledStatement, mockRealResultSet, mockMetaData);
+
+        PooledStatement.LoggableResultSet lrs = PooledStatement.LoggableResultSet.newInstance(mockPooledStatement, mockRealResultSet);
+        ResultSet proxy = lrs.getResultSet();
+
+        // Test 1: isWrapperFor with null should return false
+        assertFalse(proxy.isWrapperFor(null),
+            "isWrapperFor(null) should return false");
+
+        // Test 2: unwrap with null should throw exception
+        assertThrows(NullPointerException.class, () -> proxy.unwrap(null),
+            "unwrap(null) should throw NullPointerException");
+
+        verify(mockPooledStatement, mockRealResultSet, mockMetaData);
+    }
 }

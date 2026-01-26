@@ -251,6 +251,16 @@ class PooledStatement implements InvocationHandler {
                 if (isVerbose() || isPrintSQL()) {
                     LOGGER.debug(statementName, ".", methodDoing, "(...)", "[", ret4log, "] use ", Formatter.formatNS(System.nanoTime() - start), " ns");
                 }
+            } else if (methodDoing.equals("isWrapperFor") && args != null && args.length == 1) {
+                ret = JdbcUtil.isWrapperFor((Class<?>) args[0], this, proxy, real_statement);
+                if (isVerbose()) {
+                    LOGGER.debug(statementName, ".", methodDoing, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - start), " ns");
+                }
+            } else if (methodDoing.equals("unwrap") && args != null && args.length == 1) {
+                ret = JdbcUtil.unwrap((Class<?>) args[0], this, proxy, real_statement);
+                if (isVerbose()) {
+                    LOGGER.debug(statementName, ".", methodDoing, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - start), " ns");
+                }
             } else {
                 if (methodDoing.equals("getResultSet") && resultSet != null) {
                     ret = resultSet;
@@ -499,10 +509,16 @@ class PooledStatement implements InvocationHandler {
         }
 
         @Override
-        public Object invoke(Object proxy, Method method, Object[] params) throws Throwable {
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
             try {
-                Object o = method.invoke(resultSet, params);
-                if ("next".equals(method.getName())) {
+                String methodDoing = method.getName();
+                if (methodDoing.equals("isWrapperFor") && args != null && args.length == 1) {
+                    return JdbcUtil.isWrapperFor((Class<?>) args[0], this, proxy, resultSet);
+                } else if (methodDoing.equals("unwrap") && args != null && args.length == 1) {
+                    return JdbcUtil.unwrap((Class<?>) args[0], this, proxy, resultSet);
+                }
+                Object o = method.invoke(resultSet, args);
+                if ("next".equals(methodDoing)) {
                     if ((Boolean) o) {
                         rows++;
                         if (pooledStatement.isVerbose() && LOGGER.isTraceEnabled()) {

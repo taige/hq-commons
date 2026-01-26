@@ -324,7 +324,10 @@ class PooledStatementTest {
 
     /**
      * Test Case 7: Wrapper Support
-     * Requirement: Verify isWrapperFor and unwrap delegate to underlying statement.
+     * Requirement: Verify isWrapperFor and unwrap implement the correct logic:
+     * 1. Check if the requested interface is implemented by the InvocationHandler (PooledStatement)
+     * 2. Check if the requested interface is implemented by the Proxy itself
+     * 3. Delegate to the underlying statement's isWrapperFor/unwrap
      */
     @Test
     void testWrapperSupport() throws SQLException {
@@ -332,12 +335,6 @@ class PooledStatementTest {
         expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
         expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
         expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
-
-        // 1. isWrapperFor expectation
-        expect(mockRealStatement.isWrapperFor(Statement.class)).andReturn(true);
-
-        // 2. unwrap expectation
-        expect(mockRealStatement.unwrap(Statement.class)).andReturn(mockRealStatement);
 
         mockPooledConnection.checkIn(anyObject(PooledStatement.class));
         expectLastCall().once();
@@ -347,14 +344,114 @@ class PooledStatementTest {
         PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
         Statement proxy = pooledStatement.checkOut();
 
-        // Test isWrapperFor
-        assertTrue(proxy.isWrapperFor(Statement.class));
+        // Test 1: isWrapperFor with Statement interface (proxy implements it)
+        assertTrue(proxy.isWrapperFor(Statement.class),
+            "Proxy should be a wrapper for Statement interface");
 
-        // Test unwrap
-        Statement unwrapped = proxy.unwrap(Statement.class);
-        assertSame(mockRealStatement, unwrapped);
+        // Test 2: unwrap with Statement interface (should return proxy itself)
+        Statement unwrappedStmt = proxy.unwrap(Statement.class);
+        assertSame(proxy, unwrappedStmt,
+            "Unwrapping Statement should return the proxy itself");
+
+        // Test 3: isWrapperFor with PooledStatement class (handler type)
+        assertTrue(proxy.isWrapperFor(PooledStatement.class),
+            "Proxy should be a wrapper for PooledStatement (the handler)");
+
+        // Test 4: unwrap with PooledStatement class (should return the handler)
+        PooledStatement unwrappedHandler = proxy.unwrap(PooledStatement.class);
+        assertSame(pooledStatement, unwrappedHandler,
+            "Unwrapping PooledStatement should return the handler itself");
 
         proxy.close(); // Cleanup
+
+        verify(mockPooledConnection, mockRealStatement);
+    }
+
+    /**
+     * Test Case 7.1: Wrapper Support - Delegation to Real Statement
+     * Verify that when the requested interface is not implemented by handler or proxy,
+     * it delegates to the underlying real statement.
+     */
+    @Test
+    void testWrapperSupportDelegation() throws SQLException {
+        // Setup
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+
+        // Define a vendor-specific interface
+        Class<Runnable> vendorInterface = Runnable.class;
+        Runnable mockVendorObject = createMock(Runnable.class);
+
+        // When checking for Runnable interface:
+        // 1. PooledStatement does not implement Runnable -> false
+        // 2. Proxy does not implement Runnable -> false
+        // 3. Delegate to real statement
+        expect(mockRealStatement.isWrapperFor(vendorInterface)).andReturn(true).once();
+
+        // When unwrapping Runnable:
+        // 1. Proxy is not instance of Runnable
+        // 2. Handler is not instance of Runnable
+        // 3. Delegate to real statement
+        expect(mockRealStatement.unwrap(vendorInterface)).andReturn(mockVendorObject).once();
+
+        mockPooledConnection.checkIn(anyObject(PooledStatement.class));
+        expectLastCall().once();
+
+        replay(mockPooledConnection, mockRealStatement, mockConfig, mockPool, mockVendorObject);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy = pooledStatement.checkOut();
+
+        // Test isWrapperFor delegation
+        assertTrue(proxy.isWrapperFor(vendorInterface),
+            "Should delegate to underlying statement and return true");
+
+        // Test unwrap delegation
+        Runnable unwrapped = proxy.unwrap(vendorInterface);
+        assertSame(mockVendorObject, unwrapped,
+            "Should delegate to underlying statement and return the vendor object");
+
+        proxy.close(); // Cleanup
+
+        verify(mockPooledConnection, mockRealStatement);
+    }
+
+    /**
+     * Test Case 7.2: Wrapper Support - Null Handling
+     */
+    @Test
+    void testWrapperSupportNullHandling() throws SQLException {
+        // Setup
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+
+        // When unwrap(null) throws NullPointerException, it will trigger close() and setFatalExceptionHappened
+        mockRealStatement.close();
+        expectLastCall().once();
+        mockPooledConnection.setFatalExceptionHappened(true);
+        expectLastCall().once();
+
+        // Final checkIn when proxy.close() is called
+        mockPooledConnection.checkIn(anyObject(PooledStatement.class));
+        expectLastCall().once();
+
+        replay(mockPooledConnection, mockRealStatement, mockConfig, mockPool);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy = pooledStatement.checkOut();
+
+        // Test 1: isWrapperFor with null should return false
+        assertFalse(proxy.isWrapperFor(null),
+            "isWrapperFor(null) should return false");
+
+        // Test 2: unwrap with null should throw exception
+        // Note: NullPointerException will trigger close() because it's not a SQLException
+        assertThrows(NullPointerException.class, () -> proxy.unwrap(null),
+            "unwrap(null) should throw NullPointerException");
+
+        proxy.close();
 
         verify(mockPooledConnection, mockRealStatement);
     }
