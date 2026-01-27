@@ -308,7 +308,6 @@ public class Hqcp implements HqcpMBean {
             }
             return conn;
         } catch (SQLException e) {
-            System.err.println(">>> COVERED: Line 311-313 - getConnection SQLException during checkout, checking in connection");
             checkIn(pconn);
             throw e;
         }
@@ -371,9 +370,8 @@ public class Hqcp implements HqcpMBean {
             } else {
                 idleConnectionsId.push(connId);
             }
-        } catch (SQLException e) {
+        } catch (Throwable e) {
             // 创建连接失败时，必须释放之前占用的Semaphore许可，保证计数一致
-            System.err.println(">>> COVERED: Line 375-378 - newConnection SQLException, releasing semaphore");
             maxConnectionSemaphore.release();
             throw e;
         }
@@ -454,16 +452,13 @@ public class Hqcp implements HqcpMBean {
             try {
                 unclosedConnection.retryCloseCount++;
                 try {
-                    System.err.println(">>> COVERED: Line 456 - closeUnclosedConnection first close attempt");
                     unclosedConnection.connection.close();
                 } catch (SQLException e) {
                     try {
-                        System.err.println(">>> COVERED: Line 461-464 - closeUnclosedConnection rollback and retry close");
                         unclosedConnection.connection.rollback();
                     } catch (SQLException ignr) {}
                     unclosedConnection.connection.close();
                 }
-                System.err.println(">>> COVERED: Line 463 - closeUnclosedConnection finally closed");
                 LOGGER.info(unclosedConnection.connectionName, " finally be closed!");
             } catch (SQLException e) {
                 if (unclosedConnection.retryCloseCount >= 10) {
@@ -573,13 +568,10 @@ public class Hqcp implements HqcpMBean {
                     try {
                         pooledConnection.doCheck();
                     } catch (Exception e) {
-                        System.err.println(">>> COVERED: Line 576-577 - asyncCheckConnection first doCheck exception");
                         LOGGER.warn("exception occurs when doCheck: " + e);
                         try {
                             pooledConnection.doCheck();
-                            System.err.println(">>> COVERED: Line 579 - asyncCheckConnection retry doCheck");
                         } catch (Exception ignored) {
-                            System.err.println(">>> COVERED: Line 580-581 - asyncCheckConnection second doCheck exception");
                             LOGGER.warn("exception occurs again when doCheck: " + e);
                         }
                     }
@@ -588,7 +580,6 @@ public class Hqcp implements HqcpMBean {
             try {
                 future.get(config.getIdleTimeoutMillisec(), TimeUnit.MILLISECONDS);
             } catch (Exception e) {
-                System.err.println(">>> COVERED: Line 588-590 - asyncCheckConnection future.get exception, closing connection");
                 LOGGER.warn("get connection: ", pooledConnection.getConnectionName(), " check result error: ", e);
                 pooledConnection.close();
             }
@@ -604,7 +595,6 @@ public class Hqcp implements HqcpMBean {
                     newConnection(false);
                 }
             } catch (SQLException e) {
-                System.err.println(">>> COVERED: Line 603-605 - newMoreConnections SQLException when maintaining min connections");
                 LOGGER.warn("exception occurred when maintaining min connections for {} of {}/{} to {}", poolName,
                         validConnectionNum.get(), config.getMinConnections(), config.getUrl(), e);
             }
@@ -614,7 +604,6 @@ public class Hqcp implements HqcpMBean {
                     try {
                         newConnection(false);
                     } catch (SQLException e) {
-                        System.err.println(">>> COVERED: Line 612-613 - newMoreConnections SQLException when creating more connections");
                         LOGGER.warn("exception occurred when creating more connections for {} to {}", poolName, config.getUrl(), e);
                     }
                 } else {
@@ -643,7 +632,6 @@ public class Hqcp implements HqcpMBean {
                         break;
                     }
                 } catch (Exception e) {
-                    System.err.println(">>> COVERED: Line 646-648 - CPMonitor.run Exception caught");
                     idleTimeout = config.getIdleTimeoutMillisec();
                     LOGGER.warn(e);
                 } catch (Throwable t) {
@@ -689,7 +677,6 @@ public class Hqcp implements HqcpMBean {
                 if (last != null && last.equals(e)) {
                     return stack.pollLast() != null;
                 }
-                System.err.println(">>> COVERED: Line 681 - LinkedStack.popFromBottom return false (not match)");
                 return false;
             } finally {
                 operLock.unlock();
@@ -718,7 +705,6 @@ public class Hqcp implements HqcpMBean {
             try {
                 operLock.lockInterruptibly();
             } catch (InterruptedException e) {
-                System.err.println(">>> COVERED: Line 708-709 - LinkedStack.requireMoreSignal InterruptedException");
                 return;
             }
             try {
@@ -760,7 +746,6 @@ public class Hqcp implements HqcpMBean {
             try {
                 operLock.lockInterruptibly();
             } catch (InterruptedException e) {
-                System.err.println(">>> COVERED: Line 749-750 - LinkedStack.awaitNotEmpty InterruptedException on lock");
                 return true;
             }
             try {
