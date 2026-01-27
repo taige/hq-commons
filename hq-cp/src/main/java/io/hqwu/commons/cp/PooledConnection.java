@@ -277,22 +277,24 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     @SuppressWarnings("unchecked")
     private Connection buildProxy() {
-        Class[] intfs = real_connection.getClass().getInterfaces();
-        boolean impled = false; //是否实现了Connection接口
-        for (Class intf: intfs) {
-            if (intf.getName().equals(Connection.class.getName())) {
-                impled = true;
-                break;
-            }
-        }
-        if (!impled) {
-            //没有实现Connection接口，则强制增加
-            Class[] tmp = intfs;
-            intfs = new Class[tmp.length + 1];
-            System.arraycopy(tmp, 0, intfs, 0, tmp.length);
-            intfs[tmp.length] = Connection.class;
-        }
-        return (Connection) Proxy.newProxyInstance(real_connection.getClass().getClassLoader(), intfs, this);
+//        Class[] intfs = real_connection.getClass().getInterfaces();
+//        boolean impled = false; //是否实现了Connection接口
+//        for (Class intf: intfs) {
+//            if (intf.getName().equals(Connection.class.getName())) {
+//                impled = true;
+//                break;
+//            }
+//        }
+//        if (!impled) {
+//            //没有实现Connection接口，则强制增加
+//            Class[] tmp = intfs;
+//            intfs = new Class[tmp.length + 1];
+//            System.arraycopy(tmp, 0, intfs, 0, tmp.length);
+//            intfs[tmp.length] = Connection.class;
+//            System.err.println("ABCDEFG");
+//            new Exception().printStackTrace();
+//        }
+        return (Connection) Proxy.newProxyInstance(real_connection.getClass().getClassLoader(), new Class[]{Connection.class}, this);
     }
 
     public String toString() {
@@ -301,7 +303,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         String mname = method.getName();
-        if (mname.equals("toString") && (args == null || args.length == 0)) {
+        if (mname.equals("toString") && args == null) {
             return toString();
         }
         if (closed.get() && !mname.equals("close") && !mname.equals("isClosed")) {
@@ -357,18 +359,18 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 if (isVerbose()) {
                     log.debug(connectionName, ".", mname, "() use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
-            } else if (mname.equals("setAutoCommit") && args.length == 1) {
+            } else if (mname.equals("setAutoCommit")) {
                 ret = method.invoke(real_connection, args);
                 this.autoCommit = real_connection.getAutoCommit();
                 if (isVerbose()) {
                     log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
-            } else if (mname.equals("isWrapperFor") && args.length == 1) {
+            } else if (mname.equals("isWrapperFor")) {
                 ret = JdbcUtil.isWrapperFor((Class<?>) args[0], this, proxy, real_connection);
                 if (isVerbose()) {
                     log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
-            } else if (mname.equals("unwrap") && args.length == 1) {
+            } else if (mname.equals("unwrap")) {
                 ret = JdbcUtil.unwrap((Class<?>) args[0], this, proxy, real_connection);
                 if (isVerbose()) {
                     log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
@@ -433,7 +435,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     public Statement createStatement(Method method, Object[] args) throws Throwable {
         PooledStatement pstmt = null;
-        if (args == null || args.length == 0) {
+        if (args == null) {
             //没有参数的createStatement才试图从池中获取取
             pstmt = idleStatementsPool.poll();
 //        } else {

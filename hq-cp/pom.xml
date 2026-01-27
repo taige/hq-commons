@@ -11,21 +11,12 @@
   <artifactId>hq-cp</artifactId>
 
   <properties>
-    <ibatis-sqlmap.version>2.3.4.726</ibatis-sqlmap.version>
-    <ojdbc14.version>10.2.0.5</ojdbc14.version>
     <bonecp.version>0.8.0.RELEASE</bonecp.version>
     <c3p0.version>0.9.2.1</c3p0.version>
     <easymock.version>5.2.0</easymock.version>
     <!-- 默认排除标记为 slow 的测试，可通过 -Dtest.excludedGroups="" 覆盖 -->
     <test.excludedGroups>slow</test.excludedGroups>
   </properties>
-
-  <repositories>
-    <repository>
-      <id>project-local</id>
-      <url>file:${project.basedir}/lib/</url>
-    </repository>
-  </repositories>
 
   <dependencies>
     <dependency>
@@ -45,9 +36,8 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>com.oracle</groupId>
-      <artifactId>ojdbc14</artifactId>
-      <version>${ojdbc14.version}</version>
+      <groupId>com.oracle.database.jdbc</groupId>
+      <artifactId>ojdbc17</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -64,6 +54,11 @@
     <dependency>
       <groupId>com.mysql</groupId>
       <artifactId>mysql-connector-j</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.oceanbase</groupId>
+      <artifactId>oceanbase-client</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -129,6 +124,16 @@
       </testResource>
     </testResources>
     <plugins>
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <configuration>
+          <excludes combine.children="append"> <!-- 继承父 POM 的排除规则 -->
+            <!-- 子模块特定的排除规则 -->
+            <exclude>io/hqwu/commons/cp/util/OracleUtil.class</exclude> <!-- 隐式缓存管理已由驱动自动处理 -->
+          </excludes>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>

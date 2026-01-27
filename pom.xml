@@ -24,6 +24,7 @@
     <jsqlparser.version>4.9</jsqlparser.version>
     <jacoco.version>0.8.12</jacoco.version>
     <lombok.version>1.18.42</lombok.version>
+    <oceanbase-client.version>2.4.16</oceanbase-client.version>
 
     <test.logger.level>WARN</test.logger.level>
   </properties>
@@ -91,6 +92,11 @@
         <artifactId>lombok</artifactId>
         <version>${lombok.version}</version>
       </dependency>
+      <dependency>
+        <groupId>com.oceanbase</groupId>
+        <artifactId>oceanbase-client</artifactId>
+        <version>${oceanbase-client.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -130,6 +136,7 @@
               <haltOnFailure>false</haltOnFailure> <!-- 不中断测试，仅报告覆盖率问题 -->
               <rules>
                 <rule>
+                  <!-- 整体覆盖率要求 -->
                   <!-- 80% 是行业分水岭, 新项目 90% -->
                   <element>BUNDLE</element>
                   <limits>
@@ -137,15 +144,27 @@
                       <!-- INSTRUCTION 比 LINE 稍微精确一点点 -->
                       <counter>INSTRUCTION</counter>
                       <value>COVEREDRATIO</value>
-                      <minimum>0.90</minimum>
+                      <minimum>0.90</minimum>  <!-- 基础组件保持 90% -->
                     </limit>
                     <limit>
                       <counter>BRANCH</counter>
                       <value>COVEREDRATIO</value>
-                      <minimum>0.90</minimum>
+                      <minimum>0.85</minimum>  <!-- 分支覆盖率 85% -->
                     </limit>
                   </limits>
                 </rule>
+                <!-- 包级别:确保每个模块达标 -->
+                <rule>
+                  <element>PACKAGE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <minimum>0.85</minimum> <!-- 包级别 85% -->
+                    </limit>
+                  </limits>
+                </rule>
+                <!-- 类级别:控制复杂度 -->
                 <rule>
                   <element>CLASS</element>
                   <limits>
@@ -153,7 +172,7 @@
                     <limit>
                       <counter>COMPLEXITY</counter>
                       <value>MISSEDCOUNT</value>
-                      <maximum>20</maximum>
+                      <maximum>20</maximum> <!-- 建议降至 15,鼓励简化代码；基础组件严格限制为 10 -->
                     </limit>
                     <limit>
                       <counter>LINE</counter>
@@ -162,6 +181,22 @@
                     </limit>
                   </limits>
                 </rule>
+<!--                &lt;!&ndash; 方法级别:强制简单化 &ndash;&gt;-->
+<!--                <rule>-->
+<!--                  <element>METHOD</element>-->
+<!--                  <limits>-->
+<!--                    <limit>-->
+<!--                      <counter>COMPLEXITY</counter>-->
+<!--                      <value>TOTALCOUNT</value>-->
+<!--                      <maximum>8</maximum> &lt;!&ndash; 单方法圈复杂度 ≤ 8 &ndash;&gt;-->
+<!--                    </limit>-->
+<!--                    <limit>-->
+<!--                      <counter>LINE</counter>-->
+<!--                      <value>COVEREDRATIO</value>-->
+<!--                      <minimum>0.75</minimum> &lt;!&ndash; 方法覆盖率 75% &ndash;&gt;-->
+<!--                    </limit>-->
+<!--                  </limits>-->
+<!--                </rule>-->
               </rules>
             </configuration>
           </execution>

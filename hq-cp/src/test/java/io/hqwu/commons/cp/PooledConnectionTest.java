@@ -2549,6 +2549,163 @@ public class PooledConnectionTest {
         control.verify();
     }
 
+    // ==================== 新增测试用例：覆盖未测试的分支 ====================
+
+    /**
+     * Test: createStatement(null) - args为null的分支 (line 436, 452)
+     */
+    @Test
+    void testCreateStatementWithNullArgs() throws Exception {
+        IMocksControl ctrl = createNiceControl();
+        Hqcp pool = ctrl.createMock(Hqcp.class);
+        HqcpConfig config = ctrl.createMock(HqcpConfig.class);
+        Connection realConn = ctrl.createMock(Connection.class);
+        Statement mockStatement = ctrl.createMock(Statement.class);
+
+        expect(pool.getPoolName()).andReturn("testPool").anyTimes();
+        expect(pool.getConfig()).andReturn(config).anyTimes();
+
+        expect(config.getUrl()).andReturn("jdbc:mock:test").anyTimes();
+        expect(config.getConnectionProperties()).andReturn(new Properties()).anyTimes();
+        expect(config.getMaxStatements()).andReturn(10).anyTimes();
+        expect(config.getMaxPreStatements()).andReturn(10).anyTimes();
+        expect(config.getJmxLevel()).andReturn(0).anyTimes();
+        expect(config.isVerbose()).andReturn(true).anyTimes(); // 触发 line 451-455
+        expect(config.isPrintSql()).andReturn(false).anyTimes();
+        expect(config.getLifetimeSec()).andReturn(0L).anyTimes();
+        expect(config.getLifetimeMillisec()).andReturn(0L).anyTimes();
+        expect(config.getQueryTimeout()).andReturn(0).anyTimes();
+
+        expect(realConn.getAutoCommit()).andReturn(true).anyTimes();
+        expect(realConn.createStatement()).andReturn(mockStatement).once();
+        expect(mockStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+
+        MockJDBCDriver.getInstance().setConnection(realConn);
+        ctrl.replay();
+
+        PooledConnection pooledConnection = new PooledConnection(pool, 1);
+        Connection proxy = pooledConnection.checkOut(true);
+
+        // 调用无参数的 createStatement
+        Statement stmt = proxy.createStatement();
+        assertNotNull(stmt);
+
+        ctrl.verify();
+        MockJDBCDriver.getInstance().disable();
+    }
+
+    /**
+     * Test: prepareStatement 带多个参数 (line 496)
+     */
+    @Test
+    void testPrepareStatementWithMultipleArgs() throws Exception {
+        IMocksControl ctrl = createNiceControl();
+        Hqcp pool = ctrl.createMock(Hqcp.class);
+        HqcpConfig config = ctrl.createMock(HqcpConfig.class);
+        Connection realConn = ctrl.createMock(Connection.class);
+        PreparedStatement mockPreparedStatement = ctrl.createMock(PreparedStatement.class);
+
+        expect(pool.getPoolName()).andReturn("testPool").anyTimes();
+        expect(pool.getConfig()).andReturn(config).anyTimes();
+
+        expect(config.getUrl()).andReturn("jdbc:mock:test").anyTimes();
+        expect(config.getConnectionProperties()).andReturn(new Properties()).anyTimes();
+        expect(config.getMaxStatements()).andReturn(10).anyTimes();
+        expect(config.getMaxPreStatements()).andReturn(10).anyTimes();
+        expect(config.getJmxLevel()).andReturn(0).anyTimes();
+        expect(config.isVerbose()).andReturn(true).anyTimes(); // 触发 line 488-497
+        expect(config.isPrintSql()).andReturn(false).anyTimes();
+        expect(config.getLifetimeSec()).andReturn(0L).anyTimes();
+        expect(config.getLifetimeMillisec()).andReturn(0L).anyTimes();
+        expect(config.getQueryTimeout()).andReturn(0).anyTimes();
+
+        expect(realConn.getAutoCommit()).andReturn(true).anyTimes();
+
+        // prepareStatement(String sql, int resultSetType, int resultSetConcurrency)
+        expect(realConn.prepareStatement("SELECT * FROM test",
+                ResultSet.TYPE_SCROLL_INSENSITIVE,
+                ResultSet.CONCUR_UPDATABLE))
+                .andReturn(mockPreparedStatement).once();
+
+        expect(mockPreparedStatement.getResultSetType()).andReturn(ResultSet.TYPE_SCROLL_INSENSITIVE).anyTimes();
+        expect(mockPreparedStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_UPDATABLE).anyTimes();
+
+        MockJDBCDriver.getInstance().setConnection(realConn);
+        ctrl.replay();
+
+        PooledConnection pooledConnection = new PooledConnection(pool, 1);
+        Connection proxy = pooledConnection.checkOut(true);
+
+        // 调用带多个参数的 prepareStatement，args.length > 1
+        PreparedStatement pstmt = proxy.prepareStatement("SELECT * FROM test",
+                ResultSet.TYPE_SCROLL_INSENSITIVE,
+                ResultSet.CONCUR_UPDATABLE);
+        assertNotNull(pstmt);
+
+        ctrl.verify();
+        MockJDBCDriver.getInstance().disable();
+    }
+
+    /**
+     * Test: isWrapperFor 和 unwrap 的 verbose 日志 (line 369, 374)
+     * 基于 testWrapperInterfaceDelegation，但开启 verbose 模式
+     */
+    @Test
+    public void testWrapperInterfaceVerboseLogging() throws SQLException {
+        // Reset control to override isVerbose behavior
+        control.reset();
+
+        // Re-setup mocks with verbose=true
+        expect(mockPool.getPoolName()).andReturn("testPool").anyTimes();
+        expect(mockPool.getConfig()).andReturn(mockConfig).anyTimes();
+        expect(mockConfig.getUrl()).andReturn(MockConstant.MOCK_URL).anyTimes();
+        expect(mockConfig.getConnectionProperties()).andReturn(new Properties()).anyTimes();
+        expect(mockConfig.getMaxStatements()).andReturn(10).anyTimes();
+        expect(mockConfig.getMaxPreStatements()).andReturn(10).anyTimes();
+        expect(mockConfig.getJmxLevel()).andReturn(0).anyTimes();
+        expect(mockConfig.isVerbose()).andReturn(true).anyTimes(); // TRUE for verbose logging
+        expect(mockConfig.isPrintSql()).andReturn(false).anyTimes();
+        expect(mockConfig.getLifetimeSec()).andReturn(0L).anyTimes();
+        expect(mockConfig.getLifetimeMillisec()).andReturn(0L).anyTimes();
+
+        // Define a "Vendor Specific" interface for testing delegation
+        Class<Runnable> vendorInterface = Runnable.class;
+        Runnable mockVendorObject = control.createMock(Runnable.class);
+
+        expect(mockRealConnection.getAutoCommit()).andReturn(true).anyTimes();
+
+        // When checking for Runnable interface - delegate to real connection
+        expect(mockRealConnection.isWrapperFor(vendorInterface)).andReturn(true).once();
+
+        // When unwrapping Runnable - delegate to real connection
+        expect(mockRealConnection.unwrap(vendorInterface)).andReturn(mockVendorObject).once();
+
+        // Cleanup
+        mockPool.checkIn(anyObject(PooledConnection.class));
+        expectLastCall().once();
+
+        control.replay();
+
+        // Execution
+        PooledConnection pooledConnection = new PooledConnection(mockPool, 1);
+        Connection proxy = pooledConnection.checkOut(true);
+
+        // Test isWrapperFor with verbose logging (line 369)
+        boolean isWrapper = proxy.isWrapperFor(vendorInterface);
+        assertTrue(isWrapper, "Should delegate to underlying connection and return true");
+
+        // Test unwrap with verbose logging (line 374)
+        Runnable result = proxy.unwrap(vendorInterface);
+        assertNotNull(result);
+        assertSame(mockVendorObject, result,
+                "Should delegate to underlying connection and return the vendor object");
+
+        proxy.close();
+
+        control.verify();
+    }
+
 }
 
 

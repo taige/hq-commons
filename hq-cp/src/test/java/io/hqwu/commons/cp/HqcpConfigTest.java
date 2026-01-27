@@ -366,13 +366,13 @@ public class HqcpConfigTest {
         assertEquals(false, config.isTransactionMode());
     }
 
-    @Test
-    public void testUseOracleImplicitPSCache() throws Exception {
-        config.setUseOracleImplicitCache(true);
-        assertEquals(true, config.isUseOracleImplicitCache());
-        config.setUseOracleImplicitCache(false);
-        assertEquals(false, config.isUseOracleImplicitCache());
-    }
+//    @Test
+//    public void testUseOracleImplicitPSCache() throws Exception {
+//        config.setUseOracleImplicitCache(true);
+//        assertEquals(true, config.isUseOracleImplicitCache());
+//        config.setUseOracleImplicitCache(false);
+//        assertEquals(false, config.isUseOracleImplicitCache());
+//    }
 
     @Test
     public void testGetJmxLevel() throws Exception {
@@ -448,7 +448,7 @@ public class HqcpConfigTest {
         prop.setProperty("jdbc.lifetime-sec", "666");
         prop.setProperty("jdbc.info-sql-threshold", "210");
         prop.setProperty("jdbc.warn-sql-threshold", "200");
-        prop.setProperty("jdbc.use-oracle-implicit-cache", "false");
+        prop.setProperty("jdbc.use-oracle-implicit-cache", "true"); // 不再生效 2025-03-04
         prop.setProperty("jdbc.query-timeout", "20");
         prop.setProperty("jdbc.connection-info", "abc=ABC&cc=CC");
         prop.setProperty("jdbc.password-key", "customKey");

@@ -63,7 +63,7 @@ public class HqcpStatementTest {
         expect(config.getInfoSqlThreshold()).andReturn(10L).anyTimes();
         expect(config.getWarnSqlThreshold()).andReturn(100L).anyTimes();
         expect(config.isOracle()).andReturn(false).atLeastOnce();
-        expect(config.isUseOracleImplicitCache()).andReturn(true).anyTimes();
+//        expect(config.isUseOracleImplicitCache()).andReturn(true).anyTimes();
         expect(config.getQueryTimeout()).andReturn(0).atLeastOnce();
         Properties properties = new Properties();
         properties.setProperty("user", "mockuser");

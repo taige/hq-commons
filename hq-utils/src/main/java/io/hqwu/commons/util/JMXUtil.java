@@ -53,8 +53,7 @@ public final class JMXUtil {
                     .getPlatformMBeanServer();
 
             mbeanServer.unregisterMBean(new ObjectName(name));
-        } catch (InstanceNotFoundException e) {
-            System.err.println("JMXUtil.unregister(" + name + "): " + e);
+        } catch (InstanceNotFoundException ignored) {
         } catch (JMException e) {
             throw new IllegalArgumentException(name, e);
         }

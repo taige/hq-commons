@@ -125,28 +125,28 @@ class PooledStatement implements InvocationHandler {
     
     @SuppressWarnings("unchecked")
     protected Statement buildProxy() {
-        Class[] intfs = real_statement.getClass().getInterfaces();
-        boolean impled = false; //是否实现了Connection接口
-        for (Class intf: intfs) {
-            if (intf.getName().equals(Statement.class.getName())) {
-                impled = true;
-                break;
-            }
-        }
-        if (!impled) {
-            //没有实现Connection接口，则强制增加
-            Class[] tmp = intfs;
-            intfs = new Class[tmp.length + 1];
-            System.arraycopy(tmp, 0, intfs, 0, tmp.length);
-            intfs[tmp.length] = Statement.class;
-        }
-        return (Statement) Proxy.newProxyInstance(real_statement.getClass().getClassLoader(), intfs, this);
+//        Class[] intfs = real_statement.getClass().getInterfaces();
+//        boolean impled = false; //是否实现了Connection接口
+//        for (Class intf: intfs) {
+//            if (intf.getName().equals(Statement.class.getName())) {
+//                impled = true;
+//                break;
+//            }
+//        }
+//        if (!impled) {
+//            //没有实现Connection接口，则强制增加
+//            Class[] tmp = intfs;
+//            intfs = new Class[tmp.length + 1];
+//            System.arraycopy(tmp, 0, intfs, 0, tmp.length);
+//            intfs[tmp.length] = Statement.class;
+//        }
+        return (Statement) Proxy.newProxyInstance(real_statement.getClass().getClassLoader(), new Class[] {Statement.class}, this);
     }
 
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         sqlDoing = null;
         String methodDoing = method.getName();
-        if ("toString".equals(methodDoing) && (args == null || args.length == 0)) {
+        if ("toString".equals(methodDoing) && args == null) {
             return toString();//不代理
         }
 
@@ -220,43 +220,37 @@ class PooledStatement implements InvocationHandler {
                 if (isVerbose()) {
                     LOGGER.trace(statementName, ".close() use ", Formatter.formatNS(System.nanoTime() - start), " ns");
                 }
-            } else if (methodDoing.equals("addBatch") && args != null && args.length == 1) {
+            } else if (methodDoing.equals("addBatch") && args != null) {
                 sqlDoing = (String) args[0];
                 real_statement.addBatch((String) args[0]);
-                if (isPrintSQL()) {
-                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start));
-                }
+                printSQL(LOGGER, methodDoing, (System.nanoTime() - start));
             } else if (methodDoing.equals("executeBatch") || methodDoing.equals("executeLargeBatch")) {
                 ret = real_statement.executeBatch();
                 if (isPrintSQL()) {
                     printSQL(LOGGER, methodDoing, this::getPreparedSql, (System.nanoTime() - start), "[", Array.getLength(ret), "]");
                 }
-            } else if (methodDoing.equals("executeQuery") && args != null && args.length == 1) {
+            } else if (methodDoing.equals("executeQuery") && args != null) {
                 sqlDoing = (String) args[0];
                 LoggableResultSet lrs = LoggableResultSet.newInstance(this, real_statement.executeQuery((String) args[0]));
                 ret = resultSet = lrs == null ? null : lrs.getResultSet();
-                if (isPrintSQL()) {
-                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", (lrs == null ? "rs=null" : "rs=#" + lrs.getRsId()), "]");
-                }
-            } else if (methodDoing.startsWith("execute") && args != null && args.length > 0) {
+                printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", (lrs == null ? "rs=null" : "rs=#" + lrs.getRsId()), "]");
+            } else if (methodDoing.startsWith("execute") && args != null) {
                 sqlDoing = (String) args[0];
                 ret = method.invoke(real_statement, args);
                 Object ret4log = onExecuteMethodDone(methodDoing, ret);
-                if (isPrintSQL()) {
-                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", ret4log, "]");
-                }
+                printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", ret4log, "]");
             } else if (methodDoing.equals("getMoreResults")) {
                 ret = method.invoke(real_statement, args);
                 Object ret4log = onExecuteMethodDone(methodDoing, ret);
                 if (isVerbose() || isPrintSQL()) {
                     LOGGER.debug(statementName, ".", methodDoing, "(...)", "[", ret4log, "] use ", Formatter.formatNS(System.nanoTime() - start), " ns");
                 }
-            } else if (methodDoing.equals("isWrapperFor") && args != null && args.length == 1) {
+            } else if (methodDoing.equals("isWrapperFor") && args != null) {
                 ret = JdbcUtil.isWrapperFor((Class<?>) args[0], this, proxy, real_statement);
                 if (isVerbose()) {
                     LOGGER.debug(statementName, ".", methodDoing, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - start), " ns");
                 }
-            } else if (methodDoing.equals("unwrap") && args != null && args.length == 1) {
+            } else if (methodDoing.equals("unwrap") && args != null) {
                 ret = JdbcUtil.unwrap((Class<?>) args[0], this, proxy, real_statement);
                 if (isVerbose()) {
                     LOGGER.debug(statementName, ".", methodDoing, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - start), " ns");
@@ -332,13 +326,13 @@ class PooledStatement implements InvocationHandler {
      * @param infos
      */
     protected void printSQL(Logger logger, String methodDoing, long usedNS, Object... infos) {
+        if (! isPrintSQL()) {
+            return;
+        }
         printSQL(logger, methodDoing, this::getMaskedSql, usedNS, infos);
     }
 
     protected void printSQL(Logger logger, String methodDoing, Supplier<String> sqlSupplier, long usedNS, Object... infos) {
-        if (! isPrintSQL()) {
-            return;
-        }
         if (! LogUtil.isEnabled(logger, usedNS/1000000, getInfoSQLThreshold(), getWarnSQLThreshold())) {
             return;
         }
@@ -512,9 +506,9 @@ class PooledStatement implements InvocationHandler {
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
             try {
                 String methodDoing = method.getName();
-                if (methodDoing.equals("isWrapperFor") && args != null && args.length == 1) {
+                if (methodDoing.equals("isWrapperFor") && args != null) {
                     return JdbcUtil.isWrapperFor((Class<?>) args[0], this, proxy, resultSet);
-                } else if (methodDoing.equals("unwrap") && args != null && args.length == 1) {
+                } else if (methodDoing.equals("unwrap") && args != null) {
                     return JdbcUtil.unwrap((Class<?>) args[0], this, proxy, resultSet);
                 }
                 Object o = method.invoke(resultSet, args);

@@ -2,9 +2,7 @@ package io.hqwu.commons.cp.dialect;
 
 import io.hqwu.commons.cp.Hqcp;
 import io.hqwu.commons.cp.PooledConnection;
-import io.hqwu.commons.cp.PooledPreparedStatement;
 
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 /**
@@ -96,11 +94,11 @@ public class OraclePooledConnection extends PooledConnection {
         // certain strings.
 
         if ((error_code < 20000 || error_code >= 21000)) {
-            if ((error_text.indexOf("SOCKET") > -1) // for control socket error
-                    || (error_text.indexOf("套接字") > -1) // for control socket error
-                    || (error_text.indexOf("CONNECTION HAS ALREADY BEEN CLOSED") > -1) //
-                    || (error_text.indexOf("BROKEN PIPE") > -1) //
-                    || (error_text.indexOf("管道已结束") > -1) //
+            if ((error_text.contains("SOCKET")) // for control socket error
+                    || (error_text.contains("套接字")) // for control socket error
+                    || (error_text.contains("CONNECTION HAS ALREADY BEEN CLOSED")) //
+                    || (error_text.contains("BROKEN PIPE")) //
+                    || (error_text.contains("管道已结束")) //
                     ) {
                 return true;
             }
@@ -109,9 +107,10 @@ public class OraclePooledConnection extends PooledConnection {
         return false;
     }
 
-    @Override
-    protected PooledPreparedStatement getPooledPreparedStatement(PreparedStatement stmt, int stmtId, Object[] args) throws SQLException {
-        return new OraclePooledPreparedStatement(
-                this, stmt, stmtId, args, super.getConnectionPool().getConfig().isUseOracleImplicitCache());
-    }
+    // 2025-03-04: OraclePooledPreparedStatement 已移除，直接使用父类实现
+    // @Override
+    // protected PooledPreparedStatement getPooledPreparedStatement(PreparedStatement stmt, int stmtId, Object[] args) throws SQLException {
+    //    return new OraclePooledPreparedStatement(
+    //            this, stmt, stmtId, args, super.getConnectionPool().getConfig().isUseOracleImplicitCache());
+    // }
 }

@@ -45,22 +45,22 @@ public class PooledPreparedStatement extends PooledStatement {
     @SuppressWarnings("unchecked")
     protected PreparedStatement buildProxy() {
         Statement stmt = getStatement();
-        Class[] intfs = stmt.getClass().getInterfaces();
-        boolean impled = false; //是否实现了Connection接口
-        for (Class intf: intfs) {
-            if (intf.getName().equals(PreparedStatement.class.getName())) {
-                impled = true;
-                break;
-            }
-        }
-        if (!impled) {
-            //没有实现Connection接口，则强制增加
-            Class[] tmp = intfs;
-            intfs = new Class[tmp.length + 1];
-            System.arraycopy(tmp, 0, intfs, 0, tmp.length);
-            intfs[tmp.length] = PreparedStatement.class;
-        }
-        pstmt = (PreparedStatement) Proxy.newProxyInstance(stmt.getClass().getClassLoader(), intfs, this);
+//        Class[] intfs = stmt.getClass().getInterfaces();
+//        boolean impled = false; //是否实现了Connection接口
+//        for (Class intf: intfs) {
+//            if (intf.getName().equals(PreparedStatement.class.getName())) {
+//                impled = true;
+//                break;
+//            }
+//        }
+//        if (!impled) {
+//            //没有实现Connection接口，则强制增加
+//            Class[] tmp = intfs;
+//            intfs = new Class[tmp.length + 1];
+//            System.arraycopy(tmp, 0, intfs, 0, tmp.length);
+//            intfs[tmp.length] = PreparedStatement.class;
+//        }
+        pstmt = (PreparedStatement) Proxy.newProxyInstance(stmt.getClass().getClassLoader(), new Class[] {PreparedStatement.class}, this);
         return pstmt;
     }
 
@@ -70,28 +70,20 @@ public class PooledPreparedStatement extends PooledStatement {
         sqlDoing = null;
         try {
             String methodDoing = method.getName();
-            if (methodDoing.equals("addBatch") && (args == null || args.length == 0)) {
+            if (methodDoing.equals("addBatch") && args == null) {
                 real_pstmt.addBatch();
-                if (isPrintSQL()) {
-                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start));
-                }
-            } else if (methodDoing.equals("execute") && (args == null || args.length == 0)) {
+                printSQL(LOGGER, methodDoing, (System.nanoTime() - start));
+            } else if (methodDoing.equals("execute") && args == null) {
                 ret = real_pstmt.execute();
                 Object ret4log = onExecuteMethodDone(methodDoing, ret);
-                if (isPrintSQL()) {
-                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", ret4log, "]");
-                }
-            } else if (methodDoing.equals("executeQuery") && (args == null || args.length == 0)) {
+                printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", ret4log, "]");
+            } else if (methodDoing.equals("executeQuery") && args == null) {
                 LoggableResultSet lrs = LoggableResultSet.newInstance(this, real_pstmt.executeQuery());
                 ret = resultSet = lrs == null ? null : lrs.getResultSet();
-                if (isPrintSQL()) {
-                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", (lrs == null ? "rs=null" : "rs=#" + lrs.getRsId()), "]");
-                }
-            } else if (methodDoing.equals("executeUpdate") && (args == null || args.length == 0)) {
+                printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", (lrs == null ? "rs=null" : "rs=#" + lrs.getRsId()), "]");
+            } else if (methodDoing.equals("executeUpdate") && args == null) {
                 ret = real_pstmt.executeUpdate();
-                if (isPrintSQL()) {
-                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", ret, "]");
-                }
+                printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", ret, "]");
             } else {
                 if (methodDoing.startsWith("set") && args.length >= 2 && args[0] instanceof Integer) {
                     int idx = (Integer) args[0];

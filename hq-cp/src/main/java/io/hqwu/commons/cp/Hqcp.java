@@ -3,6 +3,7 @@ package io.hqwu.commons.cp;
 
 import io.hqwu.commons.cp.dialect.DB2PooledConnection;
 import io.hqwu.commons.cp.dialect.MySQLPooledConnection;
+import io.hqwu.commons.cp.dialect.OceanBasePooledConnection;
 import io.hqwu.commons.cp.dialect.OraclePooledConnection;
 import io.hqwu.commons.cp.util.DynamicSemaphore;
 import io.hqwu.commons.cp.util.LogUtil;
@@ -14,7 +15,6 @@ import io.hqwu.commons.util.Logger;
 
 import java.lang.reflect.Array;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Map;
@@ -129,18 +129,19 @@ public class Hqcp implements HqcpMBean {
             }
         }
         config.printConfig(LOGGER);
-        boolean isOracle10 = config.isOracle() && DriverManager.getDriver(config.getUrl()).getMajorVersion() == 10;
-        if (isOracle10 && config.isUseOracleImplicitCache()) {
-            config.getConnectionProperties().setProperty(OracleUtil.ORACLE_FREECACHE_PROPERTY_NAME, OracleUtil.ORACLE_FREECACHE_PROPERTY_VALUE_TRUE);
-        } else {
-            config.getConnectionProperties().remove(OracleUtil.ORACLE_FREECACHE_PROPERTY_NAME);
-        }
+        // 2025-03-04: 升级到 ojdbc17+ 后，不再需要针对 Oracle 10 的特殊缓存配置。
+        // boolean isOracle10 = config.isOracle() && DriverManager.getDriver(config.getUrl()).getMajorVersion() == 10;
+        // if (isOracle10 && config.isUseOracleImplicitCache()) {
+        //     config.getConnectionProperties().setProperty(OracleUtil.ORACLE_FREECACHE_PROPERTY_NAME, OracleUtil.ORACLE_FREECACHE_PROPERTY_VALUE_TRUE);
+        // } else {
+        //     config.getConnectionProperties().remove(OracleUtil.ORACLE_FREECACHE_PROPERTY_NAME);
+        // }
         //设置native驱动的超时设置
         //add by wuhongqiang. 2014.07.04
         if (config.getCheckoutTimeoutMillisec() > 0) {
             if (config.isOracle()) {
                 config.getConnectionProperties().setProperty(OracleUtil.CONNECT_TIMEOUT, String.valueOf(config.getCheckoutTimeoutMillisec()));
-            } else if (config.isMySQL()) {
+            } else if (config.isMySQL() || config.isOceanBase()) {
                 config.getConnectionProperties().setProperty(MySQLPooledConnection.CONNECT_TIMEOUT, String.valueOf(config.getCheckoutTimeoutMillisec()));
             }
 
@@ -149,7 +150,7 @@ public class Hqcp implements HqcpMBean {
             if (config.isOracle()) {
                 config.getConnectionProperties().setProperty(OracleUtil.SOCKET_TIMEOUT, String.valueOf(config.getQueryTimeout()*1000));
                 config.getConnectionProperties().setProperty(OracleUtil.SOCKET_TIMEOUT_LOW_VER, String.valueOf(config.getQueryTimeout()*1000));
-            } else if (config.isMySQL()) {
+            } else if (config.isMySQL() || config.isOceanBase()) {
                 config.getConnectionProperties().setProperty(MySQLPooledConnection.SOCKET_TIMEOUT, String.valueOf(config.getQueryTimeout()*1000));
             }
         }
@@ -171,7 +172,18 @@ public class Hqcp implements HqcpMBean {
         monitor.setName("CPM:" + poolName);
         monitor.setDaemon(true);
         monitor.start();
-        
+        try {
+            /*
+             * 等待 monitor 线程启动并尝试建立初始连接，确保 initPool 返回时连接池已准备就绪。
+             * FIX lazyInit=true & minConn=0 时，主线程超前于Monitor线程时无法获取连接的BUG
+             */
+            long nanos = idleConnectionsId.awaitRequireMore(1, TimeUnit.SECONDS);
+            if (nanos <= 0) {
+                LOGGER.info("wait Monitor initialized TIMEOUT!!");
+            }
+        } catch (InterruptedException ignored) {
+        }
+
         if (config.getJmxLevel() > 0) {
             JMXUtil.register(this.getClass().getPackage().getName() + ":type=pool-" + poolName, this);
             JMXUtil.register(this.getClass().getPackage().getName() + ":type=pool-" + poolName + ",name=config", config);
@@ -296,6 +308,7 @@ public class Hqcp implements HqcpMBean {
             }
             return conn;
         } catch (SQLException e) {
+            System.err.println(">>> COVERED: Line 311-313 - getConnection SQLException during checkout, checking in connection");
             checkIn(pconn);
             throw e;
         }
@@ -343,6 +356,8 @@ public class Hqcp implements HqcpMBean {
                 pconn = new MySQLPooledConnection(Hqcp.this, connId);
             } else if (config.isDB2()) {
                 pconn = new DB2PooledConnection(Hqcp.this, connId);
+            } else if (config.isOceanBase()) {
+                pconn = new OceanBasePooledConnection(Hqcp.this, connId);
             } else {
                 pconn = new PooledConnection(Hqcp.this, connId);
             }
@@ -358,6 +373,7 @@ public class Hqcp implements HqcpMBean {
             }
         } catch (SQLException e) {
             // 创建连接失败时，必须释放之前占用的Semaphore许可，保证计数一致
+            System.err.println(">>> COVERED: Line 375-378 - newConnection SQLException, releasing semaphore");
             maxConnectionSemaphore.release();
             throw e;
         }
@@ -438,13 +454,16 @@ public class Hqcp implements HqcpMBean {
             try {
                 unclosedConnection.retryCloseCount++;
                 try {
+                    System.err.println(">>> COVERED: Line 456 - closeUnclosedConnection first close attempt");
                     unclosedConnection.connection.close();
                 } catch (SQLException e) {
                     try {
+                        System.err.println(">>> COVERED: Line 461-464 - closeUnclosedConnection rollback and retry close");
                         unclosedConnection.connection.rollback();
                     } catch (SQLException ignr) {}
                     unclosedConnection.connection.close();
                 }
+                System.err.println(">>> COVERED: Line 463 - closeUnclosedConnection finally closed");
                 LOGGER.info(unclosedConnection.connectionName, " finally be closed!");
             } catch (SQLException e) {
                 if (unclosedConnection.retryCloseCount >= 10) {
@@ -472,14 +491,14 @@ public class Hqcp implements HqcpMBean {
         private ExecutorService executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
-                Thread t = new Thread(Thread.currentThread().getThreadGroup(), r,
-                        "CPM:" + poolName + "-1",
+                return new Thread(Thread.currentThread().getThreadGroup(), r,
+                        "CPM:" + poolName + "-helper",
                         0);
-                if (! t.isDaemon())
-                    t.setDaemon(true);
-                if (t.getPriority() != Thread.NORM_PRIORITY)
-                    t.setPriority(Thread.NORM_PRIORITY);
-                return t;
+//                if (! t.isDaemon())
+//                    t.setDaemon(true);
+//                if (t.getPriority() != Thread.NORM_PRIORITY)
+//                    t.setPriority(Thread.NORM_PRIORITY);
+//                return t;
             }
         });
 
@@ -554,10 +573,13 @@ public class Hqcp implements HqcpMBean {
                     try {
                         pooledConnection.doCheck();
                     } catch (Exception e) {
+                        System.err.println(">>> COVERED: Line 576-577 - asyncCheckConnection first doCheck exception");
                         LOGGER.warn("exception occurs when doCheck: " + e);
                         try {
                             pooledConnection.doCheck();
+                            System.err.println(">>> COVERED: Line 579 - asyncCheckConnection retry doCheck");
                         } catch (Exception ignored) {
+                            System.err.println(">>> COVERED: Line 580-581 - asyncCheckConnection second doCheck exception");
                             LOGGER.warn("exception occurs again when doCheck: " + e);
                         }
                     }
@@ -566,6 +588,7 @@ public class Hqcp implements HqcpMBean {
             try {
                 future.get(config.getIdleTimeoutMillisec(), TimeUnit.MILLISECONDS);
             } catch (Exception e) {
+                System.err.println(">>> COVERED: Line 588-590 - asyncCheckConnection future.get exception, closing connection");
                 LOGGER.warn("get connection: ", pooledConnection.getConnectionName(), " check result error: ", e);
                 pooledConnection.close();
             }
@@ -581,6 +604,7 @@ public class Hqcp implements HqcpMBean {
                     newConnection(false);
                 }
             } catch (SQLException e) {
+                System.err.println(">>> COVERED: Line 603-605 - newMoreConnections SQLException when maintaining min connections");
                 LOGGER.warn("exception occurred when maintaining min connections for {} of {}/{} to {}", poolName,
                         validConnectionNum.get(), config.getMinConnections(), config.getUrl(), e);
             }
@@ -590,6 +614,7 @@ public class Hqcp implements HqcpMBean {
                     try {
                         newConnection(false);
                     } catch (SQLException e) {
+                        System.err.println(">>> COVERED: Line 612-613 - newMoreConnections SQLException when creating more connections");
                         LOGGER.warn("exception occurred when creating more connections for {} to {}", poolName, config.getUrl(), e);
                     }
                 } else {
@@ -618,6 +643,7 @@ public class Hqcp implements HqcpMBean {
                         break;
                     }
                 } catch (Exception e) {
+                    System.err.println(">>> COVERED: Line 646-648 - CPMonitor.run Exception caught");
                     idleTimeout = config.getIdleTimeoutMillisec();
                     LOGGER.warn(e);
                 } catch (Throwable t) {
@@ -663,6 +689,7 @@ public class Hqcp implements HqcpMBean {
                 if (last != null && last.equals(e)) {
                     return stack.pollLast() != null;
                 }
+                System.err.println(">>> COVERED: Line 681 - LinkedStack.popFromBottom return false (not match)");
                 return false;
             } finally {
                 operLock.unlock();
@@ -691,6 +718,7 @@ public class Hqcp implements HqcpMBean {
             try {
                 operLock.lockInterruptibly();
             } catch (InterruptedException e) {
+                System.err.println(">>> COVERED: Line 708-709 - LinkedStack.requireMoreSignal InterruptedException");
                 return;
             }
             try {
@@ -711,6 +739,7 @@ public class Hqcp implements HqcpMBean {
             operLock.lockInterruptibly();
             try {
                 try {
+                    requireMore.signal();  // 唤醒主线程
                     return requireMore.awaitNanos(unit.toNanos(timeout));
                 } catch (InterruptedException e) {
                     requireMore.signal();
@@ -731,6 +760,7 @@ public class Hqcp implements HqcpMBean {
             try {
                 operLock.lockInterruptibly();
             } catch (InterruptedException e) {
+                System.err.println(">>> COVERED: Line 749-750 - LinkedStack.awaitNotEmpty InterruptedException on lock");
                 return true;
             }
             try {
@@ -764,17 +794,17 @@ public class Hqcp implements HqcpMBean {
                     try {
                         if (timeout < 0) {
                             // no timeout
-                        if (! notEmpty.await(1, TimeUnit.SECONDS)) {
-                            LOGGER.trace("wait for connection INFINITELY, wakeup to see if there is a connection available");
-                        }
+                            if (! notEmpty.await(1, TimeUnit.SECONDS)) {
+                                LOGGER.trace("wait for connection INFINITELY, wakeup to see if there is a connection available");
+                            }
                         } else {
-                        // 超时场景下改为按1秒周期等待
-                        long waitTime = Math.min(nanos, TimeUnit.SECONDS.toNanos(1));
-                        long before = System.nanoTime();
-                        if (notEmpty.awaitNanos(waitTime) <= 0) {
-                            LOGGER.trace("wait connection for {}ms, wakeup to see if there is a connection available", timeout);
-                        }
-                        nanos -= System.nanoTime() - before;
+                            // 超时场景下改为按1秒周期等待
+                            long waitTime = Math.min(nanos, TimeUnit.SECONDS.toNanos(1));
+                            long before = System.nanoTime();
+                            if (notEmpty.awaitNanos(waitTime) <= 0) {
+                                LOGGER.trace("wait connection for {}ms, wakeup to see if there is a connection available", timeout);
+                            }
+                            nanos -= System.nanoTime() - before;
                         }
                     } catch (InterruptedException ie) {
                         notEmpty.signal(); // propagate to a non-interrupted thread

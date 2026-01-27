@@ -67,11 +67,7 @@ public class MySQLPooledConnection extends PooledConnection {
                 break;
         }
 
-        // for oceanbase
-        if (errorCode >= -10000 && errorCode <= -9000) {
-            LOGGER.debug("consider fetal exception because errorCode: %d", errorCode);
-            return true;
-        }
+        // for oceanbase logic moved to OceanBasePooledConnection
 
         String className = sqle.getClass().getName();
         if (className.endsWith("CommunicationsException")) {
@@ -81,8 +77,9 @@ public class MySQLPooledConnection extends PooledConnection {
 
         String message = sqle.getMessage();
         if (message != null && message.length() > 0) {
-            if (message.startsWith("Streaming result set com.mysql.jdbc.RowDataDynamic")
-                    && message.endsWith("is still active. No statements may be issued when any streaming result sets are open and in use on a given connection. Ensure that you have called .close() on any active streaming result sets before attempting more queries.")) {
+            // 兼容 mysql-connector-j 8.x/9.x (com.mysql.cj.*) 以及旧版本
+            if (message.startsWith("Streaming result set")
+                    && message.contains("is still active. No statements may be issued when any streaming result sets are open and in use on a given connection.")) {
                 LOGGER.debug("consider fetal exception because message: %s", message);
                 return true;
             }

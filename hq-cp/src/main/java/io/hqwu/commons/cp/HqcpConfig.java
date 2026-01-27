@@ -188,9 +188,14 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     private boolean isDB2 = false;
 
     /**
+     * Indicates if this is OceanBase cp
+     */
+    private boolean isOceanBase = false;
+
+    /**
      * Indicates if oracle implicit preparedstatement cache needed.
      */
-    private boolean useOracleImplicitCache = true;
+    // private boolean useOracleImplicitCache = true;
 
     /**
      * connection properties on DriverManager.getConnection(url,info)<br/>
@@ -288,6 +293,8 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
                 isMySQL = true;
             } else if (dbf.compareToIgnoreCase("db2") == 0) {
                 isDB2 = true;
+            } else if (dbf.compareToIgnoreCase("oceanbase") == 0) {
+                isOceanBase = true;
             }
             if (this.checkStatement == null || this.checkStatement.trim().length() == 0) {
                 //if checkStatement NOT be set, auto-set by url
@@ -295,7 +302,7 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
                     checkStatement = "values(current timestamp)";
                 } else if (isOracle) {
                     checkStatement = "select systimestamp from dual";
-                } else if (isMySQL) {
+                } else if (isMySQL || isOceanBase) {
                     checkStatement = "select now()";
                 }
             }
@@ -305,6 +312,8 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
                     driverClassName = "oracle.jdbc.driver.OracleDriver";
                 } else if (isMySQL) {
                     driverClassName = "com.mysql.cj.jdbc.Driver";
+                } else if (isOceanBase) {
+                    driverClassName = "com.oceanbase.jdbc.Driver";
                 }
             }
         }
@@ -604,13 +613,18 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         return isDB2;
     }
 
-    public boolean isUseOracleImplicitCache() {
-        return useOracleImplicitCache;
+    public boolean isOceanBase() {
+        return isOceanBase;
     }
 
-    public void setUseOracleImplicitCache(boolean useOracleImplicitPSCache) {
-        this.useOracleImplicitCache = useOracleImplicitPSCache;
+    public boolean isUseOracleImplicitCache() {
+        // return useOracleImplicitCache;
+        return false;
     }
+
+    // public void setUseOracleImplicitCache(boolean useOracleImplicitPSCache) {
+    //    this.useOracleImplicitCache = useOracleImplicitPSCache;
+    // }
 
     public void setPasswordKey(String passwordAesKey) {
         if (passwordAesKey != null && passwordAesKey.length() > 0) {
@@ -789,7 +803,7 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         lazyInit = getBoolean(prop, "jdbc.lazy-init", lazyInit);
         setInfoSqlThreshold(getLong(prop, "jdbc.info-sql-threshold", infoSqlThreshold));
         setWarnSqlThreshold(getLong(prop, "jdbc.warn-sql-threshold", warnSqlThreshold));
-        useOracleImplicitCache = getBoolean(prop, "jdbc.use-oracle-implicit-cache", useOracleImplicitCache);
+        // useOracleImplicitCache = getBoolean(prop, "jdbc.use-oracle-implicit-cache", useOracleImplicitCache);
         setQueryTimeout(getInt(prop, "jdbc.query-timeout", queryTimeout));
         setConnectionInfo(prop.getProperty("jdbc.connection-info"));
         setPasswordKey(prop.getProperty("jdbc.password-key"));
@@ -800,7 +814,7 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
             "jdbc.verbose", "jdbc.print-sql", "jdbc.mask-sql", "jdbc.mask-pattern", "jdbc.sensitive-fields", "jdbc.commit-on-close", "jdbc.min-connections", "jdbc.max-connections",
             "jdbc.idle-timeout-sec", "jdbc.checkout-timeout-millisec", "jdbc.lifetime-sec",
             "jdbc.check-statement", "jdbc.max-statements", "jdbc.max-pre-statements", "jdbc.jmx-level", "jdbc.transaction-mode", "jdbc.lazy-init",
-            "jdbc.info-sql-threshold", "jdbc.warn-sql-threshold", "jdbc.use-oracle-implicit-cache",
+            "jdbc.info-sql-threshold", "jdbc.warn-sql-threshold", /* "jdbc.use-oracle-implicit-cache", */
             "jdbc.query-timeout","jdbc.connection-info", "jdbc.password-key",
     };
 
