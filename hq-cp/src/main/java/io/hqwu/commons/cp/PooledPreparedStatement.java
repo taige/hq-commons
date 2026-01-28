@@ -11,6 +11,23 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 
+/**
+ * {@link PreparedStatement} 的池化包装实现。
+ *
+ * <p>该类扩展了 {@link PooledStatement}，专门用于处理预编译 SQL 语句。它通过动态代理拦截
+ * JDBC 方法调用，实现了对 SQL 执行耗时的监控以及参数化的 SQL 日志打印。
+ *
+ * <p>主要职责包括：
+ * <ul>
+ *   <li>维护预编译 SQL 及其对应的参数列表。</li>
+ *   <li>在执行时还原完整的 SQL 语句用于日志输出。</li>
+ *   <li>配合 {@link PooledConnection} 实现语句的生命周期管理。</li>
+ * </ul>
+ *
+ * @see PooledConnection
+ * @see PooledStatement
+ * @see java.sql.PreparedStatement
+ */
 public class PooledPreparedStatement extends PooledStatement {
     private static final Logger LOGGER = new Logger();
     
@@ -42,24 +59,8 @@ public class PooledPreparedStatement extends PooledStatement {
     */
     public void cleanCache() {}
 
-    @SuppressWarnings("unchecked")
     protected PreparedStatement buildProxy() {
         Statement stmt = getStatement();
-//        Class[] intfs = stmt.getClass().getInterfaces();
-//        boolean impled = false; //是否实现了Connection接口
-//        for (Class intf: intfs) {
-//            if (intf.getName().equals(PreparedStatement.class.getName())) {
-//                impled = true;
-//                break;
-//            }
-//        }
-//        if (!impled) {
-//            //没有实现Connection接口，则强制增加
-//            Class[] tmp = intfs;
-//            intfs = new Class[tmp.length + 1];
-//            System.arraycopy(tmp, 0, intfs, 0, tmp.length);
-//            intfs[tmp.length] = PreparedStatement.class;
-//        }
         pstmt = (PreparedStatement) Proxy.newProxyInstance(stmt.getClass().getClassLoader(), new Class[] {PreparedStatement.class}, this);
         return pstmt;
     }

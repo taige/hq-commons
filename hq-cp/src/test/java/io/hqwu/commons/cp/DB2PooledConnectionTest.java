@@ -64,7 +64,7 @@ class DB2PooledConnectionTest {
     void testFetalException_ErrorCode512() {
         var exception = new SQLException("STATEMENT REFERENCE TO REMOTE OBJECT IS INVALID", "23001", -512);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -512 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -512 应被识别为致命异常");
     }
 
     @Test
@@ -72,7 +72,7 @@ class DB2PooledConnectionTest {
     void testFetalException_ErrorCode514() {
         var exception = new SQLException("THE CURSOR IS NOT IN A PREPARED STATE", "23001", -514);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -514 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -514 应被识别为致命异常");
     }
 
     @Test
@@ -80,7 +80,7 @@ class DB2PooledConnectionTest {
     void testFetalException_ErrorCode516() {
         var exception = new SQLException("THE DESCRIBE STATEMENT DOES NOT SPECIFY A PREPARED STATEMENT", "23001", -516);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -516 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -516 应被识别为致命异常");
     }
 
     @Test
@@ -88,7 +88,7 @@ class DB2PooledConnectionTest {
     void testFetalException_ErrorCode518() {
         var exception = new SQLException("THE EXECUTE STATEMENT DOES NOT IDENTIFY A VALID PREPARED STATEMENT", "23001", -518);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -518 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -518 应被识别为致命异常");
     }
 
     @Test
@@ -96,7 +96,7 @@ class DB2PooledConnectionTest {
     void testFetalException_ErrorCode525() {
         var exception = new SQLException("THE SQL STATEMENT CANNOT BE EXECUTED BECAUSE IT WAS IN ERROR AT BIND TIME", "23001", -525);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -525 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -525 应被识别为致命异常");
     }
 
     @Test
@@ -104,7 +104,7 @@ class DB2PooledConnectionTest {
     void testFetalException_ErrorCode909() {
         var exception = new SQLException("THE OBJECT HAS BEEN DELETED OR ALTERED", "23001", -909);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -909 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -909 应被识别为致命异常");
     }
 
     @Test
@@ -112,7 +112,7 @@ class DB2PooledConnectionTest {
     void testFetalException_ErrorCode918() {
         var exception = new SQLException("THE SQL STATEMENT CANNOT BE EXECUTED BECAUSE A CONNECTION HAS BEEN LOST", "23001", -918);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -918 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -918 应被识别为致命异常");
     }
 
     @Test
@@ -120,7 +120,7 @@ class DB2PooledConnectionTest {
     void testFetalException_ErrorCode924() {
         var exception = new SQLException("DB2 CONNECTION INTERNAL ERROR", "23001", -924);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -924 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -924 应被识别为致命异常");
     }
 
     @Test
@@ -128,7 +128,7 @@ class DB2PooledConnectionTest {
     void testFetalException_SQLRecoverableException() {
         var exception = new SQLRecoverableException("Connection lost");
 
-        assertTrue(connection.isFetalException(exception), "SQLRecoverableException 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLRecoverableException 应被识别为致命异常");
     }
 
     @Test
@@ -136,7 +136,7 @@ class DB2PooledConnectionTest {
     void testFetalException_SQLState08() {
         var exception = new SQLException("Connection exception", "08006");
 
-        assertTrue(connection.isFetalException(exception), "SQLState 08xxx 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLState 08xxx 应被识别为致命异常");
     }
 
     @Test
@@ -144,7 +144,7 @@ class DB2PooledConnectionTest {
     void testFetalException_NonFetal() {
         var exception = new SQLException("Constraint violation", "23000", -803);
 
-        assertFalse(connection.isFetalException(exception), "普通业务异常不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "普通业务异常不应被识别为致命异常");
     }
 
     @Test
@@ -154,7 +154,7 @@ class DB2PooledConnectionTest {
 
         for (int errorCode : fetalErrorCodes) {
             var exception = new SQLException("DB2 Error", "23001", errorCode);
-            assertTrue(connection.isFetalException(exception), "错误码 " + errorCode + " 应被识别为致命异常");
+            assertTrue(connection.isFatalException(exception), "错误码 " + errorCode + " 应被识别为致命异常");
         }
     }
 
@@ -163,7 +163,7 @@ class DB2PooledConnectionTest {
     void testFetalException_SQLState5() {
         var exception = new SQLException("Implementation error", "5S000");
 
-        assertTrue(connection.isFetalException(exception), "SQLState 5xxxx 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLState 5xxxx 应被识别为致命异常");
     }
 
     @Test
@@ -171,6 +171,6 @@ class DB2PooledConnectionTest {
     void testFetalException_NullSQLState() {
         var exception = new SQLException("Some error", null, -100);
 
-        assertTrue(connection.isFetalException(exception), "空SQLState时会调用父类的判断逻辑");
+        assertTrue(connection.isFatalException(exception), "空SQLState时会调用父类的判断逻辑");
     }
 }

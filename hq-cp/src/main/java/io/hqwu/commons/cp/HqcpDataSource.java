@@ -17,6 +17,16 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Logger;
 
+/**
+ * HQCP (HQ Connection Pool) 数据源实现类。
+ *
+ * <p>该类扩展了 {@link HqcpConfig} 并实现了 {@link DataSource} 接口，作为连接池的核心入口。
+ * 它负责管理内部 {@link Hqcp} 实例的生命周期，支持延迟初始化以及通过 {@link ObjectFactory} 进行 JNDI 资源查找。</p>
+ *
+ * @see Hqcp
+ * @see HqcpConfig
+ * @see javax.sql.DataSource
+ */
 public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFactory {
 
     private boolean initOnStartup = false;
@@ -34,32 +44,21 @@ public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFact
         logWriter = out;
     }
 
-    // #ifdef JDK7
     public Logger getParentLogger() throws SQLFeatureNotSupportedException {
         throw new SQLFeatureNotSupportedException("getParentLogger is unsupported");
     }
-    // #endif JDK7 
-
-//    public void setLoginTimeout(int seconds) throws SQLException {
-//        throw new UnsupportedOperationException("setLoginTimeout is unsupported.");
-//    }
-//
-//    public int getLoginTimeout() throws SQLException {
-//        throw new UnsupportedOperationException("getLoginTimeout is unsupported.");
-//    }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T> T unwrap(Class<T> iface) throws SQLException {
         if (iface == null) {
             throw new SQLException("Interface argument cannot be null");
         }
         if (iface.isInstance(this)) {
-            return (T) this;
+            return iface.cast(this);
         }
 
         if (iface.isInstance(this.pool)) {
-            return (T) this.pool;
+            return iface.cast(this.pool);
         }
 
         throw new SQLException("Cannot unwrap to " + iface.getName());

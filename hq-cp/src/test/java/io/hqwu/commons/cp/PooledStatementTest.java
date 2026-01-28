@@ -215,7 +215,7 @@ class PooledStatementTest {
 
         // Exception Logic
         // 1. Simulate that this is a fatal exception (e.g. connection lost)
-        expect(mockPooledConnection.isFetalException(sqlException)).andReturn(true);
+        expect(mockPooledConnection.isFatalException(sqlException)).andReturn(true);
 
         // 2. Fatal exception should trigger real close()
         mockRealStatement.close();
@@ -1295,7 +1295,7 @@ class PooledStatementTest {
         expect(mockRealStatement.executeQuery(originalSql)).andThrow(sqlException);
 
         // 异常处理：非致命异常
-        expect(mockPooledConnection.isFetalException(sqlException)).andReturn(false);
+        expect(mockPooledConnection.isFatalException(sqlException)).andReturn(false);
 
         replay(mockPooledConnection, mockRealStatement, mockPool, mockConfig, mockMasker);
 

@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(classes = DemoApplication.class)
 @ActiveProfiles("test2")
-public class HqcpDataSourceTest2 {
+public class HqcpDataSourceAutoConfAdditionalTest {
 
     @Autowired
     private HqcpDataSource dataSource;

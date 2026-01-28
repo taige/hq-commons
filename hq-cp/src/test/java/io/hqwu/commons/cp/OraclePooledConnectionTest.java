@@ -64,7 +64,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode17002() {
         var exception = new SQLException("IO Exception", "42000", 17002);
 
-        assertTrue(connection.isFetalException(exception), "错误码 17002 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 17002 应被识别为致命异常");
     }
 
     @Test
@@ -72,7 +72,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode17008() {
         var exception = new SQLException("Closed Connection", "42000", 17008);
 
-        assertTrue(connection.isFetalException(exception), "错误码 17008 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 17008 应被识别为致命异常");
     }
 
     @Test
@@ -80,7 +80,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode17410() {
         var exception = new SQLException("No more data to read from socket", "42000", 17410);
 
-        assertTrue(connection.isFetalException(exception), "错误码 17410 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 17410 应被识别为致命异常");
     }
 
     @Test
@@ -88,7 +88,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode1089() {
         var exception = new SQLException("Immediate shutdown in progress", "42000", 1089);
 
-        assertTrue(connection.isFetalException(exception), "错误码 1089 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 1089 应被识别为致命异常");
     }
 
     @Test
@@ -96,7 +96,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode1090() {
         var exception = new SQLException("Shutdown in progress", "42000", 1090);
 
-        assertTrue(connection.isFetalException(exception), "错误码 1090 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 1090 应被识别为致命异常");
     }
 
     @Test
@@ -104,7 +104,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode17401() {
         var exception = new SQLException("Protocol violation", "42000", 17401);
 
-        assertTrue(connection.isFetalException(exception), "错误码 17401 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 17401 应被识别为致命异常");
     }
 
     @Test
@@ -112,7 +112,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode17442() {
         var exception = new SQLException("Refcursor value is invalid", "42000", 17442);
 
-        assertTrue(connection.isFetalException(exception), "错误码 17442 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 17442 应被识别为致命异常");
     }
 
     @Test
@@ -120,7 +120,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode25408() {
         var exception = new SQLException("Can not safely replay call", "42000", 25408);
 
-        assertTrue(connection.isFetalException(exception), "错误码 25408 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 25408 应被识别为致命异常");
     }
 
     @Test
@@ -128,7 +128,7 @@ class OraclePooledConnectionTest {
     void testFetalException_SQLRecoverableException() {
         var exception = new SQLRecoverableException("Connection lost");
 
-        assertTrue(connection.isFetalException(exception), "SQLRecoverableException 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLRecoverableException 应被识别为致命异常");
     }
 
     @Test
@@ -136,7 +136,7 @@ class OraclePooledConnectionTest {
     void testFetalException_SQLState08() {
         var exception = new SQLException("Connection exception", "08006");
 
-        assertTrue(connection.isFetalException(exception), "SQLState 08xxx 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLState 08xxx 应被识别为致命异常");
     }
 
     @Test
@@ -144,7 +144,7 @@ class OraclePooledConnectionTest {
     void testFetalException_NonFetal() {
         var exception = new SQLException("Constraint violation", "23000", 1);
 
-        assertFalse(connection.isFetalException(exception), "普通业务异常不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "普通业务异常不应被识别为致命异常");
     }
 
     @Test
@@ -154,7 +154,7 @@ class OraclePooledConnectionTest {
 
         for (int errorCode : fetalErrorCodes) {
             var exception = new SQLException("Oracle Error", "42000", errorCode);
-            assertTrue(connection.isFetalException(exception), "错误码 " + errorCode + " 应被识别为致命异常");
+            assertTrue(connection.isFatalException(exception), "错误码 " + errorCode + " 应被识别为致命异常");
         }
     }
 
@@ -163,7 +163,7 @@ class OraclePooledConnectionTest {
     void testFetalException_SQLState5() {
         var exception = new SQLException("Implementation error", "5S000");
 
-        assertTrue(connection.isFetalException(exception), "SQLState 5xxxx 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLState 5xxxx 应被识别为致命异常");
     }
 
     @Test
@@ -171,7 +171,7 @@ class OraclePooledConnectionTest {
     void testFetalException_NullSQLState() {
         var exception = new SQLException("Some error", null, 9999);
 
-        assertTrue(connection.isFetalException(exception), "空SQLState会在父类被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "空SQLState会在父类被识别为致命异常");
     }
 
     @Test
@@ -179,7 +179,7 @@ class OraclePooledConnectionTest {
     void testFetalException_TNSErrorCode12100() {
         var exception = new SQLException("TNS:could not resolve the connect identifier specified", "42000", 12100);
 
-        assertTrue(connection.isFetalException(exception), "TNS错误码 12100 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "TNS错误码 12100 应被识别为致命异常");
     }
 
     @Test
@@ -187,7 +187,7 @@ class OraclePooledConnectionTest {
     void testFetalException_TNSErrorCode12299() {
         var exception = new SQLException("TNS error", "42000", 12299);
 
-        assertTrue(connection.isFetalException(exception), "TNS错误码 12299 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "TNS错误码 12299 应被识别为致命异常");
     }
 
     @Test
@@ -195,7 +195,7 @@ class OraclePooledConnectionTest {
     void testFetalException_TNSErrorCode12150() {
         var exception = new SQLException("TNS:could not send data", "42000", 12150);
 
-        assertTrue(connection.isFetalException(exception), "TNS错误码 12150 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "TNS错误码 12150 应被识别为致命异常");
     }
 
     @Test
@@ -203,7 +203,7 @@ class OraclePooledConnectionTest {
     void testFetalException_MessageContainsSocket() {
         var exception = new SQLException("SOCKET read error", "42000", 999);
 
-        assertTrue(connection.isFetalException(exception), "错误消息包含SOCKET应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误消息包含SOCKET应被识别为致命异常");
     }
 
     @Test
@@ -211,7 +211,7 @@ class OraclePooledConnectionTest {
     void testFetalException_MessageContainsChinese套接字() {
         var exception = new SQLException("套接字连接失败", "42000", 999);
 
-        assertTrue(connection.isFetalException(exception), "错误消息包含套接字应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误消息包含套接字应被识别为致命异常");
     }
 
     @Test
@@ -219,7 +219,7 @@ class OraclePooledConnectionTest {
     void testFetalException_MessageContainsConnectionClosed() {
         var exception = new SQLException("CONNECTION HAS ALREADY BEEN CLOSED", "42000", 999);
 
-        assertTrue(connection.isFetalException(exception), "错误消息包含CONNECTION HAS ALREADY BEEN CLOSED应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误消息包含CONNECTION HAS ALREADY BEEN CLOSED应被识别为致命异常");
     }
 
     @Test
@@ -227,7 +227,7 @@ class OraclePooledConnectionTest {
     void testFetalException_MessageContainsBrokenPipe() {
         var exception = new SQLException("BROKEN PIPE detected", "42000", 999);
 
-        assertTrue(connection.isFetalException(exception), "错误消息包含BROKEN PIPE应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误消息包含BROKEN PIPE应被识别为致命异常");
     }
 
     @Test
@@ -235,7 +235,7 @@ class OraclePooledConnectionTest {
     void testFetalException_MessageContainsChinese管道已结束() {
         var exception = new SQLException("管道已结束", "42000", 999);
 
-        assertTrue(connection.isFetalException(exception), "错误消息包含管道已结束应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误消息包含管道已结束应被识别为致命异常");
     }
 
     @Test
@@ -244,7 +244,7 @@ class OraclePooledConnectionTest {
         // 即使消息包含SOCKET，但错误码在20000-20999范围内，不会匹配消息文本
         var exception = new SQLException("SOCKET error in user code", "42000", 20500);
 
-        assertFalse(connection.isFetalException(exception), "用户自定义错误码20000-20999不应通过消息文本匹配");
+        assertFalse(connection.isFatalException(exception), "用户自定义错误码20000-20999不应通过消息文本匹配");
     }
 
     @Test
@@ -252,7 +252,7 @@ class OraclePooledConnectionTest {
     void testFetalException_TNSErrorCode12300NotInRange() {
         var exception = new SQLException("Not TNS error", "42000", 12300);
 
-        assertFalse(connection.isFetalException(exception), "错误码12300不在TNS范围内，不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "错误码12300不在TNS范围内，不应被识别为致命异常");
     }
 
     @Test
@@ -260,7 +260,7 @@ class OraclePooledConnectionTest {
     void testFetalException_TNSErrorCode12099NotInRange() {
         var exception = new SQLException("Not TNS error", "42000", 12099);
 
-        assertFalse(connection.isFetalException(exception), "错误码12099不在TNS范围内，不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "错误码12099不在TNS范围内，不应被识别为致命异常");
     }
 
     @Test
@@ -268,7 +268,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode28() {
         var exception = new SQLException("your session has been killed", "42000", 28);
 
-        assertTrue(connection.isFetalException(exception), "错误码 28 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 28 应被识别为致命异常");
     }
 
     @Test
@@ -276,7 +276,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode600() {
         var exception = new SQLException("Internal oracle error", "42000", 600);
 
-        assertTrue(connection.isFetalException(exception), "错误码 600 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 600 应被识别为致命异常");
     }
 
     @Test
@@ -284,7 +284,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode1012() {
         var exception = new SQLException("not logged on", "42000", 1012);
 
-        assertTrue(connection.isFetalException(exception), "错误码 1012 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 1012 应被识别为致命异常");
     }
 
     @Test
@@ -292,7 +292,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode3113() {
         var exception = new SQLException("end-of-file on communication channel", "42000", 3113);
 
-        assertTrue(connection.isFetalException(exception), "错误码 3113 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 3113 应被识别为致命异常");
     }
 
     @Test
@@ -300,7 +300,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode17001() {
         var exception = new SQLException("Internal Error", "42000", 17001);
 
-        assertTrue(connection.isFetalException(exception), "错误码 17001 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 17001 应被识别为致命异常");
     }
 
     @Test
@@ -308,7 +308,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode17024() {
         var exception = new SQLException("No data read", "42000", 17024);
 
-        assertTrue(connection.isFetalException(exception), "错误码 17024 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 17024 应被识别为致命异常");
     }
 
     @Test
@@ -316,7 +316,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode25407() {
         var exception = new SQLException("connection terminated", "42000", 25407);
 
-        assertTrue(connection.isFetalException(exception), "错误码 25407 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 25407 应被识别为致命异常");
     }
 
     @Test
@@ -324,7 +324,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode30676() {
         var exception = new SQLException("socket read or write failed", "42000", 30676);
 
-        assertTrue(connection.isFetalException(exception), "错误码 30676 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 30676 应被识别为致命异常");
     }
 
     @Test
@@ -332,7 +332,7 @@ class OraclePooledConnectionTest {
     void testFetalException_UserDefinedErrorCode20000() {
         var exception = new SQLException("SOCKET error", "42000", 20000);
 
-        assertFalse(connection.isFetalException(exception), "用户自定义错误码20000不应通过消息文本匹配");
+        assertFalse(connection.isFatalException(exception), "用户自定义错误码20000不应通过消息文本匹配");
     }
 
     @Test
@@ -340,7 +340,7 @@ class OraclePooledConnectionTest {
     void testFetalException_UserDefinedErrorCode20999() {
         var exception = new SQLException("BROKEN PIPE", "42000", 20999);
 
-        assertFalse(connection.isFetalException(exception), "用户自定义错误码20999不应通过消息文本匹配");
+        assertFalse(connection.isFatalException(exception), "用户自定义错误码20999不应通过消息文本匹配");
     }
 
     @Test
@@ -348,7 +348,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode21000ChecksMessage() {
         var exception = new SQLException("SOCKET error", "42000", 21000);
 
-        assertTrue(connection.isFetalException(exception), "错误码21000应检查消息文本并匹配SOCKET");
+        assertTrue(connection.isFatalException(exception), "错误码21000应检查消息文本并匹配SOCKET");
     }
 
     @Test
@@ -356,7 +356,7 @@ class OraclePooledConnectionTest {
     void testFetalException_ErrorCode19999ChecksMessage() {
         var exception = new SQLException("套接字 error", "42000", 19999);
 
-        assertTrue(connection.isFetalException(exception), "错误码19999应检查消息文本并匹配套接字");
+        assertTrue(connection.isFatalException(exception), "错误码19999应检查消息文本并匹配套接字");
     }
 
     @Test
@@ -364,7 +364,7 @@ class OraclePooledConnectionTest {
     void testFetalException_MessageContainsLowercaseSocket() {
         var exception = new SQLException("socket read error", "42000", 999);
 
-        assertTrue(connection.isFetalException(exception), "错误消息包含小写socket应被识别为致命异常(会转大写)");
+        assertTrue(connection.isFatalException(exception), "错误消息包含小写socket应被识别为致命异常(会转大写)");
     }
 
     @Test
@@ -372,7 +372,7 @@ class OraclePooledConnectionTest {
     void testFetalException_MessageContainsLowercaseBrokenPipe() {
         var exception = new SQLException("broken pipe detected", "42000", 999);
 
-        assertTrue(connection.isFetalException(exception), "错误消息包含小写broken pipe应被识别为致命异常(会转大写)");
+        assertTrue(connection.isFatalException(exception), "错误消息包含小写broken pipe应被识别为致命异常(会转大写)");
     }
 
     @Test
@@ -380,7 +380,7 @@ class OraclePooledConnectionTest {
     void testFetalException_SQLState6() {
         var exception = new SQLException("Implementation error", "6S000");
 
-        assertTrue(connection.isFetalException(exception), "SQLState 6xxxx 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLState 6xxxx 应被识别为致命异常");
     }
 
     @Test
@@ -388,7 +388,7 @@ class OraclePooledConnectionTest {
     void testFetalException_SQLState9() {
         var exception = new SQLException("Implementation error", "9S000");
 
-        assertTrue(connection.isFetalException(exception), "SQLState 9xxxx 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLState 9xxxx 应被识别为致命异常");
     }
 
     @Test
@@ -396,7 +396,7 @@ class OraclePooledConnectionTest {
     void testFetalException_SQLState4() {
         var exception = new SQLException("Some error", "42000", 999);
 
-        assertFalse(connection.isFetalException(exception), "SQLState 4xxxx 不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "SQLState 4xxxx 不应被识别为致命异常");
     }
 
     @Test
@@ -404,7 +404,7 @@ class OraclePooledConnectionTest {
     void testFetalException_MessageNoKeywords() {
         var exception = new SQLException("Some random error", "42000", 999);
 
-        assertFalse(connection.isFetalException(exception), "错误消息不包含关键字不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "错误消息不包含关键字不应被识别为致命异常");
     }
 
     @Test
@@ -412,7 +412,7 @@ class OraclePooledConnectionTest {
     void testFetalException_NegativeErrorCode17002() {
         var exception = new SQLException("IO Exception", "42000", -17002);
 
-        assertTrue(connection.isFetalException(exception), "负数错误码 -17002 应被识别为致命异常(取绝对值)");
+        assertTrue(connection.isFatalException(exception), "负数错误码 -17002 应被识别为致命异常(取绝对值)");
     }
 
     @Test
@@ -420,6 +420,6 @@ class OraclePooledConnectionTest {
     void testFetalException_NegativeTNSErrorCode() {
         var exception = new SQLException("TNS error", "42000", -12150);
 
-        assertTrue(connection.isFetalException(exception), "负数TNS错误码 -12150 应被识别为致命异常(取绝对值)");
+        assertTrue(connection.isFatalException(exception), "负数TNS错误码 -12150 应被识别为致命异常(取绝对值)");
     }
 }

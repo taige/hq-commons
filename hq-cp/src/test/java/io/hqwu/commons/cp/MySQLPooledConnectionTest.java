@@ -67,7 +67,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_ErrorCode0() {
         var exception = new SQLException("COMMUNICATIONS LINK FAILURE", "23S01", 0);
 
-        assertTrue(connection.isFetalException(exception), "错误码 0 配合COMMUNICATIONS LINK FAILURE消息应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 0 配合COMMUNICATIONS LINK FAILURE消息应被识别为致命异常");
     }
 
     @Test
@@ -75,7 +75,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_ErrorCode1041() {
         var exception = new SQLException("Out of memory", "HY001", 1041);
 
-        assertTrue(connection.isFetalException(exception), "错误码 1041 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 1041 应被识别为致命异常");
     }
 
     @Test
@@ -83,7 +83,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_ErrorCode1040() {
         var exception = new SQLException("Too many connections", "23004", 1040);
 
-        assertTrue(connection.isFetalException(exception), "错误码 1040 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 1040 应被识别为致命异常");
     }
 
     @Test
@@ -91,7 +91,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_ErrorCode1042() {
         var exception = new SQLException("Can't get hostname for your address", "23S01", 1042);
 
-        assertTrue(connection.isFetalException(exception), "错误码 1042 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 1042 应被识别为致命异常");
     }
 
     @Test
@@ -99,7 +99,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_ErrorCode1045() {
         var exception = new SQLException("Access denied", "28000", 1045);
 
-        assertTrue(connection.isFetalException(exception), "错误码 1045 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 1045 应被识别为致命异常");
     }
 
     @Test
@@ -107,7 +107,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_ErrorCode1037() {
         var exception = new SQLException("Out of memory", "HY001", 1037);
 
-        assertTrue(connection.isFetalException(exception), "错误码 1037 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 1037 应被识别为致命异常");
     }
 
     @Test
@@ -115,7 +115,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_ErrorCode1142() {
         var exception = new SQLException("Command denied", "42000", 1142);
 
-        assertTrue(connection.isFetalException(exception), "错误码 1142 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 1142 应被识别为致命异常");
     }
 
     @Test
@@ -123,7 +123,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_SQLState40001() {
         var exception = new SQLException("Deadlock found", "40001", 1213);
 
-        assertTrue(connection.isFetalException(exception), "SQLState 40001 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLState 40001 应被识别为致命异常");
     }
 
     @Test
@@ -131,7 +131,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_NullSQLState() {
         var exception = new SQLException("Some error", null, 999);
 
-        assertTrue(connection.isFetalException(exception), "空SQLState应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "空SQLState应被识别为致命异常");
     }
 
     @Test
@@ -139,7 +139,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_CommunicationsLinkFailure() {
         var exception = new SQLException("COMMUNICATIONS LINK FAILURE", "23S01", 0);
 
-        assertTrue(connection.isFetalException(exception), "包含COMMUNICATIONS LINK FAILURE消息应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "包含COMMUNICATIONS LINK FAILURE消息应被识别为致命异常");
     }
 
     @Test
@@ -150,7 +150,7 @@ class MySQLPooledConnectionTest {
 
         for (int errorCode : fetalErrorCodes) {
             var exception = new SQLException("MySQL Error", "HY000", errorCode);
-            assertTrue(connection.isFetalException(exception), "错误码 " + errorCode + " 应被识别为致命异常");
+            assertTrue(connection.isFatalException(exception), "错误码 " + errorCode + " 应被识别为致命异常");
         }
     }
 
@@ -159,7 +159,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_SQLState5() {
         var exception = new SQLException("Implementation error", "5S000");
 
-        assertTrue(connection.isFetalException(exception), "SQLState 5xxxx 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLState 5xxxx 应被识别为致命异常");
     }
 
     @Test
@@ -167,7 +167,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_NonFetal() {
         var exception = new SQLException("Constraint violation", "23000", 1062);
 
-        assertFalse(connection.isFetalException(exception), "普通业务异常不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "普通业务异常不应被识别为致命异常");
     }
 
     @Test
@@ -176,7 +176,7 @@ class MySQLPooledConnectionTest {
         // 使用自定义异常类，不继承SQLRecoverableException，sqlState="23000"避开父类拦截
         var exception = new CustomCommunicationsException("Communications error");
 
-        assertTrue(connection.isFetalException(exception), "异常类名以CommunicationsException结尾应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "异常类名以CommunicationsException结尾应被识别为致命异常");
     }
 
     @Test
@@ -187,7 +187,7 @@ class MySQLPooledConnectionTest {
                       "Ensure that you have called .close() on any active streaming result sets before attempting more queries.";
         var exception = new SQLException(message, "HY000", 0);
 
-        assertTrue(connection.isFetalException(exception), "流式结果集特殊消息应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "流式结果集特殊消息应被识别为致命异常");
     }
 
     @Test
@@ -195,7 +195,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_CouldNotCreateConnection() {
         var exception = new SQLException("Could not create connection to database server", "23001", 0);
 
-        assertTrue(connection.isFetalException(exception), "包含COULD NOT CREATE CONNECTION消息应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "包含COULD NOT CREATE CONNECTION消息应被识别为致命异常");
     }
 
     @Test
@@ -203,7 +203,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_NoDatasource() {
         var exception = new SQLException("No datasource available", "23001", 999);
 
-        assertTrue(connection.isFetalException(exception), "包含NO DATASOURCE消息应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "包含NO DATASOURCE消息应被识别为致命异常");
     }
 
     @Test
@@ -211,7 +211,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_NoAliveDatasource() {
         var exception = new SQLException("No alive datasource", "23001", 999);
 
-        assertTrue(connection.isFetalException(exception), "包含NO ALIVE DATASOURCE消息应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "包含NO ALIVE DATASOURCE消息应被识别为致命异常");
     }
 
     @Test
@@ -220,7 +220,7 @@ class MySQLPooledConnectionTest {
         var rootCause = new java.net.SocketTimeoutException("Read timed out");
         var exception = new SQLException("Query timeout", "HY000", 0, rootCause);
 
-        assertTrue(connection.isFetalException(exception), "cause链中包含SocketTimeoutException应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "cause链中包含SocketTimeoutException应被识别为致命异常");
     }
 
     @Test
@@ -230,7 +230,7 @@ class MySQLPooledConnectionTest {
         var rootCause = new CustomCommunicationsException("Communications error");
         var exception = new SQLException("Database error", "23S01", 0, rootCause);
 
-        assertTrue(connection.isFetalException(exception), "cause链中类名以CommunicationsException结尾应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "cause链中类名以CommunicationsException结尾应被识别为致命异常");
     }
 
     @Test
@@ -240,7 +240,7 @@ class MySQLPooledConnectionTest {
         var rootCause = new CustomConnectionIsClosedException("Connection is closed");
         var exception = new SQLException("Database error", "23003", 0, rootCause);
 
-        assertTrue(connection.isFetalException(exception), "cause链中类名以ConnectionIsClosedException结尾应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "cause链中类名以ConnectionIsClosedException结尾应被识别为致命异常");
     }
 
     @Test
@@ -250,7 +250,7 @@ class MySQLPooledConnectionTest {
         var rootCause = new CustomStatementIsClosedException("Statement is closed");
         var exception = new SQLException("Database error", "23003", 0, rootCause);
 
-        assertTrue(connection.isFetalException(exception), "cause链中类名以StatementIsClosedException结尾应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "cause链中类名以StatementIsClosedException结尾应被识别为致命异常");
     }
 
 
@@ -264,7 +264,7 @@ class MySQLPooledConnectionTest {
         var cause1 = new Exception("Layer 1", cause2);
         var exception = new SQLException("Database error", "23S01", 0, cause1);
 
-        assertTrue(connection.isFetalException(exception), "cause链中第3层的SocketTimeoutException应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "cause链中第3层的SocketTimeoutException应被识别为致命异常");
     }
 
     @Test
@@ -272,7 +272,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_EmptyMessage() {
         var exception = new SQLException("", "23000", 1062);
 
-        assertFalse(connection.isFetalException(exception), "空消息不应触发致命异常判断");
+        assertFalse(connection.isFatalException(exception), "空消息不应触发致命异常判断");
     }
 
     @Test
@@ -280,7 +280,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_NullMessage() {
         var exception = new SQLException(null, "23000", 1062);
 
-        assertFalse(connection.isFetalException(exception), "null消息不应触发致命异常判断");
+        assertFalse(connection.isFatalException(exception), "null消息不应触发致命异常判断");
     }
 
     @Test
@@ -288,7 +288,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_ErrorCode0WithoutSpecialMessage() {
         var exception = new SQLException("Some random error", "HY000", 0);
 
-        assertFalse(connection.isFetalException(exception), "错误码0但不包含特殊消息不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "错误码0但不包含特殊消息不应被识别为致命异常");
     }
 
     @Test
@@ -296,7 +296,7 @@ class MySQLPooledConnectionTest {
     void testFetalException_SQLRecoverableException() {
         var exception = new SQLRecoverableException("Recoverable error", "08006", 0);
 
-        assertTrue(connection.isFetalException(exception), "SQLRecoverableException应被父类识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLRecoverableException应被父类识别为致命异常");
     }
 
     @Test
@@ -305,7 +305,7 @@ class MySQLPooledConnectionTest {
         // errorCode != 0时，仍然应该识别为致命异常
         var exception = new SQLException("Could not create connection to database server", "23001", 999);
 
-        assertTrue(connection.isFetalException(exception), "包含COULD NOT CREATE CONNECTION消息应被识别为致命异常，无论errorCode是否为0");
+        assertTrue(connection.isFatalException(exception), "包含COULD NOT CREATE CONNECTION消息应被识别为致命异常，无论errorCode是否为0");
     }
 
     @Test
@@ -314,7 +314,7 @@ class MySQLPooledConnectionTest {
         // errorCode != 0时，仍然应该识别为致命异常
         var exception = new SQLException("No datasource available", "23001", 999);
 
-        assertTrue(connection.isFetalException(exception), "包含NO DATASOURCE消息应被识别为致命异常，无论errorCode是否为0");
+        assertTrue(connection.isFatalException(exception), "包含NO DATASOURCE消息应被识别为致命异常，无论errorCode是否为0");
     }
 
     @Test
@@ -323,7 +323,7 @@ class MySQLPooledConnectionTest {
         // errorCode != 0时，仍然应该识别为致命异常
         var exception = new SQLException("No alive datasource", "23001", 999);
 
-        assertTrue(connection.isFetalException(exception), "包含NO ALIVE DATASOURCE消息应被识别为致命异常，无论errorCode是否为0");
+        assertTrue(connection.isFatalException(exception), "包含NO ALIVE DATASOURCE消息应被识别为致命异常，无论errorCode是否为0");
     }
 }
 

@@ -7,12 +7,20 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * Some Oracle specific com.umpay.commons.util.utils.
- *
- * Created by jianbin on 2/14/14.
- *
+ * Oracle 数据库工具类。
+ * <p>
+ * 本类提供与 Oracle JDBC 驱动（适配 ojdbc17+ 及 Oracle 12c+）集成的常用常量和操作方法。
+ * 主要功能包括：
+ * <ul>
+ *   <li>管理 Oracle 特有的连接属性，如读取超时（ReadTimeout）和连接超时（ConnectTimeout）。</li>
+ *   <li>提供对 {@link oracle.jdbc.OraclePreparedStatement} 隐式缓存（Implicit Cache）的操作支持。</li>
+ *   <li>适配新版驱动的自动内存管理机制，简化 Statement 的生命周期管理。</li>
+ * </ul>
+ * 相关类引用：{@link java.sql.Statement}, {@link oracle.jdbc.OraclePreparedStatement}。 <br/>
  * 2025-03-04: 升级到 ojdbc17+ (12c+) 后，隐式缓存管理已由驱动自动处理
  *
+ * @author jianbin
+ * @since 2014-02-14
  */
 public class OracleUtil {
     private static final Logger log = new Logger();

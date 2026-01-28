@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(classes = DemoApplication.class)
 @ActiveProfiles("test")
-public class HqcpDataSourceTest {
+public class HqcpDataSourceAutoConfTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger();
 

@@ -19,7 +19,22 @@ import java.util.StringJoiner;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
-class PooledStatement implements InvocationHandler {
+/**
+ * {@link Statement} 的代理实现类，用于在连接池中管理 SQL 语句的执行与资源生命周期。
+ *
+ * <p>主要功能包括：
+ * <ul>
+ *   <li>配合 {@link PooledConnection} 实现语句的检入（Check-in）与检出（Check-out）管理。</li>
+ *   <li>监控 SQL 执行性能，记录执行耗时并根据阈值配置打印相关日志。</li>
+ *   <li>集成 {@link io.hqwu.commons.cp.util.SqlMasker} 对执行的 SQL 进行敏感字段脱敏。</li>
+ *   <li>自动包装 {@link ResultSet} 为 {@code LoggableResultSet} 以支持结果集数据的追踪记录。</li>
+ *   <li>异常处理与连接状态维护，确保在发生致命错误时能触发物理连接的回收。</li>
+ * </ul>
+ *
+ * @author taige (Wu, Hongqiang)
+ * @since 2011-09-02
+ */
+public class PooledStatement implements InvocationHandler {
     private static final Logger LOGGER = new Logger();
     
     /**
@@ -123,23 +138,7 @@ class PooledStatement implements InvocationHandler {
         return statement;
     }
     
-    @SuppressWarnings("unchecked")
     protected Statement buildProxy() {
-//        Class[] intfs = real_statement.getClass().getInterfaces();
-//        boolean impled = false; //是否实现了Connection接口
-//        for (Class intf: intfs) {
-//            if (intf.getName().equals(Statement.class.getName())) {
-//                impled = true;
-//                break;
-//            }
-//        }
-//        if (!impled) {
-//            //没有实现Connection接口，则强制增加
-//            Class[] tmp = intfs;
-//            intfs = new Class[tmp.length + 1];
-//            System.arraycopy(tmp, 0, intfs, 0, tmp.length);
-//            intfs[tmp.length] = Statement.class;
-//        }
         return (Statement) Proxy.newProxyInstance(real_statement.getClass().getClassLoader(), new Class[] {Statement.class}, this);
     }
 
@@ -178,7 +177,7 @@ class PooledStatement implements InvocationHandler {
                     LOGGER.error("unexpected exception occurs on ", methodDoing, "(", getMaskedSql(), ")", e);
                 }
             }
-            if (! (e instanceof SQLException) || pooledConnection.isFetalException((SQLException) e)) {
+            if (! (e instanceof SQLException) || pooledConnection.isFatalException((SQLException) e)) {
                 close();
                 //sql执行失败不新建连接,直接关闭物理链接,等待Connection的close调用,modify by shenjl at 2015-03-09
                 pooledConnection.setFatalExceptionHappened(true);

@@ -1819,7 +1819,7 @@ public class PooledConnectionTest {
         SQLRecoverableException recoverableException = new SQLRecoverableException("Connection lost");
 
         // Should be identified as fatal
-        assertTrue(pooledConnection.isFetalException(recoverableException));
+        assertTrue(pooledConnection.isFatalException(recoverableException));
 
         control.verify();
     }
@@ -2208,7 +2208,7 @@ public class PooledConnectionTest {
      * Test: isFetalException with null SQLState
      */
     @Test
-    public void testIsFetalExceptionWithNullSQLState() throws SQLException {
+    public void testIsFatalExceptionWithNullSQLState() throws SQLException {
         expect(mockRealConnection.getAutoCommit()).andReturn(true).anyTimes();
 
         control.replay();
@@ -2219,7 +2219,7 @@ public class PooledConnectionTest {
         SQLException exception = new SQLException("Error", (String) null);
 
         // Should be considered fatal (null is treated as connection exception)
-        assertTrue(pooledConnection.isFetalException(exception));
+        assertTrue(pooledConnection.isFatalException(exception));
 
         control.verify();
     }

@@ -24,6 +24,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * Hqcp (HQ Connection Pool) 是一个高性能的数据库连接池实现。
+ *
+ * <p>主要功能包括：</p>
+ * <ul>
+ *     <li>支持多种数据库方言，包括 Oracle、MySQL、DB2 和 OceanBase。</li>
+ *     <li>基于 {@link HqcpConfig} 进行灵活的连接参数与池化策略配置。</li>
+ *     <li>提供完善的连接生命周期管理，包括空闲连接检测、存活检查及自动回收机制。</li>
+ *     <li>支持通过 JMX ({@link HqcpMBean}) 进行实时监控与动态管理。</li>
+ *     <li>集成 {@link SqlMasker} 提供 SQL 敏感字段脱敏功能。</li>
+ * </ul>
+ *
+ * @author wuhongqiang
+ * @since 2011-09-02
+ */
 public class Hqcp implements HqcpMBean {
     private static final Logger LOGGER = new Logger();
 
@@ -489,11 +504,6 @@ public class Hqcp implements HqcpMBean {
                 return new Thread(Thread.currentThread().getThreadGroup(), r,
                         "CPM:" + poolName + "-helper",
                         0);
-//                if (! t.isDaemon())
-//                    t.setDaemon(true);
-//                if (t.getPriority() != Thread.NORM_PRIORITY)
-//                    t.setPriority(Thread.NORM_PRIORITY);
-//                return t;
             }
         });
 

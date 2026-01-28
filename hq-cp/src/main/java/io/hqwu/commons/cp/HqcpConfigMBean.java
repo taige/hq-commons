@@ -1,5 +1,15 @@
 package io.hqwu.commons.cp;
 
+/**
+ * Hqcp 数据库连接池配置的 MBean 接口。
+ * <p>
+ * 该接口定义了连接池的核心配置属性，包括数据库连接信息、池容量控制、超时设置、
+ * SQL 日志与脱敏策略等。通过此接口可实现对 {@link HqcpConfig} 实例的 JMX 动态管理。
+ * </p>
+ *
+ * @see HqcpConfig
+ * @author taige
+ */
 public interface HqcpConfigMBean {
 
     public String getUrl();

@@ -16,6 +16,19 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.*;
 
+/**
+ * Hqcp 数据库连接池配置类。
+ * <p>
+ * 该类负责管理数据库连接池的核心配置参数，包括 JDBC 连接信息（URL、驱动、凭据）、
+ * 连接池容量控制（最小/最大连接数）、超时机制、Statement 缓存以及 SQL 执行监控等。
+ * 支持通过 Properties 文件或 Spring 资源进行加载，并集成了 {@link SecurityService}
+ * 用于数据库密码的加密存储与自动解密。
+ * </p>
+ *
+ * @author zhangyao
+ * @since 1.4
+ * @see HqcpConfigMBean
+ */
 public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     private static final Logger LOGGER = new Logger();
 

@@ -6,10 +6,14 @@ import io.hqwu.commons.cp.PooledConnection;
 import java.sql.SQLException;
 
 /**
- * Created with IntelliJ IDEA
- * User: taige
- * Date: 14-3-25
- * Time: 下午10:14
+ * Oracle 数据库连接池连接实现类。
+ *
+ * <p>该类继承自 {@link PooledConnection}，专门用于处理 Oracle 数据库特定的连接逻辑。
+ * 其核心功能是识别 Oracle 特有的致命异常（Fatal Exception），确保 {@link Hqcp}
+ * 连接池能够准确判断连接有效性并及时清理失效连接。</p>
+ *
+ * @author taige
+ * @since 2014-03-25
  */
 public class OraclePooledConnection extends PooledConnection {
     public OraclePooledConnection(Hqcp pool, int connId) throws SQLException {
@@ -17,8 +21,8 @@ public class OraclePooledConnection extends PooledConnection {
     }
 
     @Override
-    public boolean isFetalException(SQLException sqle) {
-        if (super.isFetalException(sqle)) {
+    public boolean isFatalException(SQLException sqle) {
+        if (super.isFatalException(sqle)) {
             return true;
         }
         final int error_code = Math.abs(sqle.getErrorCode()); // I can't remember if the errors are negative or positive.

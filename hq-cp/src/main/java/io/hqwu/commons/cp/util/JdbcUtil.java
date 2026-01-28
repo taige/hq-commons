@@ -10,8 +10,12 @@ import java.util.Objects;
 import java.util.StringTokenizer;
 
 /**
- * JdbcUtil
+ * JDBC 工具类，提供数据库连接、驱动加载、资源安全关闭、字符串处理等常用静态方法。
+ * 适用于 Spring Boot 3 项目，简化 JDBC 操作，提升代码健壮性与可维护性。
+ * 相关类引用：{@link java.sql.Connection}、{@link java.sql.Driver}、{@link java.sql.ResultSet}、{@link java.sql.Statement}、{@link java.sql.Wrapper}
+ *
  * @author wuhongqiang.taige
+ * @since 1.0
  */
 public class JdbcUtil {
     private static final Logger LOGGER = new Logger();

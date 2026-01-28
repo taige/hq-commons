@@ -5,30 +5,26 @@ import java.sql.CallableStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-class PooledCallableStatement extends PooledPreparedStatement {
+
+/**
+ * {@link CallableStatement} 的池化包装实现。
+ * <p>
+ * 继承自 {@link PooledPreparedStatement}，专门用于在连接池环境中管理和复用存储过程调用语句。
+ * 通过动态代理机制封装底层驱动的语句对象，协调其与 {@link PooledConnection} 的交互。
+ * </p>
+ *
+ * @see PooledConnection
+ * @see PooledPreparedStatement
+ * @see CallableStatement
+ */
+public class PooledCallableStatement extends PooledPreparedStatement {
 
     PooledCallableStatement(PooledConnection conn, CallableStatement stmt, int stmtId, Object[] args) throws SQLException {
         super(conn, stmt, stmtId, args);
     }
 
-    @SuppressWarnings("unchecked")
     protected CallableStatement buildProxy() {
         Statement stmt = getStatement();
-//        Class[] intfs = stmt.getClass().getInterfaces();
-//        boolean impled = false; //是否实现了Connection接口
-//        for (Class intf: intfs) {
-//            if (intf.getName().equals(CallableStatement.class.getName())) {
-//                impled = true;
-//                break;
-//            }
-//        }
-//        if (!impled) {
-//            //没有实现Connection接口，则强制增加
-//            Class[] tmp = intfs;
-//            intfs = new Class[tmp.length + 1];
-//            System.arraycopy(tmp, 0, intfs, 0, tmp.length);
-//            intfs[tmp.length] = CallableStatement.class;
-//        }
         return (CallableStatement) Proxy.newProxyInstance(stmt.getClass().getClassLoader(), new Class[] {CallableStatement.class}, this);
     }
 }

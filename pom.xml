@@ -136,8 +136,7 @@
               <haltOnFailure>false</haltOnFailure> <!-- 不中断测试，仅报告覆盖率问题 -->
               <rules>
                 <rule>
-                  <!-- 整体覆盖率要求 -->
-                  <!-- 80% 是行业分水岭, 新项目 90% -->
+                  <!-- 整体覆盖率要求: 80% 是行业分水岭, 新项目 90% -->
                   <element>BUNDLE</element>
                   <limits>
                     <limit>

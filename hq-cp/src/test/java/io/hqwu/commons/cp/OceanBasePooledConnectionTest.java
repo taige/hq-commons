@@ -69,7 +69,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_OceanBaseErrorCode_Minus10000() {
         var exception = new SQLException("OceanBase internal error", "42000", -10000);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -10000 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -10000 应被识别为致命异常");
     }
 
     @Test
@@ -77,7 +77,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_OceanBaseErrorCode_Minus9000() {
         var exception = new SQLException("OceanBase internal error", "42000", -9000);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -9000 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -9000 应被识别为致命异常");
     }
 
     @Test
@@ -85,7 +85,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_OceanBaseErrorCode_Minus9500() {
         var exception = new SQLException("OceanBase internal error", "42000", -9500);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -9500 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -9500 应被识别为致命异常");
     }
 
     @Test
@@ -93,7 +93,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_OceanBaseErrorCode_Minus9100() {
         var exception = new SQLException("OceanBase internal error", "42000", -9100);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -9100 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -9100 应被识别为致命异常");
     }
 
     @Test
@@ -101,7 +101,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_OceanBaseErrorCode_Minus9999() {
         var exception = new SQLException("OceanBase internal error", "42000", -9999);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -9999 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -9999 应被识别为致命异常");
     }
 
     @Test
@@ -109,7 +109,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_OceanBaseErrorCode_Minus9001() {
         var exception = new SQLException("OceanBase internal error", "42000", -9001);
 
-        assertTrue(connection.isFetalException(exception), "错误码 -9001 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "错误码 -9001 应被识别为致命异常");
     }
 
     // ==================== 测试边界外的错误码不被识别 ====================
@@ -119,7 +119,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_OceanBaseErrorCode_Minus10001_NotInRange() {
         var exception = new SQLException("Some error", "42000", -10001);
 
-        assertFalse(connection.isFetalException(exception), "错误码 -10001 不在范围内，不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "错误码 -10001 不在范围内，不应被识别为致命异常");
     }
 
     @Test
@@ -127,7 +127,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_OceanBaseErrorCode_Minus8999_NotInRange() {
         var exception = new SQLException("Some error", "42000", -8999);
 
-        assertFalse(connection.isFetalException(exception), "错误码 -8999 不在范围内，不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "错误码 -8999 不在范围内，不应被识别为致命异常");
     }
 
     @Test
@@ -135,7 +135,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_NormalErrorCode999() {
         var exception = new SQLException("Some error", "42000", 999);
 
-        assertFalse(connection.isFetalException(exception), "普通错误码 999 不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "普通错误码 999 不应被识别为致命异常");
     }
 
     @Test
@@ -143,7 +143,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_PositiveErrorCode9000() {
         var exception = new SQLException("Some error", "42000", 9000);
 
-        assertFalse(connection.isFetalException(exception), "正数错误码 9000 不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "正数错误码 9000 不应被识别为致命异常");
     }
 
     @Test
@@ -151,7 +151,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_PositiveErrorCode10000() {
         var exception = new SQLException("Some error", "42000", 10000);
 
-        assertFalse(connection.isFetalException(exception), "正数错误码 10000 不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "正数错误码 10000 不应被识别为致命异常");
     }
 
     // ==================== 测试继承自父类的逻辑仍然有效 ====================
@@ -161,7 +161,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_SQLRecoverableException() {
         var exception = new SQLRecoverableException("Connection lost", "08S01");
 
-        assertTrue(connection.isFetalException(exception), "SQLRecoverableException 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLRecoverableException 应被识别为致命异常");
     }
 
     @Test
@@ -169,7 +169,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_SQLState08() {
         var exception = new SQLException("Connection exception", "08001");
 
-        assertTrue(connection.isFetalException(exception), "SQLState 08001 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLState 08001 应被识别为致命异常");
     }
 
     @Test
@@ -177,7 +177,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_SQLState5() {
         var exception = new SQLException("Implementation error", "5S000");
 
-        assertTrue(connection.isFetalException(exception), "SQLState 5xxxx 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "SQLState 5xxxx 应被识别为致命异常");
     }
 
     @Test
@@ -185,7 +185,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_MySQL_ErrorCode1041() {
         var exception = new SQLException("Out of resources", "42000", 1041);
 
-        assertTrue(connection.isFetalException(exception), "MySQL错误码 1041 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "MySQL错误码 1041 应被识别为致命异常");
     }
 
     @Test
@@ -193,7 +193,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_MySQL_SQLState40001_Deadlock() {
         var exception = new SQLException("Deadlock detected", "40001");
 
-        assertTrue(connection.isFetalException(exception), "MySQL SQLState 40001 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "MySQL SQLState 40001 应被识别为致命异常");
     }
 
     // ==================== 组合测试：OceanBase错误码 + 特殊SQLState ====================
@@ -203,7 +203,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_OceanBaseErrorCode_With_SQLState08() {
         var exception = new SQLException("OceanBase connection error", "08001", -9500);
 
-        assertTrue(connection.isFetalException(exception), "OceanBase错误码配合SQLState 08 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "OceanBase错误码配合SQLState 08 应被识别为致命异常");
     }
 
     @Test
@@ -211,7 +211,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_OceanBaseErrorCode_With_NormalSQLState() {
         var exception = new SQLException("OceanBase error", "42000", -9500);
 
-        assertTrue(connection.isFetalException(exception), "OceanBase错误码 -9500 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "OceanBase错误码 -9500 应被识别为致命异常");
     }
 
     // ==================== 边界测试：确保范围判断的准确性 ====================
@@ -223,7 +223,7 @@ class OceanBasePooledConnectionTest {
         int[] fetalErrorCodes = {-10000, -9999, -9500, -9100, -9001, -9000};
         for (int errorCode : fetalErrorCodes) {
             var exception = new SQLException("OceanBase error", "42000", errorCode);
-            assertTrue(connection.isFetalException(exception),
+            assertTrue(connection.isFatalException(exception),
                     "错误码 " + errorCode + " 应被识别为致命异常");
         }
 
@@ -231,7 +231,7 @@ class OceanBasePooledConnectionTest {
         int[] nonFetalErrorCodes = {-10001, -8999, -1, 0, 1, 999, 9000, 10000};
         for (int errorCode : nonFetalErrorCodes) {
             var exception = new SQLException("Some error", "42000", errorCode);
-            assertFalse(connection.isFetalException(exception),
+            assertFalse(connection.isFatalException(exception),
                     "错误码 " + errorCode + " 不应被识别为致命异常");
         }
     }
@@ -241,11 +241,11 @@ class OceanBasePooledConnectionTest {
     void testFetalException_Boundary_Minus10000_Exact() {
         // -10000 应该被识别
         var exception1 = new SQLException("OceanBase error", "42000", -10000);
-        assertTrue(connection.isFetalException(exception1), "错误码 -10000 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception1), "错误码 -10000 应被识别为致命异常");
 
         // -10001 不应该被识别
         var exception2 = new SQLException("Some error", "42000", -10001);
-        assertFalse(connection.isFetalException(exception2), "错误码 -10001 不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception2), "错误码 -10001 不应被识别为致命异常");
     }
 
     @Test
@@ -253,11 +253,11 @@ class OceanBasePooledConnectionTest {
     void testFetalException_Boundary_Minus9000_Exact() {
         // -9000 应该被识别
         var exception1 = new SQLException("OceanBase error", "42000", -9000);
-        assertTrue(connection.isFetalException(exception1), "错误码 -9000 应被识别为致命异常");
+        assertTrue(connection.isFatalException(exception1), "错误码 -9000 应被识别为致命异常");
 
         // -8999 不应该被识别
         var exception2 = new SQLException("Some error", "42000", -8999);
-        assertFalse(connection.isFetalException(exception2), "错误码 -8999 不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception2), "错误码 -8999 不应被识别为致命异常");
     }
 
     // ==================== 确保不影响非OceanBase场景 ====================
@@ -267,7 +267,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_NormalSQLException() {
         var exception = new SQLException("Normal error", "42000", 1234);
 
-        assertFalse(connection.isFetalException(exception), "普通SQLException不应被识别为致命异常");
+        assertFalse(connection.isFatalException(exception), "普通SQLException不应被识别为致命异常");
     }
 
     @Test
@@ -275,7 +275,7 @@ class OceanBasePooledConnectionTest {
     void testFetalException_NullSQLState_NonOceanBaseErrorCode() {
         var exception = new SQLException("Some error", null, 1234);
 
-        assertTrue(connection.isFetalException(exception), "空SQLState会在父类被识别为致命异常");
+        assertTrue(connection.isFatalException(exception), "空SQLState会在父类被识别为致命异常");
     }
 
     @Test
@@ -283,6 +283,6 @@ class OceanBasePooledConnectionTest {
     void testFetalException_NullSQLState_OceanBaseErrorCode() {
         var exception = new SQLException("OceanBase error", null, -9500);
 
-        assertTrue(connection.isFetalException(exception), "OceanBase错误码应被识别为致命异常，即使SQLState为null");
+        assertTrue(connection.isFatalException(exception), "OceanBase错误码应被识别为致命异常，即使SQLState为null");
     }
 }
