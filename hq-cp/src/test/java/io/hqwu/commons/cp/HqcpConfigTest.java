@@ -667,42 +667,6 @@ public class HqcpConfigTest {
     }
 
     /**
-     * Test: getSecurityService with applicationContext (lines 637-657)
-     */
-    @Test
-    public void testGetSecurityServiceWithApplicationContext() {
-        org.springframework.context.support.StaticApplicationContext ctx =
-            new org.springframework.context.support.StaticApplicationContext();
-
-        io.hqwu.commons.SecurityService localService = new io.hqwu.commons.SecurityServiceLocalImpl();
-        ctx.getBeanFactory().registerSingleton("securityService", localService);
-        ctx.refresh();
-
-        config.setApplicationContext(ctx);
-
-        io.hqwu.commons.SecurityService service = config.getSecurityService();
-        assertNotNull(service);
-        assertTrue(service instanceof io.hqwu.commons.SecurityServiceLocalImpl);
-    }
-
-    /**
-     * Test: getSecurityService with BeansException (lines 654-656)
-     */
-    @Test
-    public void testGetSecurityServiceWithBeansException() {
-        org.springframework.context.support.StaticApplicationContext ctx =
-            new org.springframework.context.support.StaticApplicationContext();
-        ctx.refresh();
-        ctx.close(); // Closed context will throw BeansException
-
-        config.setApplicationContext(ctx);
-
-        io.hqwu.commons.SecurityService service = config.getSecurityService();
-        assertNotNull(service);
-        assertTrue(service instanceof io.hqwu.commons.SecurityServiceLocalImpl);
-    }
-
-    /**
      * Test: reloadProperties when properties is set (lines 692-693)
      */
     @Test
@@ -829,5 +793,3 @@ public class HqcpConfigTest {
         assertTrue(service instanceof io.hqwu.commons.SecurityServiceLocalImpl);
     }
 }
-
-

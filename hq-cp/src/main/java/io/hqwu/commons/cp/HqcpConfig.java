@@ -8,9 +8,6 @@ import io.hqwu.commons.util.StringUtil;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.codec.binary.Base64;
-import org.springframework.beans.BeansException;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -31,7 +28,7 @@ import java.util.*;
  * @since 1.4
  * @see HqcpConfigMBean
  */
-public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
+public class HqcpConfig implements HqcpConfigMBean {
     private static final Logger LOGGER = new Logger();
 
     private static final String PATTERN_COMMONS_CHARS =  "[\u0020-\u007E]+";
@@ -274,8 +271,6 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
     @Setter
     private SecurityService securityService;
 
-    private ApplicationContext applicationContext;
-
     /*
      * default login timeout 10 seconds
      */
@@ -380,11 +375,6 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
         if (username != null && username.trim().length() > 0) {
             this.connectionProperties.setProperty("user", username);
         }
-    }
-
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext;
     }
 
     /**
@@ -558,27 +548,7 @@ public class HqcpConfig implements HqcpConfigMBean, ApplicationContextAware {
 
     SecurityService getSecurityService() {
         if (this.securityService == null) {
-            if (this.applicationContext != null) {
-                try {
-                    Map<String, SecurityService> map = this.applicationContext.getBeansOfType(SecurityService.class);
-                    for (Map.Entry<String, SecurityService> entry: map.entrySet()) {
-                        LOGGER.debug("getBean(SecurityService.class): [", entry.getKey(), "]=", entry.getValue().getClass().getName());
-                        if (entry.getValue() instanceof SecurityServiceLocalImpl) {
-                            this.securityService = entry.getValue();
-                        } else {
-                            //尽量选远程实现
-                            this.securityService = entry.getValue();
-                            break;
-                        }
-                    }
-                } catch (BeansException e) {
-                    LOGGER.warn("getBean(SecurityService.class) error: ", e);
-                    this.securityService = new SecurityServiceLocalImpl();
-                }
-            }
-            if (this.securityService == null) {
-                this.securityService = new SecurityServiceLocalImpl();
-            }
+            this.securityService = new SecurityServiceLocalImpl();
         }
         return this.securityService;
     }
