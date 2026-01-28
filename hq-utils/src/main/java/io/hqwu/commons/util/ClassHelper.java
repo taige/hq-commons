@@ -1,8 +1,31 @@
 package io.hqwu.commons.util;
 
+import lombok.experimental.UtilityClass;
+
 import java.lang.reflect.Array;
 import java.util.*;
 
+/**
+ * 类加载与反射工具类。
+ * <p>
+ * 该工具类提供了一系列用于类加载、类型解析和类名处理的实用方法。主要功能包括：
+ * <ul>
+ *   <li>类加载：支持通过不同的类加载器（线程上下文类加载器、调用者类加载器等）加载类</li>
+ *   <li>基本类型解析：支持基本类型（如 int、boolean 等）及其包装类型的名称解析</li>
+ *   <li>数组类型处理：支持多种数组类名格式的解析（如 "String[]"、"[Ljava.lang.String;" 等）</li>
+ *   <li>类型映射：维护基本类型与其包装类型之间的映射关系</li>
+ *   <li>对象字符串表示：提供对象的简短字符串表示形式</li>
+ * </ul>
+ * </p>
+ *
+ * @author taige (Wu, Hongqiang)
+ * @see Class#forName(String, boolean, ClassLoader)
+ * @see ClassLoader
+ * @see Thread#getContextClassLoader()
+ * @see Array#newInstance(Class, int)
+ * @since 1.0
+ */
+@UtilityClass
 public class ClassHelper {
 
     /**

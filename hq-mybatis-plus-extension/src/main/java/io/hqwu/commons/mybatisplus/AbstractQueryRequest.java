@@ -8,11 +8,17 @@ import org.hibernate.validator.constraints.Range;
 import java.util.StringJoiner;
 
 /**
- * Created with IntelliJ IDEA for hq-mybatis-plus-extension
+ * 分页查询请求抽象基类。
  *
+ * <p>该类实现了 {@link PaginationQueryRequest} 接口，封装了分页查询的核心通用参数，
+ * 包括分页大小 (pageSize)、当前页码 (pageNum)、排序字段 (sortField) 以及排序方向 (sortOrder)。
+ *
+ * <p>主要用于规范化 MyBatis-Plus 分页查询的请求结构，子类通过继承此类可快速构建具备分页与排序能力的 DTO。
+ *
+ * @param <E> 关联的实体类类型
+ * @param <P> 查询参数对象类型
  * @author taige (Wu, Hongqiang)
- * Date: 2021-04-04
- * Time: 9:45 a.m.
+ * @since 2021-04-04
  */
 public abstract class AbstractQueryRequest<E, P> implements PaginationQueryRequest<E, P> {
 

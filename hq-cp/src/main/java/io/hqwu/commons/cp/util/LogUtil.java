@@ -3,11 +3,13 @@ package io.hqwu.commons.cp.util;
 import org.slf4j.Logger;
 
 /**
- * Created with IntelliJ IDEA for hq-commons-parent
+ * 日志工具类，提供基于执行耗时阈值的动态日志记录功能。
+ *
+ * <p>该工具类允许根据操作的实际执行时间与预设的警告 (Warn) 和信息 (Info) 阈值进行比较，
+ * 从而自动选择合适的 {@link Logger} 级别进行输出。主要用于性能监控和慢操作审计。
  *
  * @author taige (Wu, Hongqiang)
- * Date: 2025-02-27
- * Time: 17:44
+ * @since 2025-02-27
  */
 public class LogUtil {
 

@@ -13,6 +13,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.core.annotation.AnnotationConfigurationException;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
+import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.beans.IntrospectionException;
@@ -25,15 +26,74 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 
 /**
- * Created with IntelliJ IDEA for pp-gopay-fa
- * User: taige
- * Date: 2020/5/4
- * Time: 21:25
+ * Bean 转换工具类，用于在不同类型的 Java Bean 之间进行属性拷贝与类型转换。
  *
- * @deprecated 推荐使用 MapStruct 作为替代方案，性能更好且类型安全。
+ * <p>该工具类结合了 Spring {@link BeanUtils} 的灵活性与 CGLIB {@link BeanCopier} 的高性能，主要功能包括：
+ * <ul>
+ *     <li><b>自动拷贝：</b> 默认拷贝源对象与目标对象中名称和类型相同的属性。</li>
+ *     <li><b>注解驱动映射：</b> 通过 {@link SourceProperty} 注解指定源属性名称、忽略字段或配置字符串缩略。</li>
+ *     <li><b>自定义转换：</b> 支持通过 {@link ValueOf} 接口及其实现类定义复杂的字段转换逻辑，并支持从 Spring 上下文获取转换器实例。</li>
+ *     <li><b>深度转换：</b> 自动处理嵌套对象以及集合类型（List, Set）的递归转换。</li>
+ *     <li><b>数值兼容：</b> 内置常见数值类型（如 Integer, Long, BigDecimal 等）之间的自动转换。</li>
+ * </ul>
+ *
+ * <p><b>已知限制（待实现功能）：</b>
+ * <ol>
+ *     <li><b>Map 类型的嵌套转换（Line 374）：</b>
+ *         <ul>
+ *             <li>当前不支持 Map 中元素的递归类型转换</li>
+ *             <li>Map 属性会被直接复制引用，元素类型不会自动转换</li>
+ *             <li>限制影响：无法将 {@code Map<K, SrcType>} 自动转换为 {@code Map<K, TargetType>}</li>
+ *             <li>原因：泛型类型在运行时擦除，难以自动推断键值类型</li>
+ *         </ul>
+ *     </li>
+ *     <li><b>Number 到基本类型的转换（Line 378）：</b>
+ *         <ul>
+ *             <li>number2SpecificClass 方法不支持基本类型（int, long 等）参数</li>
+ *             <li>{@code Number.class.isAssignableFrom(primitiveType)} 对基本类型返回 false</li>
+ *             <li>限制影响：Number 包装类到基本类型的转换不通过专门的转换方法</li>
+ *             <li>原因：基本类型不是对象，反射 API 对其支持有限</li>
+ *             <li>说明：包装类型之间的转换（Integer → Double）正常工作</li>
+ *         </ul>
+ *     </li>
+ *     <li><b>Queue 接口的集合转换（Line 461）：</b>
+ *         <ul>
+ *             <li>不支持 Queue 接口作为目标集合类型</li>
+ *             <li>当前行为：抛出 {@code UnsupportedOperationException}</li>
+ *             <li>限制影响：无法将 List 或其他集合转换为 Queue 接口类型</li>
+ *             <li>原因：需要选择合适的默认实现，存在多种可能（LinkedList, ArrayDeque 等）</li>
+ *             <li>说明：具体的 Queue 实现类（如 LinkedBlockingQueue）可能通过 BeanUtils.instantiateClass 实例化</li>
+ *         </ul>
+ *     </li>
+ *     <li><b>抽象集合类的实例化（Line 464）：</b>
+ *         <ul>
+ *             <li>不支持抽象集合类（AbstractList, AbstractSet 等）作为目标类型</li>
+ *             <li>当前行为：抛出 {@code UnsupportedOperationException}</li>
+ *             <li>限制影响：无法将集合转换为抽象集合类型</li>
+ *             <li>原因：无法直接实例化抽象类</li>
+ *             <li>说明：具体集合类（ArrayList, HashSet）正常工作</li>
+ *         </ul>
+ *     </li>
+ * </ol>
+ *
+ * <p><b>替代方案：</b>
+ * <ul>
+ *     <li>对于 Map 转换：手动实现或使用自定义的 {@link ValueOf} 转换器</li>
+ *     <li>对于基本类型：依赖 BeanCopier 的自动装箱或使用包装类型</li>
+ *     <li>对于 Queue 和抽象集合：使用具体的实现类（ArrayList, LinkedBlockingQueue 等）</li>
+ *     <li>对于复杂场景：推荐使用 MapStruct 等编译时代码生成工具</li>
+ * </ul>
+ *
+ * <p>注意：由于反射和动态处理的开销，在高性能要求的静态映射场景下，建议优先使用 MapStruct。
+ * 本类主要用于处理 MapStruct 难以覆盖的动态映射或高度抽象的转换需求。
+ *
+ * @author taige
+ * @since 2020/5/4
+ * @deprecated 推荐使用 MapStruct 作为替代方案，性能更好且类型安全。但在需要动态转换功能的场景下仍可保留使用。
  * @see <a href="https://mapstruct.org/">MapStruct</a>
  */
 @Deprecated
+@Component
 public class BeanConverter implements ApplicationContextAware {
     private static final Logger LOGGER = new Logger();
 
@@ -358,12 +418,12 @@ public class BeanConverter implements ApplicationContextAware {
                             srcPropertyName == null ? targFieldName : srcPropertyName,
                             targetBean, targFieldName, (Class<Collection<Object>>) targetClass);
                 }
-                // TODO supoort Map
+                // TODO support Map
                 return origValue;
             } else if (Number.class.isAssignableFrom(targetClass)
                     && Number.class.isAssignableFrom(origValue.getClass())) {
                 // todo support primitive type
-                // todo test
+                // DONE test
                 return number2SpecificClass((Number) origValue, (Class<Number>) targetClass);
             } else if (targetClass.isAssignableFrom(String.class)) {
                 LOGGER.trace("default convert everything to String(%s) for property `%s`", origValue, targFieldName);

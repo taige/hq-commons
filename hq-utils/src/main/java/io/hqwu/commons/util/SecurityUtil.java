@@ -28,15 +28,44 @@ import java.util.concurrent.ConcurrentMap;
 import static org.apache.commons.lang3.Validate.notNull;
 
 /**
- * Description:信息安全工具类：摘要/对称加解密/非对称加解密(MD5/SHA/DES/DESede/AES)
- * <b>由于CBC实现较为复杂，且使用不是非常广泛，暂不实现
+ * 信息安全工具类。
+ * <p>
+ * 提供常用的加密、解密、摘要及签名验签功能，支持以下算法：
+ * <ul>
+ *   <li>摘要算法：MD5、SHA系列（继承自 {@link DigestUtils}）</li>
+ *   <li>对称加密算法：DES、DESede（3DES）、AES</li>
+ *   <li>非对称加密算法：RSA</li>
+ *   <li>签名算法：MD5withRSA、SHA1withRSA、SHA256withDSA 等</li>
+ * </ul>
+ * </p>
  *
- * @author shenjianlin <a href="mailto:ustbsjl@gmail.com">ustbsjl@gmail.com</a> <br>
- *         QQ: 79043549
- * @version 1.0 2013-8-12 加解密只实现ECB模式（较为常用）
- * @history
+ * <p>
+ * <b>注意事项：</b>
+ * <ul>
+ *   <li>默认使用 ECB（电子密码本）模式进行加解密，该模式较为常用但安全性相对较低</li>
+ *   <li>CBC 模式实现较为复杂且使用不广泛，暂不提供实现</li>
+ *   <li>支持通过系统属性 {@code RANDOM_AES_IV} 或环境变量控制 AES 加密时是否使用随机 IV 向量</li>
+ *   <li>对于 GCM、CTR、CFB、OFB 等流密码模式，会自动使用 {@code NoPadding} 填充方式</li>
+ * </ul>
+ * </p>
+ *
+ * <p>
+ * <b>证书与密钥库支持：</b>
+ * <ul>
+ *   <li>支持读取 X.509 证书（{@link X509Certificate}）</li>
+ *   <li>支持读取 JKS、PKCS12 等格式的密钥库（{@link KeyStore}）</li>
+ *   <li>支持 PKCS8 格式的私钥和 X509 格式的公钥转换</li>
+ * </ul>
+ * </p>
+ *
+ * @author shenjianlin
+ * @version 1.0 2013-8-12 加解密只实现 ECB 模式（较为常用）
+ * @see DigestUtils
+ * @see Cipher
+ * @see KeyStore
+ * @see X509Certificate
+ * @see Signature
  */
-
 public class SecurityUtil extends DigestUtils {
     private static final Logger LOGGER = new Logger();
 
@@ -129,6 +158,8 @@ public class SecurityUtil extends DigestUtils {
         final byte[] input = Arrays.copyOf(data, data.length);
         byte[] iv = null;
         byte[] output = null;
+        // 根据算法确定IV长度：DES/DESede使用8字节，AES使用16字节
+        int ivLength = (algs[0].equalsIgnoreCase("DES") || algs[0].equalsIgnoreCase("DESede")) ? 8 : IV_LENGTH;
         if (alg.toUpperCase().contains("GCM")) {
             if (opmode == ENCRYPT_MODE) {
                 // 随机iv
@@ -144,27 +175,21 @@ public class SecurityUtil extends DigestUtils {
         } else if (! alg.toUpperCase().contains("ECB")) {
             if (isRandomAesIV()) {
                 if (opmode == ENCRYPT_MODE) {
-                    iv = new byte[IV_LENGTH];
+                    iv = new byte[ivLength];
                     SecureRandom random = new SecureRandom();
                     random.nextBytes(iv);
                 } else {
-                    if (input.length <= IV_LENGTH) {
+                    if (input.length <= ivLength) {
                         iv = bkey;
                     } else {
-                        iv = Arrays.copyOf(input, IV_LENGTH);
+                        iv = Arrays.copyOf(input, ivLength);
 //                    System.arraycopy(data, 0, iv, 0, iv.length);
                         data = Arrays.copyOfRange(input, iv.length, input.length);
                         algorithmParameterSpec = new IvParameterSpec(iv);
                         output = cipher(data, key, opmode, alg, algorithmParameterSpec);
-                        if (output == null || output.length == 0) {
-                            output = null;
-                            iv = bkey;
-                            algorithmParameterSpec = null;
-                            data = input;
-                        }
                     }
                 }
-                if (algorithmParameterSpec != null) {
+                if (algorithmParameterSpec == null) {
                     algorithmParameterSpec = new IvParameterSpec(iv);
                 }
             } else {

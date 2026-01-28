@@ -2,6 +2,8 @@ package io.hqwu.commons.util;
 
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -130,5 +132,35 @@ public class AmountUtilTest {
 
         assertThrows(IllegalArgumentException.class, () -> AmountUtil.dollar2Cent("1-234567.8"));
 
+    }
+
+    @Test
+    public void test_multiplyPercentage() throws Exception {
+        // 基本测试：100分 x 10% = 10分
+        assertEquals(10, AmountUtil.multiplyPercentage(100, new BigDecimal("10")));
+
+        // 测试小数百分比：1000分 x 12.5% = 125分
+        assertEquals(125, AmountUtil.multiplyPercentage(1000, new BigDecimal("12.5")));
+
+        // 测试四舍五入（向上）：100分 x 10.5% = 10.5分，四舍五入为11分
+        assertEquals(11, AmountUtil.multiplyPercentage(100, new BigDecimal("10.5")));
+
+        // 测试四舍五入（向下）：100分 x 10.4% = 10.4分，四舍五入为10分
+        assertEquals(10, AmountUtil.multiplyPercentage(100, new BigDecimal("10.4")));
+
+        // 测试0%
+        assertEquals(0, AmountUtil.multiplyPercentage(1000, BigDecimal.ZERO));
+
+        // 测试100%
+        assertEquals(1000, AmountUtil.multiplyPercentage(1000, new BigDecimal("100")));
+
+        // 测试负数金额
+        assertEquals(-10, AmountUtil.multiplyPercentage(-100, new BigDecimal("10")));
+
+        // 测试负百分比
+        assertEquals(-10, AmountUtil.multiplyPercentage(100, new BigDecimal("-10")));
+
+        // 测试0金额
+        assertEquals(0, AmountUtil.multiplyPercentage(0, new BigDecimal("10")));
     }
 }

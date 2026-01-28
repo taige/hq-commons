@@ -1,5 +1,6 @@
 package io.hqwu.commons.util;
 
+import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.StringUtils;
 
 import java.text.DecimalFormat;
@@ -9,13 +10,25 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Description:常用字符串操作类。commons-lang3中不能提供的在此类定义。
- * 
+ * 字符串工具类。
+ * <p>
+ * 提供常用的字符串操作方法，是对 {@link org.apache.commons.lang3.StringUtils} 的扩展和补充。
+ * 主要功能包括：
+ * <ul>
+ *   <li>金额转换：分/元单位之间的相互转换（{@link #centToDollar(String)}、{@link #dollarToCent(String)}）</li>
+ *   <li>敏感信息保护：对银行卡号、磁道等敏感数据进行脱敏处理（{@link #protect(String)}）</li>
+ *   <li>字符串填充：支持左侧填充指定字符（{@link #padleft(String, int, char)}）</li>
+ *   <li>参数校验：批量检查字符串是否非空（{@link #areNotEmpty(String...)}）</li>
+ *   <li>Map排序拼接：将Map按key排序后拼接为key=value格式字符串（{@link #getSortDataByMap(Map)}）</li>
+ * </ul>
+ * </p>
+ *
+ * @author hqwu
  * @version 1.0 2013-8-12 依赖commons-lang3的实现
-
  * @see org.apache.commons.lang3.StringUtils
+ * @see java.text.DecimalFormat
  */
-
+@UtilityClass
 public final class StringUtil extends StringUtils {
     public final static String CRLF = System.getProperty("line.separator");
     // -----------------------金额处理-------------------------

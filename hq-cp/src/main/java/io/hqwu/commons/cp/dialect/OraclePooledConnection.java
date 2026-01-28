@@ -2,16 +2,18 @@ package io.hqwu.commons.cp.dialect;
 
 import io.hqwu.commons.cp.Hqcp;
 import io.hqwu.commons.cp.PooledConnection;
-import io.hqwu.commons.cp.PooledPreparedStatement;
 
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 /**
- * Created with IntelliJ IDEA
- * User: taige
- * Date: 14-3-25
- * Time: 下午10:14
+ * Oracle 数据库连接池连接实现类。
+ *
+ * <p>该类继承自 {@link PooledConnection}，专门用于处理 Oracle 数据库特定的连接逻辑。
+ * 其核心功能是识别 Oracle 特有的致命异常（Fatal Exception），确保 {@link Hqcp}
+ * 连接池能够准确判断连接有效性并及时清理失效连接。</p>
+ *
+ * @author taige
+ * @since 2014-03-25
  */
 public class OraclePooledConnection extends PooledConnection {
     public OraclePooledConnection(Hqcp pool, int connId) throws SQLException {
@@ -19,8 +21,8 @@ public class OraclePooledConnection extends PooledConnection {
     }
 
     @Override
-    public boolean isFetalException(SQLException sqle) {
-        if (super.isFetalException(sqle)) {
+    public boolean isFatalException(SQLException sqle) {
+        if (super.isFatalException(sqle)) {
             return true;
         }
         final int error_code = Math.abs(sqle.getErrorCode()); // I can't remember if the errors are negative or positive.
@@ -96,11 +98,11 @@ public class OraclePooledConnection extends PooledConnection {
         // certain strings.
 
         if ((error_code < 20000 || error_code >= 21000)) {
-            if ((error_text.indexOf("SOCKET") > -1) // for control socket error
-                    || (error_text.indexOf("套接字") > -1) // for control socket error
-                    || (error_text.indexOf("CONNECTION HAS ALREADY BEEN CLOSED") > -1) //
-                    || (error_text.indexOf("BROKEN PIPE") > -1) //
-                    || (error_text.indexOf("管道已结束") > -1) //
+            if ((error_text.contains("SOCKET")) // for control socket error
+                    || (error_text.contains("套接字")) // for control socket error
+                    || (error_text.contains("CONNECTION HAS ALREADY BEEN CLOSED")) //
+                    || (error_text.contains("BROKEN PIPE")) //
+                    || (error_text.contains("管道已结束")) //
                     ) {
                 return true;
             }
@@ -109,9 +111,10 @@ public class OraclePooledConnection extends PooledConnection {
         return false;
     }
 
-    @Override
-    protected PooledPreparedStatement getPooledPreparedStatement(PreparedStatement stmt, int stmtId, Object[] args) throws SQLException {
-        return new OraclePooledPreparedStatement(
-                this, stmt, stmtId, args, super.getConnectionPool().getConfig().isUseOracleImplicitCache());
-    }
+    // 2025-03-04: OraclePooledPreparedStatement 已移除，直接使用父类实现
+    // @Override
+    // protected PooledPreparedStatement getPooledPreparedStatement(PreparedStatement stmt, int stmtId, Object[] args) throws SQLException {
+    //    return new OraclePooledPreparedStatement(
+    //            this, stmt, stmtId, args, super.getConnectionPool().getConfig().isUseOracleImplicitCache());
+    // }
 }

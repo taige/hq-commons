@@ -6,15 +6,19 @@ import io.hqwu.commons.mybatisplus.annotation.TableIdPrefix;
 import io.hqwu.commons.util.StringUtil;
 
 /**
- * Created with IntelliJ IDEA for hq-commons-parent
+ * 基于雪花算法（Snowflake）的字符串类型 ID 生成器。
  *
- *  String型雪花算法(Snowflake)ID生成器
- *      默认：Entity类名(simpleName) + snowflake_id
- *      Entity 如果有{@link TableIdPrefix}，就用其指定的value做为id前缀
+ * <p>该类继承自 {@link DefaultIdentifierGenerator}，旨在为 MyBatis Plus 提供支持自定义前缀的字符串 ID 生成能力。</p>
+ *
+ * <p>主要功能特性：</p>
+ * <ul>
+ *   <li>支持通过 {@link TableIdPrefix} 注解为不同实体配置个性化 ID 前缀。</li>
+ *   <li>默认规则：若无注解，自动截取实体类名的前两个字符作为前缀。</li>
+ *   <li>兼容性：支持直接传入字符串前缀或处理无实体场景。</li>
+ * </ul>
  *
  * @author taige (Wu, Hongqiang)
- * Date: 2021-04-04
- * Time: 10:55 a.m.
+ * @since 2021-04-04
  */
 public class SnowflakeIdGenerator extends DefaultIdentifierGenerator {
 

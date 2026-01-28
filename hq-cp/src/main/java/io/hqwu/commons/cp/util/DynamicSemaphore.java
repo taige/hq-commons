@@ -5,11 +5,14 @@ import io.hqwu.commons.util.Logger;
 import java.util.concurrent.Semaphore;
 
 /**
- * Created with IntelliJ IDEA for hq-commons-parent
+ * 动态信号量，扩展自 {@link Semaphore}。
+ * <p>
+ * 该类支持在运行时动态调整许可（permits）的总量。
+ * 适用于需要根据系统负载、业务配额或配置中心动态调整并发限制的场景。
+ * </p>
  *
  * @author taige (Wu, Hongqiang)
- * Date: 2025-03-04
- * Time: 21:23
+ * @since 2025-03-04
  */
 public class DynamicSemaphore extends Semaphore {
     private static final Logger LOGGER = new Logger();

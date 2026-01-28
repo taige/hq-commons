@@ -8,10 +8,19 @@ import java.net.SocketTimeoutException;
 import java.sql.SQLException;
 
 /**
- * Created with IntelliJ IDEA
- * User: taige
- * Date: 14-3-25
- * Time: 下午10:19
+ * MySQL 数据库连接池连接实现类。
+ *
+ * <p>该类继承自 {@link PooledConnection}，专门用于处理 MySQL 驱动下的数据库连接。
+ * 其核心职责是根据 MySQL 特有的错误码（Error Code）、SQL 状态码（SQL State）以及异常消息，
+ * 判定当前连接是否发生了不可恢复的致命异常。
+ *
+ * <p>配合 {@link Hqcp} 连接池使用，确保在检测到连接失效或通信故障时，
+ * 能够及时从池中剔除该连接，保证连接池的整体可用性。
+ *
+ * @author taige
+ * @since 14-3-25
+ * @see PooledConnection
+ * @see Hqcp
  */
 public class MySQLPooledConnection extends PooledConnection {
     private static final Logger LOGGER = new Logger();
@@ -24,8 +33,8 @@ public class MySQLPooledConnection extends PooledConnection {
     }
 
     @Override
-    public boolean isFetalException(SQLException sqle) {
-        if (super.isFetalException(sqle)) {
+    public boolean isFatalException(SQLException sqle) {
+        if (super.isFatalException(sqle)) {
             return true;
         }
         String sqlState = sqle.getSQLState();
@@ -67,11 +76,7 @@ public class MySQLPooledConnection extends PooledConnection {
                 break;
         }
 
-        // for oceanbase
-        if (errorCode >= -10000 && errorCode <= -9000) {
-            LOGGER.debug("consider fetal exception because errorCode: %d", errorCode);
-            return true;
-        }
+        // for oceanbase logic moved to OceanBasePooledConnection
 
         String className = sqle.getClass().getName();
         if (className.endsWith("CommunicationsException")) {
@@ -81,8 +86,9 @@ public class MySQLPooledConnection extends PooledConnection {
 
         String message = sqle.getMessage();
         if (message != null && message.length() > 0) {
-            if (message.startsWith("Streaming result set com.mysql.jdbc.RowDataDynamic")
-                    && message.endsWith("is still active. No statements may be issued when any streaming result sets are open and in use on a given connection. Ensure that you have called .close() on any active streaming result sets before attempting more queries.")) {
+            // 兼容 mysql-connector-j 8.x/9.x (com.mysql.cj.*) 以及旧版本
+            if (message.startsWith("Streaming result set")
+                    && message.contains("is still active. No statements may be issued when any streaming result sets are open and in use on a given connection.")) {
                 LOGGER.debug("consider fetal exception because message: %s", message);
                 return true;
             }

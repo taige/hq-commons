@@ -21,6 +21,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
+/**
+ * 数据库连接的包装类，是 {@link Hqcp} 连接池的核心组件。
+ * <p>
+ * 该类通过动态代理模式封装真实的 {@link java.sql.Connection}，主要职责包括：
+ * <ul>
+ *   <li>拦截 {@code close()} 调用，将连接归还至连接池而非直接关闭物理连接。</li>
+ *   <li>管理并缓存 {@link PooledStatement}、{@link PooledPreparedStatement} 和 {@link PooledCallableStatement}，以提高 SQL 执行效率。</li>
+ *   <li>提供连接状态监控与生命周期管理，支持通过 {@link PooledConnectionMBean} 进行 JMX 远程管理。</li>
+ *   <li>具备致命异常检测与自动恢复机制，在检测到数据库连接失效时尝试重建物理连接。</li>
+ * </ul>
+ *
+ * @author wuhq, zhangyao, shenjl
+ * @since 2011-09-02
+ */
 public class PooledConnection implements InvocationHandler, PooledConnectionMBean {
     private static final Logger log = new Logger();
 
@@ -147,10 +161,6 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         }
         long start = System.nanoTime();
 
-        // use properties instead of username and password to involve some specific properties for oracle10
-        //Properties properties = generateConnectionProperties();
-        // conneciton properties 放到 HqcpConfig 中统一维护
-
         real_connection = DriverManager.getConnection(connectionPool.getConfig().getUrl(), connectionPool.getConfig().getConnectionProperties());
         timeConnected = System.currentTimeMillis();
 
@@ -181,7 +191,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     }
 
     public boolean recover(SQLException sqle) {
-        if (isFetalException(sqle)) {
+        if (isFatalException(sqle)) {
             close();
             try {
                 makeRealConnection();
@@ -202,7 +212,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
      * @param sqle
      * @return
      */
-    public boolean isFetalException(SQLException sqle) {
+    public boolean isFatalException(SQLException sqle) {
         if (sqle instanceof SQLRecoverableException) {
             log.debug("consider fetal exception because SQLRecoverableException");
             return true;
@@ -275,24 +285,8 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         }
     }
 
-    @SuppressWarnings("unchecked")
     private Connection buildProxy() {
-        Class[] intfs = real_connection.getClass().getInterfaces();
-        boolean impled = false; //是否实现了Connection接口
-        for (Class intf: intfs) {
-            if (intf.getName().equals(Connection.class.getName())) {
-                impled = true;
-                break;
-            }
-        }
-        if (!impled) {
-            //没有实现Connection接口，则强制增加
-            Class[] tmp = intfs;
-            intfs = new Class[tmp.length + 1];
-            System.arraycopy(tmp, 0, intfs, 0, tmp.length);
-            intfs[tmp.length] = Connection.class;
-        }
-        return (Connection) Proxy.newProxyInstance(real_connection.getClass().getClassLoader(), intfs, this);
+        return (Connection) Proxy.newProxyInstance(real_connection.getClass().getClassLoader(), new Class[]{Connection.class}, this);
     }
 
     public String toString() {
@@ -301,7 +295,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         String mname = method.getName();
-        if (mname.equals("toString") && (args == null || args.length == 0)) {
+        if (mname.equals("toString") && args == null) {
             return toString();
         }
         if (closed.get() && !mname.equals("close") && !mname.equals("isClosed")) {
@@ -336,9 +330,6 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 if (isPrintSQL() || isVerbose()) {
                     log.debug(connectionName, ".close()[" , isFatalExceptionHappened() ,"] use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
-            } else if (mname.equals("isClosed")) {
-                // 如果未检出(!isCheckOut)，或内部已标记关闭，或物理连接已关闭，则返回 true
-                ret = !isCheckOut() || closed.get() || (real_connection != null && real_connection.isClosed());
             } else if (mname.equals("createStatement")) {
                 ret = createStatement(method, args);
                 if (isVerbose()) {
@@ -360,14 +351,29 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 if (isVerbose()) {
                     log.debug(connectionName, ".", mname, "() use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
-            } else if (mname.equals("setAutoCommit") && args.length == 1) {
+            } else if (mname.equals("setAutoCommit")) {
                 ret = method.invoke(real_connection, args);
-                this.autoCommit = real_connection.getAutoCommit();;
+                this.autoCommit = real_connection.getAutoCommit();
                 if (isVerbose()) {
-                    log.debug(connectionName, ".", mname, "(", args[0] ,") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                    log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                }
+            } else if (mname.equals("isWrapperFor")) {
+                ret = JdbcUtil.isWrapperFor((Class<?>) args[0], this, proxy, real_connection);
+                if (isVerbose()) {
+                    log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                }
+            } else if (mname.equals("unwrap")) {
+                ret = JdbcUtil.unwrap((Class<?>) args[0], this, proxy, real_connection);
+                if (isVerbose()) {
+                    log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
             } else {
-                ret = method.invoke(real_connection, args);
+                if (mname.equals("isClosed")) {
+                    // 如果未检出(!isCheckOut)，或内部已标记关闭，或物理连接已关闭，则返回 true
+                    ret = !isCheckOut() || closed.get() || (real_connection != null && real_connection.isClosed());
+                } else {
+                    ret = method.invoke(real_connection, args);
+                }
                 if (isVerbose()) {
                     log.trace(connectionName, ".", mname, "(...) use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
                 }
@@ -421,7 +427,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     public Statement createStatement(Method method, Object[] args) throws Throwable {
         PooledStatement pstmt = null;
-        if (args == null || args.length == 0) {
+        if (args == null) {
             //没有参数的createStatement才试图从池中获取取
             pstmt = idleStatementsPool.poll();
 //        } else {

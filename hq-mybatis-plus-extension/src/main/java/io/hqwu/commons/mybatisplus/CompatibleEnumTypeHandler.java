@@ -12,11 +12,19 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
- * Created with IntelliJ IDEA for qrcode-api-server
+ * 兼容性枚举类型处理器。
+ * <p>
+ * 该类用于协调 MyBatis-Plus 与原生 MyBatis 的枚举处理逻辑。
+ * 它会优先尝试使用 {@link MybatisEnumTypeHandler} 处理符合 MyBatis-Plus 规范的枚举（如使用 {@code @EnumValue} 或实现 {@code IEnum} 接口）；
+ * 若不符合规范，则自动回退至 MyBatis 原生的 {@link EnumTypeHandler} 处理。
+ * </p>
  *
+ * @param <E> 枚举类型
  * @author taige (Wu, Hongqiang)
- * Date: 2021-10-19
- * Time: 20:43
+ * @since 2021-10-19
+ * @see MybatisEnumTypeHandler
+ * @see EnumTypeHandler
+ * @see BaseTypeHandler
  */
 public class CompatibleEnumTypeHandler<E extends Enum<E>> extends BaseTypeHandler<E> {
     private static final Logger LOGGER = new Logger();

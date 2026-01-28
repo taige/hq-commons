@@ -3,6 +3,7 @@ package io.hqwu.commons.cp;
 
 import io.hqwu.commons.cp.dialect.DB2PooledConnection;
 import io.hqwu.commons.cp.dialect.MySQLPooledConnection;
+import io.hqwu.commons.cp.dialect.OceanBasePooledConnection;
 import io.hqwu.commons.cp.dialect.OraclePooledConnection;
 import io.hqwu.commons.cp.util.DynamicSemaphore;
 import io.hqwu.commons.cp.util.LogUtil;
@@ -24,6 +25,21 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * Hqcp (HQ Connection Pool) 是一个高性能的数据库连接池实现。
+ *
+ * <p>主要功能包括：</p>
+ * <ul>
+ *     <li>支持多种数据库方言，包括 Oracle、MySQL、DB2 和 OceanBase。</li>
+ *     <li>基于 {@link HqcpConfig} 进行灵活的连接参数与池化策略配置。</li>
+ *     <li>提供完善的连接生命周期管理，包括空闲连接检测、存活检查及自动回收机制。</li>
+ *     <li>支持通过 JMX ({@link HqcpMBean}) 进行实时监控与动态管理。</li>
+ *     <li>集成 {@link SqlMasker} 提供 SQL 敏感字段脱敏功能。</li>
+ * </ul>
+ *
+ * @author wuhongqiang
+ * @since 2011-09-02
+ */
 public class Hqcp implements HqcpMBean {
     private static final Logger LOGGER = new Logger();
 
@@ -125,22 +141,30 @@ public class Hqcp implements HqcpMBean {
                 Class.forName(config.getDriverClassName());
                 LOGGER.info("load ", config.getDriverClassName(), " ok");
             } catch (ClassNotFoundException e) {
-                throw new SQLException(e.toString(), e);
+                throw new SQLException("Failed to load driver class: " + config.getDriverClassName(), e);
+            }
+        } else {
+            try {
+                DriverManager.getDriver(config.getUrl());
+            } catch (SQLException e) {
+                throw new SQLException("No suitable driver found for " + config.getUrl() +
+                        ". Please configure 'driverClassName' or add driver jar to classpath.", e);
             }
         }
         config.printConfig(LOGGER);
-        boolean isOracle10 = config.isOracle() && DriverManager.getDriver(config.getUrl()).getMajorVersion() == 10;
-        if (isOracle10 && config.isUseOracleImplicitCache()) {
-            config.getConnectionProperties().setProperty(OracleUtil.ORACLE_FREECACHE_PROPERTY_NAME, OracleUtil.ORACLE_FREECACHE_PROPERTY_VALUE_TRUE);
-        } else {
-            config.getConnectionProperties().remove(OracleUtil.ORACLE_FREECACHE_PROPERTY_NAME);
-        }
+        // 2025-03-04: 升级到 ojdbc17+ 后，不再需要针对 Oracle 10 的特殊缓存配置。
+        // boolean isOracle10 = config.isOracle() && DriverManager.getDriver(config.getUrl()).getMajorVersion() == 10;
+        // if (isOracle10 && config.isUseOracleImplicitCache()) {
+        //     config.getConnectionProperties().setProperty(OracleUtil.ORACLE_FREECACHE_PROPERTY_NAME, OracleUtil.ORACLE_FREECACHE_PROPERTY_VALUE_TRUE);
+        // } else {
+        //     config.getConnectionProperties().remove(OracleUtil.ORACLE_FREECACHE_PROPERTY_NAME);
+        // }
         //设置native驱动的超时设置
         //add by wuhongqiang. 2014.07.04
         if (config.getCheckoutTimeoutMillisec() > 0) {
             if (config.isOracle()) {
                 config.getConnectionProperties().setProperty(OracleUtil.CONNECT_TIMEOUT, String.valueOf(config.getCheckoutTimeoutMillisec()));
-            } else if (config.isMySQL()) {
+            } else if (config.isMySQL() || config.isOceanBase()) {
                 config.getConnectionProperties().setProperty(MySQLPooledConnection.CONNECT_TIMEOUT, String.valueOf(config.getCheckoutTimeoutMillisec()));
             }
 
@@ -149,7 +173,7 @@ public class Hqcp implements HqcpMBean {
             if (config.isOracle()) {
                 config.getConnectionProperties().setProperty(OracleUtil.SOCKET_TIMEOUT, String.valueOf(config.getQueryTimeout()*1000));
                 config.getConnectionProperties().setProperty(OracleUtil.SOCKET_TIMEOUT_LOW_VER, String.valueOf(config.getQueryTimeout()*1000));
-            } else if (config.isMySQL()) {
+            } else if (config.isMySQL() || config.isOceanBase()) {
                 config.getConnectionProperties().setProperty(MySQLPooledConnection.SOCKET_TIMEOUT, String.valueOf(config.getQueryTimeout()*1000));
             }
         }
@@ -171,7 +195,18 @@ public class Hqcp implements HqcpMBean {
         monitor.setName("CPM:" + poolName);
         monitor.setDaemon(true);
         monitor.start();
-        
+        try {
+            /*
+             * 等待 monitor 线程启动并尝试建立初始连接，确保 initPool 返回时连接池已准备就绪。
+             * FIX lazyInit=true & minConn=0 时，主线程超前于Monitor线程时无法获取连接的BUG
+             */
+            long nanos = idleConnectionsId.awaitRequireMore(1, TimeUnit.SECONDS);
+            if (nanos <= 0) {
+                LOGGER.info("wait Monitor initialized TIMEOUT!!");
+            }
+        } catch (InterruptedException ignored) {
+        }
+
         if (config.getJmxLevel() > 0) {
             JMXUtil.register(this.getClass().getPackage().getName() + ":type=pool-" + poolName, this);
             JMXUtil.register(this.getClass().getPackage().getName() + ":type=pool-" + poolName + ",name=config", config);
@@ -343,6 +378,8 @@ public class Hqcp implements HqcpMBean {
                 pconn = new MySQLPooledConnection(Hqcp.this, connId);
             } else if (config.isDB2()) {
                 pconn = new DB2PooledConnection(Hqcp.this, connId);
+            } else if (config.isOceanBase()) {
+                pconn = new OceanBasePooledConnection(Hqcp.this, connId);
             } else {
                 pconn = new PooledConnection(Hqcp.this, connId);
             }
@@ -356,7 +393,7 @@ public class Hqcp implements HqcpMBean {
             } else {
                 idleConnectionsId.push(connId);
             }
-        } catch (SQLException e) {
+        } catch (Throwable e) {
             // 创建连接失败时，必须释放之前占用的Semaphore许可，保证计数一致
             maxConnectionSemaphore.release();
             throw e;
@@ -472,14 +509,9 @@ public class Hqcp implements HqcpMBean {
         private ExecutorService executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
-                Thread t = new Thread(Thread.currentThread().getThreadGroup(), r,
-                        "CPM:" + poolName + "-1",
+                return new Thread(Thread.currentThread().getThreadGroup(), r,
+                        "CPM:" + poolName + "-helper",
                         0);
-                if (! t.isDaemon())
-                    t.setDaemon(true);
-                if (t.getPriority() != Thread.NORM_PRIORITY)
-                    t.setPriority(Thread.NORM_PRIORITY);
-                return t;
             }
         });
 
@@ -711,6 +743,7 @@ public class Hqcp implements HqcpMBean {
             operLock.lockInterruptibly();
             try {
                 try {
+                    requireMore.signal();  // 唤醒主线程
                     return requireMore.awaitNanos(unit.toNanos(timeout));
                 } catch (InterruptedException e) {
                     requireMore.signal();
@@ -764,17 +797,17 @@ public class Hqcp implements HqcpMBean {
                     try {
                         if (timeout < 0) {
                             // no timeout
-                        if (! notEmpty.await(1, TimeUnit.SECONDS)) {
-                            LOGGER.trace("wait for connection INFINITELY, wakeup to see if there is a connection available");
-                        }
+                            if (! notEmpty.await(1, TimeUnit.SECONDS)) {
+                                LOGGER.trace("wait for connection INFINITELY, wakeup to see if there is a connection available");
+                            }
                         } else {
-                        // 超时场景下改为按1秒周期等待
-                        long waitTime = Math.min(nanos, TimeUnit.SECONDS.toNanos(1));
-                        long before = System.nanoTime();
-                        if (notEmpty.awaitNanos(waitTime) <= 0) {
-                            LOGGER.trace("wait connection for {}ms, wakeup to see if there is a connection available", timeout);
-                        }
-                        nanos -= System.nanoTime() - before;
+                            // 超时场景下改为按1秒周期等待
+                            long waitTime = Math.min(nanos, TimeUnit.SECONDS.toNanos(1));
+                            long before = System.nanoTime();
+                            if (notEmpty.awaitNanos(waitTime) <= 0) {
+                                LOGGER.trace("wait connection for {}ms, wakeup to see if there is a connection available", timeout);
+                            }
+                            nanos -= System.nanoTime() - before;
                         }
                     } catch (InterruptedException ie) {
                         notEmpty.signal(); // propagate to a non-interrupted thread

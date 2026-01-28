@@ -21,7 +21,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Created with IntelliJ IDEA for hq-commons-parent
+ * 基于 JSQLParser 实现的 SQL 敏感字段脱敏工具类。
  * <br/>
  * 对 SQL 中的敏感字段进行mask <br/>
  * 支持以下SQL的mask： <br/>
@@ -87,9 +87,8 @@ import java.util.stream.Collectors;
  *          比如：VALUES('''1234567') - 语义层面是长度为8的字符串 "'1234567"，<br/>
  *               但脱敏时按长度为9的字符串处理，脱敏结果为：VALUES('''1****67')，<br/>
  *               可能导致输出的SQL不是合法的。（仅用于日志脱敏，故暂忽略）
- * @author taige (Wu, Hongqiang) <br/>
- * Date: 2025-03-11  <br/>
- * Time: 08:48
+ * @author taige (Wu, Hongqiang)
+ * @since 2025-03-11
  */
 public class SqlMasker {
     private static final Logger LOGGER = new Logger();
@@ -742,4 +741,3 @@ interface JoinsProvider {
 interface WhereProvider {
     Expression getWhere();
 }
-

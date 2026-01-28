@@ -1,0 +1,5 @@
+# 测试用的 KeyManageServiceProvider 实现
+# 注意顺序：先列出返回 null 的 provider，再列出返回有效实例的 provider
+# 这样可以测试代码会跳过返回 null 的 provider
+io.hqwu.commons.spi.NullKeyManageServiceProvider
+io.hqwu.commons.spi.TestKeyManageServiceProvider

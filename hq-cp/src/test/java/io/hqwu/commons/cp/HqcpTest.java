@@ -5,6 +5,7 @@ import io.hqwu.commons.util.Logger;
 import org.easymock.IMocksControl;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -17,8 +18,6 @@ import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.ReentrantLock;
 
 import static org.easymock.EasyMock.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -70,7 +69,7 @@ public class HqcpTest {
         expect(config.getInfoSqlThreshold()).andReturn(10L).anyTimes();
         expect(config.getWarnSqlThreshold()).andReturn(100L).anyTimes();
         expect(config.isOracle()).andReturn(false).atLeastOnce();
-        expect(config.isUseOracleImplicitCache()).andReturn(true).anyTimes();
+//        expect(config.isUseOracleImplicitCache()).andReturn(true).anyTimes();
         expect(config.getQueryTimeout()).andReturn(0).atLeastOnce();
         Properties properties = new Properties();
         properties.setProperty("user", "mockuser");
@@ -159,6 +158,7 @@ public class HqcpTest {
 
     }
 
+    @Tag("slow")
     @Test
     public void testShutdownForce() throws Exception {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
@@ -184,6 +184,7 @@ public class HqcpTest {
 
     }
 
+    @Tag("slow")
     @Test
     public void testGetConnectionTimeout_lazyInit() throws Exception {
         /*
@@ -222,6 +223,7 @@ public class HqcpTest {
         cyclicBarrier.await();
     }
 
+    @Tag("slow")
     @Test
     public void testGetConnectionExhaustedTimeout() throws Exception {
         MockConnection mockConnection2 = new MockConnection();
@@ -618,6 +620,7 @@ public class HqcpTest {
         conn.close();
     }
 
+    @Tag("slow")
     @Test
     public void testGetConnectionExhaustedWaitAndOK() throws Exception {
         MockConnection mockConnection2 = mocksControl.createMock(MockConnection.class);
@@ -658,6 +661,7 @@ public class HqcpTest {
         conn6.close();
     }
 
+    @Tag("slow")
     @Test
     public void testConnectionIdleAndRealClose() throws Exception {
         MockConnection mockConnection2 = createNiceMock(MockConnection.class);
@@ -836,6 +840,7 @@ public class HqcpTest {
      * 测试 lifetimeSec 参数：
      * 当 lifetimeSec > 0 且连接真正超时后，在checkIn时回收；或者在Monitor线程回收
      */
+    @Tag("slow")
     @Test
     public void testLifetimeSecEffective() throws Exception {
         Random random = new Random();
@@ -973,6 +978,7 @@ public class HqcpTest {
         connPool.shutdown();
     }
 
+    @Tag("slow")
     @Test
     public void testUnclosedConnection_closeRetry() throws Exception {
         final AtomicInteger closeCounter = new AtomicInteger(0);
@@ -1022,6 +1028,7 @@ public class HqcpTest {
     /**
      * 测试 checkoutTimeoutMillisec 为负值时一直等待的逻辑；
      */
+    @Tag("slow")
     @Test
     public void testCheckoutTimeoutWaitForever() throws Exception {
         answer = mocksControl.createMock(MockJDBCAnswer.class);
@@ -1067,6 +1074,7 @@ public class HqcpTest {
         pool.shutdown();
     }
 
+    @Tag("slow")
     @ParameterizedTest
     @ValueSource(longs = {-1, 10_000})     // -1 表示一直等待
     public void testDynamicIncreaseMaxConnections(long checkoutTimeout) throws Exception {
@@ -1163,93 +1171,349 @@ public class HqcpTest {
         pool.shutdown();
     }
 
-}
+    /**
+     * Test: config validation - null URL (line 121)
+     */
+    @Test
+    public void testInitPoolWithNullUrl() {
+        HqcpConfig badConfig = new HqcpConfig();
+        badConfig.setUrl(null);
 
-class WaitWithTimeout {
-    private final ReentrantLock lock = new ReentrantLock();
-    private final Condition condition = lock.newCondition();
-    // 增加一个标志，用于标识是否被提前唤醒
-    private boolean woken = false;
+        SQLException exception = assertThrows(SQLException.class, () -> {
+            new Hqcp(badConfig);
+        });
+
+        assertTrue(exception.getMessage().contains("jdbc.url cannot be NULL"));
+    }
 
     /**
-     * 类似于 Thread.sleep(timeMillis) 的等待，但当其他线程调用 wakeUp() 后，将立即返回。
-     * 如果没有被提前唤醒，则一直等待到超时为止。
+     * Test: Oracle 10 with implicit cache (line 134)
      */
-    public void awaitWithTimeout(long timeMillis) {
-        lock.lock();
-        woken = false; // 重置标志
+//    @Test
+//    public void testInitPoolOracle10WithImplicitCache() throws Exception {
+//        HqcpConfig oracleConfig = new HqcpConfig();
+//        oracleConfig.setUrl("jdbc:oracle:thin:@localhost:1521:test");
+//        oracleConfig.setDriverClassName(MockJDBCDriver.class.getName());
+//        oracleConfig.setUsername("test");
+//        oracleConfig.setPassword("test");
+//        oracleConfig.setUseOracleImplicitCache(true);
+//        oracleConfig.setMinConnections(0);
+//        oracleConfig.setLazyInit(true);
+//
+//        // This will test the Oracle 10 branch if DriverManager returns version 10
+//        Hqcp pool = new Hqcp(oracleConfig);
+//        assertNotNull(pool);
+//        pool.shutdown();
+//    }
+
+    /**
+     * Test: Oracle without implicit cache (line 142)
+     */
+//    @Test
+//    public void testInitPoolOracleWithoutImplicitCache() throws Exception {
+//        HqcpConfig oracleConfig = new HqcpConfig();
+//        oracleConfig.setUrl("jdbc:oracle:thin:@localhost:1521:test");
+//        oracleConfig.setDriverClassName(MockJDBCDriver.class.getName());
+//        oracleConfig.setUsername("test");
+//        oracleConfig.setPassword("test");
+//        oracleConfig.setUseOracleImplicitCache(false);
+//        oracleConfig.setMinConnections(0);
+//        oracleConfig.setLazyInit(true);
+//
+//        Hqcp pool = new Hqcp(oracleConfig);
+//        assertNotNull(pool);
+//        pool.shutdown();
+//    }
+
+    /**
+     * Test: Oracle with checkout timeout (line 150)
+     */
+    @Test
+    public void testInitPoolOracleWithCheckoutTimeout() throws Exception {
+        HqcpConfig oracleConfig = new HqcpConfig();
+        oracleConfig.setUrl("jdbc:oracle:thin:@localhost:1521:test");
+        oracleConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        oracleConfig.setUsername("test");
+        oracleConfig.setPassword("test");
+        oracleConfig.setCheckoutTimeoutMillisec(5000);
+        oracleConfig.setMinConnections(0);
+        oracleConfig.setLazyInit(true);
+
+        Hqcp pool = new Hqcp(oracleConfig);
+        assertNotNull(pool);
+        pool.shutdown();
+    }
+
+    /**
+     * Test: MySQL with checkout timeout (line 151)
+     */
+    @Test
+    public void testInitPoolMySQLWithCheckoutTimeout() throws Exception {
+        HqcpConfig mysqlConfig = new HqcpConfig();
+        mysqlConfig.setUrl("jdbc:mysql://localhost:3306/test");
+        mysqlConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        mysqlConfig.setUsername("test");
+        mysqlConfig.setPassword("test");
+        mysqlConfig.setCheckoutTimeoutMillisec(5000);
+        mysqlConfig.setMinConnections(0);
+        mysqlConfig.setLazyInit(true);
+
+        Hqcp pool = new Hqcp(mysqlConfig);
+        assertNotNull(pool);
+        pool.shutdown();
+    }
+
+    /**
+     * Test: Oracle with query timeout (line 157)
+     */
+    @Test
+    public void testInitPoolOracleWithQueryTimeout() throws Exception {
+        HqcpConfig oracleConfig = new HqcpConfig();
+        oracleConfig.setUrl("jdbc:oracle:thin:@localhost:1521:test");
+        oracleConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        oracleConfig.setUsername("test");
+        oracleConfig.setPassword("test");
+        oracleConfig.setQueryTimeout(30);
+        oracleConfig.setMinConnections(0);
+        oracleConfig.setLazyInit(true);
+
+        Hqcp pool = new Hqcp(oracleConfig);
+        assertNotNull(pool);
+        pool.shutdown();
+    }
+
+    /**
+     * Test: already initialized pool (line 167)
+     */
+    @Test
+    public void testInitPoolAlreadyInitialized() throws Exception {
+        HqcpConfig testConfig = new HqcpConfig();
+        testConfig.setUrl(MockConstant.MOCK_URL);
+        testConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        testConfig.setUsername("test");
+        testConfig.setPassword("test");
+        testConfig.setMinConnections(0);
+        testConfig.setLazyInit(true);
+
+        Hqcp pool = new Hqcp(testConfig);
+
+        // Pool is already initialized, calling initPool again should return early
+        // We can't call it directly, but the constructor will only init once
+
+        pool.shutdown();
+    }
+
+    /**
+     * Test: SqlMasker initialization (line 190)
+     */
+    @Test
+    public void testInitPoolWithSqlMasker() throws Exception {
+        HqcpConfig testConfig = new HqcpConfig();
+        testConfig.setUrl(MockConstant.MOCK_URL);
+        testConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        testConfig.setUsername("test");
+        testConfig.setPassword("test");
+        testConfig.setMinConnections(0);
+        testConfig.setLazyInit(true);
+
+        java.util.Set<String> sensitiveFields = new java.util.HashSet<>();
+        sensitiveFields.add("password");
+        sensitiveFields.add("secret");
+        testConfig.setSensitiveFields(sensitiveFields);
+
+        Hqcp pool = new Hqcp(testConfig);
+        assertNotNull(pool.getSqlMasker());
+
+        pool.shutdown();
+    }
+
+    /**
+     * Test: shutdown already shutdown pool (line 198)
+     */
+    @Test
+    public void testShutdownAlreadyShutdown() throws Exception {
+        HqcpConfig testConfig = new HqcpConfig();
+        testConfig.setUrl(MockConstant.MOCK_URL);
+        testConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        testConfig.setMinConnections(0);
+        testConfig.setLazyInit(true);
+
+        Hqcp pool = new Hqcp(testConfig);
+        pool.shutdown();
+
+        // Shutdown again - should return early
+        pool.shutdown();
+
+        assertTrue(pool.isShutdown());
+    }
+
+    /**
+     * Test: shutdown with InterruptedException (line 208-209)
+     */
+    @Test
+    public void testShutdownWithInterruptedException() throws Exception {
+        HqcpConfig testConfig = new HqcpConfig();
+        testConfig.setUrl(MockConstant.MOCK_URL);
+        testConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        testConfig.setMinConnections(1);
+        testConfig.setLazyInit(false);
+
+        Hqcp pool = new Hqcp(testConfig);
+
+        // Interrupt current thread
+        Thread.currentThread().interrupt();
+
         try {
-            long nanos = timeMillis * 1_000_000;
-            // 循环等待，直到超时或者收到提前唤醒信号
-            while (nanos > 0 && !woken) {
-                nanos = condition.awaitNanos(nanos);
+            pool.shutdown();
+            // Should handle InterruptedException gracefully
+        } finally {
+            // Clear interrupt flag
+            Thread.interrupted();
+        }
+    }
+
+    /**
+     * Test: shutdown with connection checkout during shutdown (line 218)
+     */
+    @Test
+    public void testShutdownWithConnectionCheckoutInterrupted() throws Exception {
+        HqcpConfig testConfig = new HqcpConfig();
+        testConfig.setUrl(MockConstant.MOCK_URL);
+        testConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        testConfig.setMinConnections(1);
+        testConfig.setMaxConnections(2);
+        testConfig.setIdleTimeoutSec(60);
+
+        Hqcp pool = new Hqcp(testConfig);
+
+        // Get a connection and hold it
+        Connection conn = pool.getConnection();
+
+        // Shutdown in another thread
+        Thread shutdownThread = new Thread(() -> {
+            pool.shutdown();
+        });
+        shutdownThread.start();
+
+        // Wait a bit then close connection
+        Thread.sleep(100);
+        conn.close();
+
+        shutdownThread.join(5000);
+        assertTrue(pool.isShutdown());
+    }
+
+    /**
+     * Test: getConnection when pool is shutdown (line 282-283)
+     */
+    @Test
+    public void testGetConnectionWhenShutdown() throws Exception {
+        HqcpConfig testConfig = new HqcpConfig();
+        testConfig.setUrl(MockConstant.MOCK_URL);
+        testConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        testConfig.setMinConnections(0);
+        testConfig.setLazyInit(true);
+
+        Hqcp pool = new Hqcp(testConfig);
+        pool.shutdown();
+
+        SQLException exception = assertThrows(SQLException.class, () -> {
+            pool.getConnection();
+        });
+
+        assertTrue(exception.getMessage().contains("shutdown"));
+        assertEquals("08001", exception.getSQLState());
+    }
+
+    /**
+     * Test: getConnection with lazy init and pool exhausted (line 298-300)
+     */
+    @Test
+    public void testGetConnectionLazyInitExhausted() throws Exception {
+        HqcpConfig testConfig = new HqcpConfig();
+        testConfig.setUrl(MockConstant.MOCK_URL);
+        testConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        testConfig.setMinConnections(0);
+        testConfig.setMaxConnections(1);
+        testConfig.setLazyInit(true);
+        testConfig.setCheckoutTimeoutMillisec(1000);
+
+        Hqcp pool = new Hqcp(testConfig);
+
+        // Get the only connection
+        Connection conn1 = pool.getConnection();
+        assertNotNull(conn1);
+
+        // Try to get another - should timeout and throw exception
+        SQLException exception = assertThrows(SQLException.class, () -> {
+            pool.getConnection();
+        });
+
+        assertTrue(exception.getMessage().contains("Timeout"));
+        assertEquals("08001", exception.getSQLState());
+
+        conn1.close();
+        pool.shutdown();
+    }
+
+    /**
+     * Test: setPoolName when config is loaded from properties (line 341)
+     */
+    @Test
+    public void testSetPoolNameWhenLoadedFromProperties() throws Exception {
+        HqcpConfig testConfig = new HqcpConfig();
+        testConfig.setUrl(MockConstant.MOCK_URL);
+        testConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        testConfig.setMinConnections(0);
+        testConfig.setLazyInit(true);
+        testConfig.loadFromProperties("jdbc"); // Mark as loaded from properties
+
+        Hqcp pool = new Hqcp(testConfig);
+        String originalName = pool.getPoolName();
+
+        // Try to set pool name - should be ignored because loaded from properties
+        pool.setPoolName("newName");
+
+        // Pool name should remain unchanged
+        assertEquals(originalName, pool.getPoolName());
+
+        pool.shutdown();
+    }
+
+    /**
+     * Test: getConnection with InterruptedException (line 345)
+     */
+    @Test
+    public void testGetConnectionInterruptedException() throws Exception {
+        HqcpConfig testConfig = new HqcpConfig();
+        testConfig.setUrl(MockConstant.MOCK_URL);
+        testConfig.setDriverClassName(MockJDBCDriver.class.getName());
+        testConfig.setMinConnections(0);
+        testConfig.setMaxConnections(1);
+        testConfig.setLazyInit(true);
+        testConfig.setCheckoutTimeoutMillisec(5000);
+
+        Hqcp pool = new Hqcp(testConfig);
+
+        // Get the only connection
+        Connection conn = pool.getConnection();
+
+        // Try to get another in a thread and interrupt it
+        Thread t = new Thread(() -> {
+            try {
+                pool.getConnection();
+            } catch (SQLException e) {
+                // Expected
             }
-        } catch (InterruptedException e) {
-        } finally {
-            lock.unlock();
-        }
-    }
+        });
+        t.start();
+        Thread.sleep(100);
+        t.interrupt();
+        t.join(1000);
 
-    /**
-     * 提前唤醒等待的线程
-     */
-    public void wakeUp() {
-        lock.lock();
-        try {
-            // 设置标志并发送通知
-            woken = true;
-            condition.signalAll();
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    /**
-     * 等待直到当前时间满足：
-     *  1. 当前秒数（取秒数）个位为 0，即 (seconds % 10 == 0)
-     *  2. 当前毫秒数小于指定阈值（例如 10 毫秒）
-     *
-     * 使用动态计算下次满足条件时刻与当前时刻的时间差来等待，而非固定等待 1 毫秒，
-     * 同时允许外部通过其他方式提前唤醒等待线程。
-     *
-     * @param msThreshold 毫秒阈值（例如 10）
-     */
-    public void awaitTimeWithSecUnitZero(long msThreshold)  {
-        lock.lock();
-        try {
-            while (true) {
-                long now = System.currentTimeMillis();
-                long seconds = (now / 1000) % 60; // 当前秒数（0-59）
-                long millis = now % 1000;         // 当前毫秒数（0-999）
-
-                // 判断秒的个位是否为0和毫秒是否小于阈值
-                if (seconds % 10 == 0 && millis < msThreshold) {
-                    break;
-                }
-                // 计算下次满足秒个位为 0 的时刻
-                // 设当前秒为 s，则下一满足条件的秒为：s' = s - (s % 10) + 10
-                long secondsToWait;
-                if (seconds % 10 == 0 && millis >= msThreshold) {
-                    // 仍需要等待直到毫秒部分低于阈值
-                    secondsToWait = 0;
-                } else {
-                    secondsToWait = 10 - (seconds % 10);
-                }
-                // 计算下一个满足条件时刻的时间戳粗略值，
-                // 这里简单计算到整秒点（毫秒为0），再等待 msThreshold 毫秒之前
-                long targetTime = ((now / 1000) + secondsToWait) * 1000;
-                // 如果等待的时间超过 msThreshold，则减去 msThreshold，这样到达目标时刻时，毫秒部分刚好在[0, msThreshold)内
-                targetTime -= msThreshold;
-                long waitTimeMillis = Math.max(targetTime - now, 1); // 至少等待 1 毫秒
-                long nanos = TimeUnit.MILLISECONDS.toNanos(waitTimeMillis);
-                condition.awaitNanos(nanos);
-            }
-        } catch (InterruptedException e) {
-        } finally {
-            lock.unlock();
-        }
+        conn.close();
+        pool.shutdown();
     }
 
 }
-
 
