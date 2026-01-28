@@ -15,6 +15,7 @@ import io.hqwu.commons.util.Logger;
 
 import java.lang.reflect.Array;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.Map;
@@ -140,7 +141,14 @@ public class Hqcp implements HqcpMBean {
                 Class.forName(config.getDriverClassName());
                 LOGGER.info("load ", config.getDriverClassName(), " ok");
             } catch (ClassNotFoundException e) {
-                throw new SQLException(e.toString(), e);
+                throw new SQLException("Failed to load driver class: " + config.getDriverClassName(), e);
+            }
+        } else {
+            try {
+                DriverManager.getDriver(config.getUrl());
+            } catch (SQLException e) {
+                throw new SQLException("No suitable driver found for " + config.getUrl() +
+                        ". Please configure 'driverClassName' or add driver jar to classpath.", e);
             }
         }
         config.printConfig(LOGGER);

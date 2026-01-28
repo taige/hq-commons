@@ -28,6 +28,7 @@ public class HqcpDataSourceTest {
     @BeforeAll
     public static void setUp() {
         if (dataSource == null) {
+            MockJDBCDriver.getInstance();
             dataSource = new HqcpDataSource();
             dataSource.setUrl(MockConstant.MOCK_URL);
             dataSource.setDriverClassName(MockJDBCDriver.class.getName());

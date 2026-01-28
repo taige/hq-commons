@@ -2,10 +2,7 @@ package io.hqwu.commons.cp;
 
 import com.jolbox.bonecp.MockJDBCDriver;
 import io.hqwu.commons.cp.dialect.DB2PooledConnection;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -23,6 +20,11 @@ class DB2PooledConnectionTest {
     private Hqcp pool;
     private DB2PooledConnection connection;
     private Connection proxyConnection;
+
+    @BeforeAll
+    static void init() {
+        MockJDBCDriver.getInstance().setAcceptUrl("jdbc:db2");
+    }
 
     @BeforeEach
     void setUp() throws Exception {

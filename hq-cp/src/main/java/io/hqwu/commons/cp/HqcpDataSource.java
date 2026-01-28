@@ -13,8 +13,6 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Properties;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Logger;
 
 /**
@@ -31,9 +29,7 @@ public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFact
 
     private boolean initOnStartup = false;
 
-    private ReadWriteLock rwl = new ReentrantReadWriteLock();
-
-    private Hqcp pool = null;
+    private volatile Hqcp pool = null;
     private PrintWriter logWriter = null;
 
     public PrintWriter getLogWriter() throws SQLException {
@@ -109,9 +105,14 @@ public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFact
     }
 
     public void shutdown() {
-        if (this.pool != null) {
-            this.pool.shutdown();
-            this.pool = null;
+        Hqcp currentPool = this.pool;
+        if (currentPool != null) {
+            synchronized (this) {
+                if (this.pool != null) {
+                    this.pool.shutdown();
+                    this.pool = null;
+                }
+            }
         }
     }
 
@@ -120,26 +121,13 @@ public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFact
     }
 
     private void maybeInit() throws SQLException {
-
-        try {
-            this.rwl.readLock().lock();
-            if (this.pool == null) { // this.pool is protected in getConnection
-                this.rwl.readLock().unlock();
-                this.rwl.writeLock().lock();
-                try {
-                    if (this.pool == null) { // read might have passed, write
-                        // might not
-                        this.pool = new Hqcp(this);
-                    }
-                } finally {
-                    this.rwl.readLock().lock();
-                    this.rwl.writeLock().unlock();
+        if (this.pool == null) {
+            synchronized (this) {
+                if (this.pool == null) {
+                    this.pool = new Hqcp(this);
                 }
             }
-        } finally {
-            this.rwl.readLock().unlock();
         }
     }
-
 
 }
