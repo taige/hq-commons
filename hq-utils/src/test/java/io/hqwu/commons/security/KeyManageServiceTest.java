@@ -1,4 +1,4 @@
-package io.hqwu.commons;
+package io.hqwu.commons.security;
 
 
 import org.junit.jupiter.api.BeforeEach;

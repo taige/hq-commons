@@ -1,7 +1,7 @@
 package io.hqwu.commons.cp;
 
-import io.hqwu.commons.SecurityService;
-import io.hqwu.commons.SecurityServiceLocalImpl;
+import io.hqwu.commons.security.SecurityService;
+import io.hqwu.commons.security.SecurityServiceLocalImpl;
 import io.hqwu.commons.util.Logger;
 import io.hqwu.commons.util.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;

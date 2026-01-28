@@ -2,6 +2,8 @@ package io.hqwu.commons.cp;
 
 import com.jolbox.bonecp.MockConstant;
 import com.jolbox.bonecp.MockJDBCDriver;
+import io.hqwu.commons.security.SecurityService;
+import io.hqwu.commons.security.SecurityServiceLocalImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -722,7 +724,7 @@ public class HqcpConfigTest {
      */
     @Test
     public void testSetSecurityService() {
-        io.hqwu.commons.SecurityService customService = new io.hqwu.commons.SecurityServiceLocalImpl();
+        SecurityService customService = new SecurityServiceLocalImpl();
         config.setSecurityService(customService);
 
         assertEquals(customService, config.getSecurityService());
@@ -787,9 +789,9 @@ public class HqcpConfigTest {
     @Test
     public void testGetSecurityServiceWithoutContext() {
         HqcpConfig newConfig = new HqcpConfig();
-        io.hqwu.commons.SecurityService service = newConfig.getSecurityService();
+        SecurityService service = newConfig.getSecurityService();
 
         assertNotNull(service);
-        assertTrue(service instanceof io.hqwu.commons.SecurityServiceLocalImpl);
+        assertTrue(service instanceof SecurityServiceLocalImpl);
     }
 }

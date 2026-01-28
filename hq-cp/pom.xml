@@ -14,8 +14,8 @@
     <bonecp.version>0.8.0.RELEASE</bonecp.version>
     <c3p0.version>0.9.2.1</c3p0.version>
     <easymock.version>5.2.0</easymock.version>
-    <!-- 默认排除标记为 slow 的测试，可通过 -Dtest.excludedGroups="" 覆盖 -->
-    <test.excludedGroups>slow</test.excludedGroups>
+    <!-- 默认运行所有测试，可通过 -Dtest.excludedGroups="slow" 来排除标记为 slow 的测试 -->
+    <test.excludedGroups></test.excludedGroups>
   </properties>
 
   <dependencies>
@@ -32,7 +32,7 @@
 
     <dependency>
       <groupId>org.springframework</groupId>
-      <artifactId>spring-context</artifactId>
+      <artifactId>spring-core</artifactId>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -143,8 +143,7 @@
             <!-- 排除集成测试类 -->
             <exclude>**/*IntTest.java</exclude>
           </excludes>
-          <!-- 排除带有 @Tag("slow") 注解的测试方法 -->
-          <!-- 可通过 -Dtest.excludedGroups="" 来覆盖 -->
+          <!-- 可通过 -Dtest.excludedGroups="slow" 来排除带有 @Tag("slow") 注解的测试方法 -->
           <excludedGroups>${test.excludedGroups}</excludedGroups>
         </configuration>
       </plugin>

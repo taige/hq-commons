@@ -1,20 +1,18 @@
-package io.hqwu.commons;
+package io.hqwu.commons.security;
 
+import io.hqwu.commons.spi.KeyManageServiceProvider;
 import io.hqwu.commons.util.Logger;
 import io.hqwu.commons.util.RSACoderUtil;
 import io.hqwu.commons.util.SecurityUtil;
 import io.hqwu.commons.util.StringUtil;
 import org.apache.commons.codec.binary.Base64;
-import org.springframework.beans.BeansException;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.*;
-import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -33,10 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author taige
  * @since 2018/5/30
  */
-public class SecurityServiceLocalImpl implements SecurityService, ApplicationContextAware {
+public class SecurityServiceLocalImpl implements SecurityService {
     private static final Logger LOGGER = new Logger();
 
-    private ApplicationContext applicationContext;
     private KeyManageService keyManageService;
 
     private boolean cacheKey;
@@ -86,29 +83,23 @@ public class SecurityServiceLocalImpl implements SecurityService, ApplicationCon
     }
 
     protected KeyManageService getKeyManageService() {
-        if (this.keyManageService == null) {
-            if (this.applicationContext != null) {
-                try {
-                    Map<String, KeyManageService> map = this.applicationContext.getBeansOfType(KeyManageService.class);
-                    for (Map.Entry<String, KeyManageService> entry: map.entrySet()) {
-                        LOGGER.debug("getBean(KeyManageService.class): [", entry.getKey(), "]=", entry.getValue().getClass().getName());
-                        if (entry.getValue() instanceof KeyManageServiceLocalImpl) {
-                            this.keyManageService = entry.getValue();
-                        } else {
-                            //尽量选远程实现
-                            this.keyManageService = entry.getValue();
-                            break;
-                        }
-                    }
-                } catch (BeansException e) {
-                    LOGGER.warn("getBean(KeyManageService.class) error: ", e);
-                    this.keyManageService = new KeyManageServiceLocalImpl();
-                }
-            }
-            if (this.keyManageService == null) {
-                this.keyManageService = new KeyManageServiceLocalImpl();
+        // 1. 优先使用手动注入的实例
+        if (this.keyManageService != null) {
+            return this.keyManageService;
+        }
+
+        // 2. 尝试通过 SPI 查找
+        ServiceLoader<KeyManageServiceProvider> loader = ServiceLoader.load(KeyManageServiceProvider.class);
+        for (KeyManageServiceProvider provider : loader) {
+            KeyManageService service = provider.get();
+            if (service != null) {
+                this.keyManageService = service; // 找到第一个就用
+                return this.keyManageService;
             }
         }
+
+        // 3. 如果都找不到，则创建默认实例
+        this.keyManageService = new KeyManageServiceLocalImpl();
         return this.keyManageService;
     }
 
@@ -231,8 +222,4 @@ public class SecurityServiceLocalImpl implements SecurityService, ApplicationCon
         };
     }
 
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext;
-    }
 }

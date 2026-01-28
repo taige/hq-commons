@@ -1,7 +1,7 @@
 package io.hqwu.commons.cp;
 
-import io.hqwu.commons.SecurityService;
-import io.hqwu.commons.SecurityServiceLocalImpl;
+import io.hqwu.commons.security.SecurityService;
+import io.hqwu.commons.security.SecurityServiceLocalImpl;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;

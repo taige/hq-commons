@@ -1,6 +1,6 @@
 package io.hqwu.commons.cp;
 
-import io.hqwu.commons.SecurityService;
+import io.hqwu.commons.security.SecurityService;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;

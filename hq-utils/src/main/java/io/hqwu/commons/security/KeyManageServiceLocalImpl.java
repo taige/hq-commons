@@ -1,4 +1,4 @@
-package io.hqwu.commons;
+package io.hqwu.commons.security;
 
 import io.hqwu.commons.util.SecurityUtil;
 import org.apache.commons.codec.binary.Base64;

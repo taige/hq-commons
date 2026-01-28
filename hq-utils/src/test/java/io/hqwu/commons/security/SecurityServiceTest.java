@@ -1,24 +1,18 @@
-package io.hqwu.commons;
+package io.hqwu.commons.security;
 
 import io.hqwu.commons.util.Logger;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.BeansException;
-import org.springframework.context.ApplicationContext;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Created with IntelliJ IDEA for unpay-common
@@ -289,81 +283,6 @@ public class SecurityServiceTest {
     }
 
     @Test
-    public void test_getKeyManageService_withApplicationContext_localImpl() throws Exception {
-        // 测试 ApplicationContext 中只有 KeyManageServiceLocalImpl 的情况（覆盖 lines 85-86）
-        SecurityServiceLocalImpl ss = new SecurityServiceLocalImpl();
-        ApplicationContext mockContext = mock(ApplicationContext.class);
-
-        Map<String, KeyManageService> beansMap = new HashMap<>();
-        KeyManageServiceLocalImpl localImpl = new KeyManageServiceLocalImpl();
-        beansMap.put("localKeyManageService", localImpl);
-
-        when(mockContext.getBeansOfType(KeyManageService.class)).thenReturn(beansMap);
-
-        ss.setApplicationContext(mockContext);
-        KeyManageService kms = ss.getKeyManageService();
-
-        assertTrue(kms instanceof KeyManageServiceLocalImpl);
-        assertEquals(localImpl, kms);
-    }
-
-    @Test
-    public void test_getKeyManageService_withApplicationContext_remoteImpl() throws Exception {
-        // 测试 ApplicationContext 中有远程实现的情况（覆盖 lines 87-90）
-        SecurityServiceLocalImpl ss = new SecurityServiceLocalImpl();
-        ApplicationContext mockContext = mock(ApplicationContext.class);
-
-        Map<String, KeyManageService> beansMap = new HashMap<>();
-        KeyManageService remoteImpl = mock(KeyManageService.class);
-        beansMap.put("remoteKeyManageService", remoteImpl);
-
-        when(mockContext.getBeansOfType(KeyManageService.class)).thenReturn(beansMap);
-
-        ss.setApplicationContext(mockContext);
-        KeyManageService kms = ss.getKeyManageService();
-
-        // 应该选择远程实现
-        assertEquals(remoteImpl, kms);
-    }
-
-    @Test
-    public void test_getKeyManageService_withApplicationContext_mixedImpl() throws Exception {
-        // 测试 ApplicationContext 中同时有本地和远程实现，应优先选择远程实现（覆盖 lines 87-90）
-        SecurityServiceLocalImpl ss = new SecurityServiceLocalImpl();
-        ApplicationContext mockContext = mock(ApplicationContext.class);
-
-        Map<String, KeyManageService> beansMap = new HashMap<>();
-        KeyManageServiceLocalImpl localImpl = new KeyManageServiceLocalImpl();
-        KeyManageService remoteImpl = mock(KeyManageService.class);
-        beansMap.put("localKeyManageService", localImpl);
-        beansMap.put("remoteKeyManageService", remoteImpl);
-
-        when(mockContext.getBeansOfType(KeyManageService.class)).thenReturn(beansMap);
-
-        ss.setApplicationContext(mockContext);
-        KeyManageService kms = ss.getKeyManageService();
-
-        // 应该选择远程实现而不是本地实现
-        assertNotEquals(localImpl, kms);
-    }
-
-    @Test
-    public void test_getKeyManageService_withApplicationContext_exception() throws Exception {
-        // 测试 ApplicationContext 抛出异常的情况（覆盖 lines 92-94）
-        SecurityServiceLocalImpl ss = new SecurityServiceLocalImpl();
-        ApplicationContext mockContext = mock(ApplicationContext.class);
-
-        when(mockContext.getBeansOfType(KeyManageService.class))
-            .thenThrow(new BeansException("Mock exception") {});
-
-        ss.setApplicationContext(mockContext);
-        KeyManageService kms = ss.getKeyManageService();
-
-        // 异常情况下应该回退到本地实现
-        assertTrue(kms instanceof KeyManageServiceLocalImpl);
-    }
-
-    @Test
     public void test_encryptByAES_withModeAndPadding() throws Exception {
         // 测试带有模式和填充的算法（覆盖 line 53）
         initKeys(128);
@@ -467,5 +386,135 @@ public class SecurityServiceTest {
             // EC curve 571 不被当前JDK支持，但代码路径已经被覆盖
             LOGGER.info("EC curve 571 not supported on this JDK, but code path covered: " + e.getMessage());
         }
+    }
+
+    @Test
+    public void test_constructor_withCacheKeyParameter() throws Exception {
+        // 测试带 cacheKey 参数的构造函数（覆盖 lines 50-52）
+        SecurityServiceLocalImpl ss = new SecurityServiceLocalImpl(false);
+        assertNotNull(ss);
+
+        // 验证服务可以正常工作
+        String key = ss.generateKey("AES", 128);
+        assertNotNull(key);
+        LOGGER.info("Generated key with cacheKey=false: " + key);
+    }
+
+    @Test
+    public void test_toModeAndPadding_withNullAlg() throws Exception {
+        // 测试 toModeAndPadding 方法中 alg 为 null 或 blank 的分支（覆盖 line 56）
+        initKeys(128);
+        String plain = "hello world";
+
+        // 使用 null 作为算法参数
+        String enc = securityService.encryptByAES(plain.getBytes(), aesKey, null);
+        assertNotNull(enc);
+
+        // 验证可以正确解密
+        byte[] dec = securityService.decryptByAES(enc, aesKey, null);
+        assertArrayEquals(plain.getBytes(), dec);
+        LOGGER.info("Encryption with null algorithm succeeded");
+    }
+
+    @Test
+    public void test_decodeKey_withCacheDisabled() throws Exception {
+        // 测试 decodeKey 方法中 cacheKey 为 false 的分支（覆盖 line 67）
+        SecurityServiceLocalImpl ssNoCache = new SecurityServiceLocalImpl(false);
+
+        // 生成密钥
+        String aesKey = ssNoCache.generateKey("AES", 128);
+        String plain = "test data";
+
+        // 多次加密解密，验证在 cacheKey=false 时也能正常工作
+        for (int i = 0; i < 3; i++) {
+            String enc = ssNoCache.encryptByAES(plain.getBytes(), aesKey, "ECB");
+            byte[] dec = ssNoCache.decryptByAES(enc, aesKey, "ECB");
+            assertArrayEquals(plain.getBytes(), dec);
+        }
+        LOGGER.info("Encryption/Decryption with cacheKey=false succeeded");
+    }
+
+    @Test
+    public void test_setKeyManageService() throws Exception {
+        // 测试 setKeyManageService 方法（覆盖 lines 82-83）
+        SecurityServiceLocalImpl ss = new SecurityServiceLocalImpl();
+        KeyManageService customKms = new KeyManageServiceLocalImpl();
+
+        // 设置自定义的 KeyManageService
+        ss.setKeyManageService(customKms);
+
+        // 验证设置成功
+        KeyManageService retrievedKms = ss.getKeyManageService();
+        assertSame(customKms, retrievedKms);
+
+        // 验证服务可以正常工作
+        String key = ss.generateKey("AES", 128);
+        assertNotNull(key);
+        LOGGER.info("KeyManageService set successfully");
+    }
+
+    @Test
+    public void test_getKeyManageService_withManualInjection() throws Exception {
+        // 测试 getKeyManageService 方法中手动注入实例的分支（line 87-88）
+        SecurityServiceLocalImpl ss = new SecurityServiceLocalImpl();
+        KeyManageServiceLocalImpl manualKms = new KeyManageServiceLocalImpl();
+
+        // 手动注入 KeyManageService
+        ss.setKeyManageService(manualKms);
+
+        // 第一次调用应返回手动注入的实例
+        KeyManageService kms1 = ss.getKeyManageService();
+        assertSame(manualKms, kms1);
+
+        // 第二次调用也应返回同一个实例
+        KeyManageService kms2 = ss.getKeyManageService();
+        assertSame(manualKms, kms2);
+        assertSame(kms1, kms2);
+        LOGGER.info("Manual injection of KeyManageService verified");
+    }
+
+    @Test
+    public void test_getKeyManageService_withSPI() throws Exception {
+        // 测试 SPI 加载逻辑（覆盖 lines 93-99）
+        // 创建一个新的 SecurityServiceLocalImpl 实例，不手动注入 KeyManageService
+        SecurityServiceLocalImpl ss = new SecurityServiceLocalImpl();
+
+        // 第一次调用 getKeyManageService() 应该通过 SPI 加载
+        KeyManageService kms1 = ss.getKeyManageService();
+        assertNotNull(kms1);
+
+        // 验证加载的是通过 SPI 配置的 TestKeyManageService
+        // 通过反射检查类型，因为 TestKeyManageService 是内部类
+        String className = kms1.getClass().getName();
+        assertTrue(className.contains("TestKeyManageService"),
+                "Expected SPI loaded TestKeyManageService, but got: " + className);
+
+        // 第二次调用应该返回缓存的同一个实例
+        KeyManageService kms2 = ss.getKeyManageService();
+        assertSame(kms1, kms2, "Should return cached instance");
+
+        // 验证服务可以正常工作
+        String key = ss.generateKey("AES", 128);
+        assertNotNull(key);
+        LOGGER.info("SPI loaded KeyManageService verified: " + className);
+    }
+
+    @Test
+    public void test_getKeyManageService_spiSkipsNullProvider() throws Exception {
+        // 测试 SPI 会跳过返回 null 的 provider（覆盖 line 95 的 if 判断）
+        // 配置文件中 NullKeyManageServiceProvider 在前，TestKeyManageServiceProvider 在后
+        // 代码应该跳过返回 null 的 provider，找到返回有效实例的 provider
+        SecurityServiceLocalImpl ss = new SecurityServiceLocalImpl();
+
+        KeyManageService kms = ss.getKeyManageService();
+        assertNotNull(kms);
+
+        // 验证不是 NullKeyManageServiceProvider 返回的（因为它返回 null）
+        // 而是 TestKeyManageServiceProvider 返回的
+        String className = kms.getClass().getName();
+        assertTrue(className.contains("TestKeyManageService"),
+                "Should skip null provider and use TestKeyManageService, but got: " + className);
+
+        LOGGER.info("SPI correctly skipped null provider and loaded: " + className);
     }
 }
