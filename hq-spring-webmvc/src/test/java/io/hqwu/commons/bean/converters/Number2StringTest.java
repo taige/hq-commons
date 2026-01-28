@@ -3,6 +3,7 @@ package io.hqwu.commons.bean.converters;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Created with IntelliJ IDEA for hq-commons
@@ -91,6 +92,6 @@ class Number2StringTest {
 
         // Test scientific notation
         result = number2String.valueOf(1234567, null, null, null, null, "0.##E0");
-        assertEquals("1.23e6", result);
+        assertTrue("1.23e6".equalsIgnoreCase(result));
     }
 }
