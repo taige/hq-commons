@@ -344,7 +344,7 @@ public class HqcpConfig implements HqcpConfigMBean {
                     checkStatement = "select now()";
                 }
             }
-            if (StringUtil.isNotBlank(this.driverClassName)) {
+            if (StringUtil.isBlank(this.driverClassName)) {
                 try {
                     java.sql.Driver driver = DriverManager.getDriver(url);
                     if (driver != null) {
