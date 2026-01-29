@@ -324,11 +324,11 @@ public class BeanConverter implements ApplicationContextAware {
     }
 
     private static class ConvertibleCopier<F, T> {
-        private BeanCopier copier;
+        private volatile BeanCopier copier;
         // target -> src
         final Map<PropertyDescriptor, PropertyDescriptor> nameMapping = new ConcurrentHashMap<>();
         final Map<String, ParamsValueOf<F, T>> converterMapping = new HashMap<>();
-        final Set<Object> settersByCopier = new HashSet<>();
+        final Set<Object> settersByCopier = ConcurrentHashMap.newKeySet();
 
         public void copy(Object srcBean, Object targetBean) throws InvocationTargetException, IllegalAccessException {
             if (converterMapping.size() == 0 && nameMapping.size() == 0) {
