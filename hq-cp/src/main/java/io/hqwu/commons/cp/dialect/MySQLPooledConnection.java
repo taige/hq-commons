@@ -40,7 +40,7 @@ public class MySQLPooledConnection extends PooledConnection {
         String sqlState = sqle.getSQLState();
         if (sqlState == null || sqlState.equals("40001")) {
             // sqlState == 40001 is mysql specific triggered when a deadlock is detected
-            LOGGER.debug("consider fetal exception because sqlState: %s", sqlState);
+            LOGGER.debugf("consider fetal exception because sqlState: %s", sqlState);
             return true;
         }
 

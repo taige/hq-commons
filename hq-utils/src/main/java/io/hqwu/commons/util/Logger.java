@@ -1,5 +1,6 @@
 package io.hqwu.commons.util;
 
+import org.intellij.lang.annotations.PrintFormat;
 import org.slf4j.Marker;
 import org.slf4j.event.Level;
 
@@ -326,9 +327,15 @@ public class Logger extends LoggerBase implements org.slf4j.Logger {
     public void trace(String format, Object... objects) {
         log(Level.TRACE, format, objects);
     }
+    public void tracef(@PrintFormat String format, Object... objects) {
+        log(Level.TRACE, format, objects);
+    }
 
     @Override
     public void info(String format, Object... objects) {
+        log(Level.INFO, format, objects);
+    }
+    public void infof(@PrintFormat String format, Object... objects) {
         log(Level.INFO, format, objects);
     }
 
@@ -336,14 +343,23 @@ public class Logger extends LoggerBase implements org.slf4j.Logger {
     public void debug(String format, Object... objects) {
         log(Level.DEBUG, format, objects);
     }
+    public void debugf(@PrintFormat String fmt, Object... arg) {
+        log(Level.DEBUG, fmt, arg);
+    }
 
     @Override
     public void warn(String format, Object... objects) {
         log(Level.WARN, format, objects);
     }
+    public void warnf(@PrintFormat String format, Object... objects) {
+        log(Level.WARN, format, objects);
+    }
 
     @Override
     public void error(String format, Object... objects) {
+        log(Level.ERROR, format, objects);
+    }
+    public void errorf(@PrintFormat String format, Object... objects) {
         log(Level.ERROR, format, objects);
     }
 

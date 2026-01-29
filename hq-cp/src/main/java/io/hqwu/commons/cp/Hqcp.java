@@ -12,6 +12,7 @@ import io.hqwu.commons.cp.util.SqlMasker;
 import io.hqwu.commons.util.Formatter;
 import io.hqwu.commons.util.JMXUtil;
 import io.hqwu.commons.util.Logger;
+import lombok.Getter;
 
 import java.lang.reflect.Array;
 import java.sql.Connection;
@@ -48,17 +49,20 @@ public class Hqcp implements HqcpMBean {
     /**
      * pool id
      */
+    @Getter
     private final int poolId;
     
     /**
      * 连接池名称
      * (跟配置文件名一致，即jdbc.properties的名称是jdbc)
      */
+    @Getter
     private String poolName;
 
     /**
      * 配置
      */
+    @Getter
     private final HqcpConfig config;
     
     /**
@@ -90,7 +94,7 @@ public class Hqcp implements HqcpMBean {
     /**
      * 初始化标志
      */
-    private final AtomicBoolean inited = new AtomicBoolean(false);
+    private final AtomicBoolean initialized = new AtomicBoolean(false);
 
     /**
      * monitor thread
@@ -107,6 +111,7 @@ public class Hqcp implements HqcpMBean {
      */
     private final DynamicSemaphore maxConnectionSemaphore;
 
+    @Getter
     private volatile SqlMasker sqlMasker;
 
     Hqcp(String poolName) throws SQLException {
@@ -130,7 +135,7 @@ public class Hqcp implements HqcpMBean {
      * 初始化连接池
      * @author wuhongqiang 2014.2.25
      * change the method name from startMonitor to initPool
-     * @throws SQLException
+     * @throws SQLException SQLException
      */
     private void initPool() throws SQLException {
         if (this.config == null || this.config.getUrl() == null) {
@@ -177,7 +182,7 @@ public class Hqcp implements HqcpMBean {
                 config.getConnectionProperties().setProperty(MySQLPooledConnection.SOCKET_TIMEOUT, String.valueOf(config.getQueryTimeout()*1000));
             }
         }
-        if (inited.getAndSet(true)) {
+        if (initialized.getAndSet(true)) {
             return;
         }
         if (! config.isLazyInit()) {
@@ -208,8 +213,12 @@ public class Hqcp implements HqcpMBean {
         }
 
         if (config.getJmxLevel() > 0) {
-            JMXUtil.register(this.getClass().getPackage().getName() + ":type=pool-" + poolName, this);
-            JMXUtil.register(this.getClass().getPackage().getName() + ":type=pool-" + poolName + ",name=config", config);
+            try {
+                JMXUtil.register(this.getClass().getPackage().getName() + ":type=pool-" + poolName, this);
+                JMXUtil.register(this.getClass().getPackage().getName() + ":type=pool-" + poolName + ",name=config", config);
+            } catch (Exception e) {
+                LOGGER.warn("Failed to register JMX MBeans for pool " + poolName + ": " + e.getMessage());
+            }
         }
     }
 
@@ -230,7 +239,7 @@ public class Hqcp implements HqcpMBean {
             monitor.interrupt();
             try {
                 monitor.join();
-            } catch (InterruptedException e) {
+            } catch (InterruptedException ignored) {
             }
         }
         // 释放所有连接
@@ -277,15 +286,17 @@ public class Hqcp implements HqcpMBean {
             pc.unregisterJMX();
         }
         validConnectionsPool.clear();
-        JMXUtil.unregister(this.getClass().getPackage().getName() + ":type=pool-" + poolName);
-        JMXUtil.unregister(this.getClass().getPackage().getName() + ":type=pool-" + poolName + ",name=config");
+        try {
+            JMXUtil.unregister(this.getClass().getPackage().getName() + ":type=pool-" + poolName);
+            JMXUtil.unregister(this.getClass().getPackage().getName() + ":type=pool-" + poolName + ",name=config");
+        } catch (Exception ignored) {}
     }
 
     /**
      * 从池中poll连接 <br/>
      * <b>注意：autoCommit的值决定于transaction-mode的配置(transaction-mode默认false，即autoCommit默认true)</b>
-     * @return
-     * @throws java.sql.SQLException
+     * @return 包装的Connection
+     * @throws java.sql.SQLException SQLException
      */
     public Connection getConnection() throws SQLException {
         return getConnection(! config.isTransactionMode());
@@ -293,9 +304,9 @@ public class Hqcp implements HqcpMBean {
 
     /**
      * 从池中poll连接
-     * @param autoCommit
-     * @return
-     * @throws java.sql.SQLException
+     * @param autoCommit autoCommit
+     * @return 包装的Connection
+     * @throws java.sql.SQLException SQLException
      */
     public Connection getConnection(boolean autoCommit) throws SQLException {
         if (shutdown.get()) {
@@ -350,18 +361,10 @@ public class Hqcp implements HqcpMBean {
     }
 
     /**
-     * Return poolName.
-     * @return poolName
-     */
-    public String getPoolName() {
-        return poolName;
-    }
-
-    /**
      * new one pooled connection
-     * @param directReturn
-     * @return connId
-     * @throws SQLException
+     * @param directReturn true - 直接返回ConnectionId，false - 入池，返回null
+     * @return ConnectionId
+     * @throws SQLException SQLException
      */
     private Integer newConnection(boolean directReturn) throws SQLException {
         // 尝试获取Semaphore许可，如果失败表示已达最大连接数，直接返回null
@@ -369,7 +372,7 @@ public class Hqcp implements HqcpMBean {
             return null;
         }
         //当前连接数 < 最大连接数，则创建连接
-        Integer connId = connectionNo.getAndIncrement();
+        int connId = connectionNo.getAndIncrement();
         try {
             PooledConnection pconn;
             if (config.isOracle()) {
@@ -403,7 +406,7 @@ public class Hqcp implements HqcpMBean {
 
     /**
      * destroy the pooled connection
-     * @param pc
+     * @param pc PooledConnection
      * @param isIdleConn <br/>
      *      true  - the connection is idle connection, which must be at the bottom of the pool stack, else stop removing <br/>
      *      false - the connection is waiting for checkin, which ignoring if it is at the bottom of the pool stack
@@ -479,7 +482,7 @@ public class Hqcp implements HqcpMBean {
                 } catch (SQLException e) {
                     try {
                         unclosedConnection.connection.rollback();
-                    } catch (SQLException ignr) {}
+                    } catch (SQLException ignored) {}
                     unclosedConnection.connection.close();
                 }
                 LOGGER.info(unclosedConnection.connectionName, " finally be closed!");
@@ -506,7 +509,7 @@ public class Hqcp implements HqcpMBean {
     }
 
     private class CPMonitor extends Thread {
-        private ExecutorService executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {
+        private final ExecutorService executorService = Executors.newSingleThreadExecutor(new ThreadFactory() {
             @Override
             public Thread newThread(Runnable r) {
                 return new Thread(Thread.currentThread().getThreadGroup(), r,
@@ -522,7 +525,7 @@ public class Hqcp implements HqcpMBean {
          *  1、关闭超过minConnections设置的空闲连接
          *  2、对空闲的连接进行存活检测
          * @return 下次检查的时间间隔(ms)（根据保留的堆栈底部的连接的最后check时间计算得出）
-         * @throws InterruptedException
+         * @throws InterruptedException InterruptedException
          */
         private long idleConnectionCheckOrClose() throws InterruptedException {
             long timeToNextCheck = config.getIdleTimeoutMillisec();
@@ -663,7 +666,7 @@ public class Hqcp implements HqcpMBean {
                     executorService.shutdownNow();
                     executorService.awaitTermination(1, TimeUnit.SECONDS);
                 }
-            } catch (InterruptedException ignr) {
+            } catch (InterruptedException ignore) {
                 executorService.shutdownNow();
             }
             LOGGER.info(getName(), " quit!");
@@ -735,9 +738,9 @@ public class Hqcp implements HqcpMBean {
         /**
          * 等待请求更多(连接)
          * @param timeout 最长的等待时间
-         * @param unit
+         * @param unit    时间单位
          * @return 剩余的等待时间(ns)
-         * @throws InterruptedException
+         * @throws InterruptedException InterruptedException
          */
         public long awaitRequireMore(long timeout, TimeUnit unit) throws InterruptedException {
             operLock.lockInterruptibly();
@@ -756,9 +759,10 @@ public class Hqcp implements HqcpMBean {
 
         /**
          * 等待直到非空
-         * @param timeout
-         * @param unit
-         * @return
+         * @param timeout 最长的等待时间
+         * @param unit    时间单位
+         * @return        {@code false} if the waiting time detectably elapsed
+         *                before return from the method, else {@code true}
          */
         public boolean awaitNotEmpty(long timeout, TimeUnit unit) {
             try {
@@ -848,14 +852,6 @@ public class Hqcp implements HqcpMBean {
         return idleConnectionsId.size();
     }
 
-    public HqcpConfig getConfig() {
-        return config;
-    }
-
-    public int getPoolId() {
-        return poolId;
-    }
-
     public void setPoolName(String poolName) {
         if (! this.config.isLoadFromProperties()) {
             this.poolName = poolName;
@@ -863,10 +859,6 @@ public class Hqcp implements HqcpMBean {
                 this.monitor.setName("CPM:" + poolName);
             }
         }
-    }
-
-    public SqlMasker getSqlMasker() {
-        return sqlMasker;
     }
 
 }

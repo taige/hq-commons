@@ -794,7 +794,7 @@ public class PooledConnectionTest {
         control.replay();
 
         PooledConnection pooledConnection = new PooledConnection(mockPool, 1);
-        Connection proxy = pooledConnection.getProxy();
+        Connection proxy = pooledConnection.checkOut(true);
         assertNotNull(proxy);
         assertTrue(Proxy.isProxyClass(proxy.getClass()));
 
@@ -1163,8 +1163,8 @@ public class PooledConnectionTest {
 
         PooledConnection pooledConnection = new PooledConnection(mockPool, 1);
 
-        // Not checked out - should be considered closed
-        assertTrue(pooledConnection.getProxy().isClosed());
+        // Not checked out - should be considered closed -> not checked out, proxy is null
+        assertNull(pooledConnection.getProxy());
 
         Connection proxy = pooledConnection.checkOut(true);
 
@@ -1403,7 +1403,7 @@ public class PooledConnectionTest {
         PooledConnection pooledConnection = new PooledConnection(mockPool, 1);
 
         // checkIn without checkout should return immediately
-        Connection proxy = pooledConnection.getProxy();
+        Connection proxy = pooledConnection.checkOut(true);
         proxy.close(); // This calls checkIn, but connection is not checked out
 
         // No exception should be thrown and no pool.checkIn should be called

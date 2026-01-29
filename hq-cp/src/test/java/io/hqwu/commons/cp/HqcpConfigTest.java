@@ -137,7 +137,7 @@ public class HqcpConfigTest {
     public void testLoadDriverFail() throws Exception {
         config.setDriverClassName("some.unknow.driver");
 //        config.setConnUrl(MockConstant.MOCK_URL);
-        config.setUrl(MockConstant.MOCK_URL);
+        config.setUrl("jdbc:unknow:");
 
         try {
             Hqcp cp = new Hqcp(config);

@@ -1,5 +1,7 @@
 package io.hqwu.commons.cp;
 
+import lombok.Setter;
+
 import javax.naming.Context;
 import javax.naming.Name;
 import javax.naming.RefAddr;
@@ -27,6 +29,7 @@ import java.util.logging.Logger;
  */
 public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFactory {
 
+    @Setter
     private boolean initOnStartup = false;
 
     private volatile Hqcp pool = null;
@@ -114,10 +117,6 @@ public class HqcpDataSource extends HqcpConfig implements DataSource, ObjectFact
                 }
             }
         }
-    }
-
-    public void setInitOnStartup(boolean initOnStartup) {
-        this.initOnStartup = initOnStartup;
     }
 
     private void maybeInit() throws SQLException {

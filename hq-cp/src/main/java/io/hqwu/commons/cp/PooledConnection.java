@@ -5,6 +5,9 @@ import io.hqwu.commons.util.ExceptionUtil;
 import io.hqwu.commons.util.Formatter;
 import io.hqwu.commons.util.JMXUtil;
 import io.hqwu.commons.util.Logger;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import org.apache.commons.lang3.ArrayUtils;
 
 import java.lang.reflect.InvocationHandler;
@@ -35,25 +38,28 @@ import java.util.stream.Collectors;
  * @author wuhq, zhangyao, shenjl
  * @since 2011-09-02
  */
-public class PooledConnection implements InvocationHandler, PooledConnectionMBean {
+public class PooledConnection implements PooledConnectionMBean {
     private static final Logger log = new Logger();
 
     /**
      * 连接编号
      */
-    private AtomicInteger statementNo = new AtomicInteger(0);
+    private final AtomicInteger statementNo = new AtomicInteger(0);
 
     /**
      * 归属连接池
      */
+    @Getter
     private final Hqcp connectionPool;
     /**
      * 连接Id
      */
+    @Getter
     private final int connectionId;
     /**
      * 连接名称
      */
+    @Getter
     private final String connectionName;
 
     /**
@@ -63,15 +69,16 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     /**
      * 真实的数据库连接
      */
-    private Connection real_connection;
+    private volatile Connection real_connection;
 
     /**
      * 是否检出（使用中）
      */
-    private AtomicBoolean checkOut = new AtomicBoolean(false);
+    private final AtomicBoolean checkOut = new AtomicBoolean(false);
     /**
      * 检入时间
      */
+    @Getter
     private long timeCheckIn = System.currentTimeMillis();
     /**
      * 检出时间
@@ -80,20 +87,21 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     /**
      * 检出线程
      */
+    @Getter
     private Thread threadCheckOut;
 
     /**
      * 当前缓存的语句数
      */
-    private AtomicInteger validStatementNum = new AtomicInteger(0);
+    private final AtomicInteger validStatementNum = new AtomicInteger(0);
     /**
      * 空闲语句
      */
-    private LinkedBlockingQueue<PooledStatement> idleStatementsPool;
+    private final LinkedBlockingQueue<PooledStatement> idleStatementsPool;
     /**
      * 使用中语句
      */
-    private ConcurrentHashMap<Integer, PooledStatement> activeStatementsPool;
+    private final ConcurrentHashMap<Integer, PooledStatement> activeStatementsPool;
     /**
      * 可用的预编译语句
      */
@@ -101,18 +109,13 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     /**
      * 连接是否关闭
      */
-    private AtomicBoolean closed = new AtomicBoolean(true);
+    private final AtomicBoolean closed = new AtomicBoolean(true);
     /**
      * 在调用代理的close时是否关闭物理链接
      */
+    @Getter
+    @Setter
     private boolean fatalExceptionHappened;
-
-    public void setFatalExceptionHappened(boolean fatalExceptionHappened) {
-        this.fatalExceptionHappened = fatalExceptionHappened;
-    }
-    public boolean isFatalExceptionHappened() {
-        return this.fatalExceptionHappened;
-    }
 
     /**
      * 操作锁
@@ -126,15 +129,16 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     /**
      * 连接建立时间
      */
+    @Getter
     private long timeConnected;
 
     protected PooledConnection(Hqcp pool, int connId) throws SQLException {
         connectionPool = pool;
         connectionId = connId;
         connectionName = pool.getPoolName() + "#" + connId;
-        idleStatementsPool = new LinkedBlockingQueue<PooledStatement>(connectionPool.getConfig().getMaxStatements());
-        activeStatementsPool = new ConcurrentHashMap<Integer, PooledStatement>(connectionPool.getConfig().getMaxStatements());
-        validPreStatementsPool = new LinkedHashMap<String, PooledPreparedStatement>(connectionPool.getConfig().getMaxPreStatements()+1, 0.75f, true) {
+        idleStatementsPool = new LinkedBlockingQueue<>(connectionPool.getConfig().getMaxStatements());
+        activeStatementsPool = new ConcurrentHashMap<>(connectionPool.getConfig().getMaxStatements());
+        validPreStatementsPool = new LinkedHashMap<>(connectionPool.getConfig().getMaxPreStatements()+1, 0.75f, true) {
             private static final long serialVersionUID = -5350521942562100031L;
             protected boolean removeEldestEntry(Map.Entry<String, PooledPreparedStatement> eldest) {
                 if (size() > connectionPool.getConfig().getMaxPreStatements()) {
@@ -149,9 +153,14 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
              }
         };
         makeRealConnection();
-        connection = buildProxy();
+        // FIX 连接归还后未屏蔽操作，改为每次创建proxy
+        // connection = buildProxy();
         if (pool.getConfig().getJmxLevel() > 1) {
-            JMXUtil.register(this.getClass().getPackage().getName() + ":type=pool-" + pool.getPoolName() + ",name=" + getConnectionName(), this);
+            try {
+                JMXUtil.register(this.getClass().getPackage().getName() + ":type=pool-" + pool.getPoolName() + ",name=" + getConnectionName(), this);
+            } catch (Exception e) {
+                log.warn("Failed to register JMX MBeans for connection {}: {}", getConnectionName(), e.getMessage());
+            }
         }
     }
 
@@ -208,9 +217,11 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     }
 
     /**
-     * 是否是致命的异常，如果是，则需要重建连接
-     * @param sqle
-     * @return
+     * 判断是否为致命异常。
+     * <p>致命异常通常意味着物理连接已失效，需要丢弃并重建连接。</p>
+     *
+     * @param sqle 捕获到的 SQL 异常
+     * @return 如果是致命异常返回 {@code true}，否则返回 {@code false}
      */
     public boolean isFatalException(SQLException sqle) {
         if (sqle instanceof SQLRecoverableException) {
@@ -220,7 +231,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
         String sqls = sqle.getSQLState();
         if (sqls == null || sqls.startsWith("08")) { // Connection Exception
-            log.debug("consider fetal exception because sqlState: %s", sqls);
+            log.debugf("consider fetal exception because sqlState: %s", sqls);
             return true;
         }
 
@@ -235,7 +246,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
         char firstChar = sqls.charAt(0);
         if (firstChar >= '5' && firstChar <='9') {
-            log.debug("consider fetal exception because sqlState[5-9]: %s", sqls);
+            log.debugf("consider fetal exception because sqlState[5-9]: %s", sqls);
             return true;
         }
         return false;
@@ -264,6 +275,10 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
             if (closed.get()) {
                 makeRealConnection();
             }
+
+            // FIX 连接归还后未屏蔽操作，每次checkOut创建新的proxy
+            this.connection = buildProxy();
+
             //20121119 zhangyao 使用代理的connect，以便自动重连
             if (autoCommit != this.autoCommit) {
                 connection.setAutoCommit(autoCommit);//
@@ -286,96 +301,127 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     }
 
     private Connection buildProxy() {
-        return (Connection) Proxy.newProxyInstance(real_connection.getClass().getClassLoader(), new Class[]{Connection.class}, this);
+        return (Connection) Proxy.newProxyInstance(real_connection.getClass().getClassLoader(), new Class[]{Connection.class}, new ConnectionHandler(this));
     }
 
     public String toString() {
         return connectionName + "{" + real_connection + "}";
     }
 
-    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        String mname = method.getName();
-        if (mname.equals("toString") && args == null) {
-            return toString();
+    @RequiredArgsConstructor
+    static class ConnectionHandler implements InvocationHandler {
+        private final PooledConnection pooledConnection;
+        private boolean closed = false;
+
+        public void setClosed() {
+            closed = true;
         }
-        if (closed.get() && !mname.equals("close") && !mname.equals("isClosed")) {
-            makeRealConnection();
+
+        @Override
+        public String toString() {
+            return pooledConnection.toString();
         }
-        try {
-            return _invoke(proxy, method, args);
-        } catch (SQLException e) {
-            if (recover(e)) {
-                //连接异常，并且重连成功
-                if (autoCommit) {
-                    //非事务模式，则重新尝试调用
-                    return _invoke(proxy, method, args);
-                }
-                //事务模式，则抛出异常
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            String mname = method.getName();
+            if (mname.equals("toString") && args == null) {
+                return toString();
             }
-            throw e;
+            // FIX 连接归还后未屏蔽操作
+            if (closed && !mname.equals("close") && !mname.equals("isClosed")) {
+                throw new SQLException("Connection " + pooledConnection.getConnectionName() + " has been closed", "08003");
+            }
+            if (pooledConnection.isClosed() && !mname.equals("close") && !mname.equals("isClosed")) {
+                pooledConnection.makeRealConnection();
+            }
+            try {
+                return pooledConnection._invoke(proxy, method, args, this);
+            } catch (SQLException e) {
+                if (pooledConnection.recover(e)) {
+                    //连接异常，并且重连成功
+                    if (pooledConnection.autoCommit) {
+                        //非事务模式，则重新尝试调用
+                        return pooledConnection._invoke(proxy, method, args, this);
+                    }
+                    //事务模式，则抛出异常
+                }
+                throw e;
+            }
         }
+
     }
 
-    @SuppressWarnings("unchecked")
-    private Object _invoke(Object proxy, Method method, Object[] args) throws Throwable {
+    private Object _invoke(Object proxy, Method method, Object[] args, ConnectionHandler handler) throws Throwable {
         long invokeStart = System.nanoTime();
         Object ret = null;
         String mname = method.getName();
         try {
-            if (mname.equals("close")) {
-                checkIn();
-                if (isFatalExceptionHappened()) {//Statement执行发生错误，需要关闭物理链接，shenjl
-                    close();
+            switch (mname) {
+                case "close" -> {
+                    checkIn();
+                    handler.setClosed();
+                    if (isFatalExceptionHappened()) { //Statement执行发生错误，需要关闭物理链接，shenjl
+                        close();
+                    }
+                    if (isPrintSQL() || isVerbose()) {
+                        log.debug(connectionName, ".close()[", isFatalExceptionHappened(), "] use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                    }
                 }
-                if (isPrintSQL() || isVerbose()) {
-                    log.debug(connectionName, ".close()[" , isFatalExceptionHappened() ,"] use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                case "createStatement" -> {
+                    ret = createStatement(method, args);
+                    if (isVerbose()) {
+                        log.trace(connectionName, ".", mname, "(...) use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                    }
                 }
-            } else if (mname.equals("createStatement")) {
-                ret = createStatement(method, args);
-                if (isVerbose()) {
-                    log.trace(connectionName, ".", mname, "(...) use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                case "prepareStatement" -> {
+                    ret = prepareStatement(method, args);
+                    if (isVerbose()) {
+                        log.trace(connectionName, ".", mname, "(...) use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                    }
                 }
-            } else if (mname.equals("prepareStatement")) {
-                ret = prepareStatement(method, args);
-                if (isVerbose()) {
-                    log.trace(connectionName, ".", mname, "(...) use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                case "prepareCall" -> {
+                    ret = prepareCall(method, args);
+                    if (isVerbose()) {
+                        log.trace(connectionName, ".", mname, "(...) use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                    }
                 }
-            } else if (mname.equals("prepareCall")) {
-                ret = prepareCall(method, args);
-                if (isVerbose()) {
-                    log.trace(connectionName, ".", mname, "(...) use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
-                }
-            } else if (mname.equals("commit") || mname.equals("rollback")) {
-                ret = method.invoke(real_connection, args);
-                dirty = false;
-                if (isVerbose()) {
-                    log.debug(connectionName, ".", mname, "() use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
-                }
-            } else if (mname.equals("setAutoCommit")) {
-                ret = method.invoke(real_connection, args);
-                this.autoCommit = real_connection.getAutoCommit();
-                if (isVerbose()) {
-                    log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
-                }
-            } else if (mname.equals("isWrapperFor")) {
-                ret = JdbcUtil.isWrapperFor((Class<?>) args[0], this, proxy, real_connection);
-                if (isVerbose()) {
-                    log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
-                }
-            } else if (mname.equals("unwrap")) {
-                ret = JdbcUtil.unwrap((Class<?>) args[0], this, proxy, real_connection);
-                if (isVerbose()) {
-                    log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
-                }
-            } else {
-                if (mname.equals("isClosed")) {
-                    // 如果未检出(!isCheckOut)，或内部已标记关闭，或物理连接已关闭，则返回 true
-                    ret = !isCheckOut() || closed.get() || (real_connection != null && real_connection.isClosed());
-                } else {
+                case "commit", "rollback" -> {
                     ret = method.invoke(real_connection, args);
+                    dirty = false;
+                    if (isVerbose()) {
+                        log.debug(connectionName, ".", mname, "() use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                    }
                 }
-                if (isVerbose()) {
-                    log.trace(connectionName, ".", mname, "(...) use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                case "setAutoCommit" -> {
+                    ret = method.invoke(real_connection, args);
+                    this.autoCommit = real_connection.getAutoCommit();
+                    if (isVerbose()) {
+                        log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                    }
+                }
+                case "isWrapperFor" -> {
+                    ret = JdbcUtil.isWrapperFor((Class<?>) args[0], handler, real_connection, proxy, this);
+                    if (isVerbose()) {
+                        log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                    }
+                }
+                case "unwrap" -> {
+                    ret = JdbcUtil.unwrap((Class<?>) args[0], handler, real_connection, proxy, this);
+                    if (isVerbose()) {
+                        log.debug(connectionName, ".", mname, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                    }
+                }
+                default -> {
+                    if (mname.equals("isClosed")) {
+                        // 如果未检出(!isCheckOut)，或内部已标记关闭，或物理连接已关闭，则返回 true
+                        ret = !isCheckOut() || closed.get() || (real_connection != null && real_connection.isClosed());
+                    } else {
+                        ret = method.invoke(real_connection, args);
+                    }
+                    if (isVerbose()) {
+                        log.trace(connectionName, ".", mname, "(...) use ", Formatter.formatNS(System.nanoTime() - invokeStart), " ns");
+                    }
                 }
             }
         } catch (Throwable t) {
@@ -386,12 +432,13 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     /**
      * 回收连接
-     * @throws SQLException
+     * @throws SQLException SQL 异常
      */
     protected void checkIn() throws SQLException {
         if (! checkOut.getAndSet(false)) {
             return;
         }
+        this.connection = null;
         timeCheckIn = System.currentTimeMillis();
         //if (! real_connection.getAutoCommit() && dirty) {
         if (! autoCommit && dirty) {
@@ -430,8 +477,6 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         if (args == null) {
             //没有参数的createStatement才试图从池中获取取
             pstmt = idleStatementsPool.poll();
-//        } else {
-//            return (Statement) method.invoke(real_connection, args);
         }
         if (pstmt == null) {
             //没有空闲连接
@@ -465,9 +510,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         synchronized (validPreStatementsPool) {
             if (args.length == 1) {
                 //没有额外参数的prepareStatement才试图从池中获取取
-                ppstmt = validPreStatementsPool.get(args[0]);
-//            } else {
-//                return (PreparedStatement) method.invoke(real_connection, args);
+                ppstmt = validPreStatementsPool.get((String) args[0]);
             }
             if (ppstmt == null) {
                 long invokeStart = System.nanoTime();
@@ -509,9 +552,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
         PooledCallableStatement pcstmt = null;
         synchronized (validPreStatementsPool) {
             if (args.length == 1) {
-                pcstmt = (PooledCallableStatement) validPreStatementsPool.get(args[0]);
-//            } else {
-//                return (CallableStatement) method.invoke(real_connection, args);
+                pcstmt = (PooledCallableStatement) validPreStatementsPool.get((String) args[0]);
             }
             if (pcstmt == null) {
                 long invokeStart = System.nanoTime();
@@ -538,7 +579,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     /**
      * 回收statement
-     * @param pstmt
+     * @param pstmt PooledStatement
      */
     public void checkIn(PooledStatement pstmt) {
         activeStatementsPool.remove(pstmt.getStatementId());
@@ -554,7 +595,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     /**
      * 回收PreparedStatement，与回收statement分开调用
-     * @param ppstmt
+     * @param ppstmt PooledPreparedStatement
      */
     public void checkIn(PooledPreparedStatement ppstmt) {
         activeStatementsPool.remove(ppstmt.getStatementId());
@@ -594,7 +635,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
             if (closed.get()) {
                 makeRealConnection();
             }
-            stmt = connection.createStatement();
+            stmt = buildProxy().createStatement();
 //            int to = stmt.getQueryTimeout();
 //            stmt.setQueryTimeout((int) connectionPool.getConfig().getIdleTimeoutSec());
             rs = stmt.executeQuery(checkStmt);
@@ -641,7 +682,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
                 log.info("close real_connection[", connectionName, "] error: ", e);
                 try {
                     real_connection.rollback();
-                } catch (SQLException ignr) {}
+                } catch (SQLException ignored) {}
                 real_connection.close();
             }
             log.info(connectionName, " real closed.");
@@ -656,32 +697,8 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
              if (connectionPool.getConfig().getJmxLevel() > 1) {
                  JMXUtil.unregister(this.getClass().getPackage().getName() + ":type=pool-" + connectionPool.getPoolName() + ",name=" + getConnectionName());
              }
-         } catch (Exception ignore) {}
+         } catch (Exception ignored) {}
      }
-
-    /**
-     * Return connectionId.
-     * @return connectionId
-     */
-    public int getConnectionId() {
-        return connectionId;
-    }
-
-    /**
-     * Return connectionPool.
-     * @return connectionPool
-     */
-    public Hqcp getConnectionPool() {
-        return connectionPool;
-    }
-
-    /**
-     * Return connectionName.
-     * @return connectionName
-     */
-    public String getConnectionName() {
-        return connectionName;
-    }
 
     /**
      * Return checkOut.
@@ -697,30 +714,6 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
 
     public boolean isPrintSQL() {
         return connectionPool.getConfig().isPrintSql();
-    }
-
-    /**
-     * Return timeCheckIn.
-     * @return timeCheckIn
-     */
-    public long getTimeCheckIn() {
-        return timeCheckIn;
-    }
-
-    /**
-     * Return connection connected time.
-     * @return
-     */
-    public long getTimeConnected() {
-        return timeConnected;
-    }
-
-    /**
-     * Return threadCheckOut.
-     * @return threadCheckOut
-     */
-    public Thread getThreadCheckOut() {
-        return threadCheckOut;
     }
 
     /**
@@ -743,7 +736,7 @@ public class PooledConnection implements InvocationHandler, PooledConnectionMBea
     }
 
     public String[] getCachedPreStatementsSQLs() {
-        return validPreStatementsPool.keySet().toArray(new String[validPreStatementsPool.size()]);
+        return validPreStatementsPool.keySet().toArray(String[]::new);
     }
 
     public String getCheckOutThreadName() {

@@ -5,6 +5,7 @@ import io.hqwu.commons.util.Logger;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
 import java.util.Objects;
 import java.util.StringTokenizer;
@@ -20,22 +21,28 @@ import java.util.StringTokenizer;
 public class JdbcUtil {
     private static final Logger LOGGER = new Logger();
 
-    public final static String CRLF = System.getProperty("line.separator");
+    public final static String CRLF = System.lineSeparator();
 
-    public static boolean isWrapperFor(Class<?> iface, InvocationHandler handler, Object proxy, Wrapper wrapper) throws SQLException {
+    public static boolean isWrapperFor(Class<?> iface, InvocationHandler handler, Wrapper wrapper, Object... proxies) throws SQLException {
         if (iface == null) {
             return false;
         }
+        for (Object proxy: proxies) {
+            if (iface.isInstance(proxy)) {
+                return true;
+            }
+        }
         return iface.isInstance(handler)
-                || iface.isInstance(proxy)
                 || wrapper.isWrapperFor(iface);
     }
 
-    public static <T> T unwrap(Class<T> iface, InvocationHandler handler, Object proxy, Wrapper wrapper) throws SQLException {
+    public static <T> T unwrap(Class<T> iface, InvocationHandler handler, Wrapper wrapper, Object... proxies) throws SQLException {
         Objects.requireNonNull(iface);
         // 1. 如果要的是 Connection 接口，返回 Proxy 自身
-        if (iface.isInstance(proxy)) {
-            return iface.cast(proxy);
+        for (Object proxy : proxies) {
+            if (iface.isInstance(proxy)) {
+                return iface.cast(proxy);
+            }
         }
         // 2. 如果要的是 Handler 类型，返回 this
         if (iface.isInstance(handler)) {
@@ -69,10 +76,8 @@ public class JdbcUtil {
         }
 
         try {
-            return (Driver) clazz.newInstance();
-        } catch (IllegalAccessException e) {
-            throw new SQLException(e.getMessage(), e);
-        } catch (InstantiationException e) {
+            return (Driver) clazz.getDeclaredConstructor().newInstance();
+        } catch (IllegalAccessException | InstantiationException | NoSuchMethodException | InvocationTargetException e) {
             throw new SQLException(e.getMessage(), e);
         }
     }
@@ -128,8 +133,7 @@ public class JdbcUtil {
         }
         String str1 = replace(lines, "\r\n", replacement);
         String str2 = replace(str1, "\r", replacement);
-        String str3 = replace(str2, "\n", replacement);
-        return str3;
+        return replace(str2, "\n", replacement);
     }
 
     //以下方法copy from org.apache.commons.lang3.StringUtils，为了让Hqcp减少依赖
@@ -149,11 +153,11 @@ public class JdbcUtil {
         }
         int replLength = searchString.length();
         int increase = replacement.length() - replLength;
-        increase = increase < 0 ? 0 : increase;
-        increase *= max < 0 ? 16 : max > 64 ? 64 : max;
+        increase = Math.max(increase, 0);
+        increase *= max < 0 ? 16 : Math.min(max, 64);
         StringBuilder buf = new StringBuilder(text.length() + increase);
         while (end != -1) {
-            buf.append(text.substring(start, end)).append(replacement);
+            buf.append(text, start, end).append(replacement);
             start = end + replLength;
             if (--max == 0) {
                 break;
@@ -165,7 +169,7 @@ public class JdbcUtil {
     }
 
     public static boolean isEmpty(CharSequence cs) {
-        return cs == null || cs.length() == 0;
+        return cs == null || cs.isEmpty();
     }
 
 }

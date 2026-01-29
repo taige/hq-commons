@@ -220,9 +220,8 @@ public class SqlMasker {
         @Override
         public void visit(Insert insert) {
             Select select = insert.getSelect();
-            if (select instanceof Values) {
+            if (select instanceof Values values) {
                 List<Column> columns = insert.getColumns();
-                Values values = (Values) select;
                 for (int i = 0; i < columns.size(); i++) {
                     Column column = columns.get(i);
                     ExpressionList<? extends Expression> expressions = values.getExpressions();
@@ -231,11 +230,9 @@ public class SqlMasker {
                         maskFieldValueIfSensitive(column, expressions.get(i));
                         continue;
                     }
-                    for (int j = 0; j < expressions.size(); j++) {
-                        Expression expression = expressions.get(j);
-                        if (expression instanceof ExpressionList) {
+                    for (Expression expression : expressions) {
+                        if (expression instanceof ExpressionList<? extends Expression> valueList) {
                             // 2.1 多行INSERT语句，INSERT ... VALUES (1, '2', '3'), (4, '5', '6')
-                            ExpressionList<? extends Expression> valueList = (ExpressionList<? extends Expression>) expression;
                             maskFieldValueIfSensitive(column, valueList.get(i));
                         } else {
                             // 1.2 INSERT (column1) VALUES ('2')
@@ -263,7 +260,7 @@ public class SqlMasker {
 
         /**
          * 处理 UPDATE SET 语句
-         * @param updateSets
+         * @param updateSets updateSets
          */
         private void maskUpdateSets(List<UpdateSet> updateSets) {
             if (updateSets == null || updateSets.isEmpty()) {
@@ -295,8 +292,8 @@ public class SqlMasker {
 
         /**
          * 处理 CASE 表达式
-         * @param column
-         * @param caseExpr
+         * @param column   column
+         * @param caseExpr CaseExpression
          */
         private void maskCaseExpression(Column column, CaseExpression caseExpr) {
             Column switchColumn = null;
@@ -326,8 +323,8 @@ public class SqlMasker {
 
         /**
          * 处理 JOIN 和 WHERE 条件中的敏感字段
-         * @param joinsProvider
-         * @param whereProvider
+         * @param joinsProvider JoinsProvider
+         * @param whereProvider WhereProvider
          */
         private void maskJoinsAndWhere(JoinsProvider joinsProvider, WhereProvider whereProvider) {
             if (joinsProvider.getJoins() != null) {
@@ -346,8 +343,8 @@ public class SqlMasker {
 
     /**
      * mask expression if it is a sensitive field
-     * @param column
-     * @param expression
+     * @param column     Column
+     * @param expression Expression
      */
     private void maskExpressionIfSensitive(Column column, Expression expression) {
         if (expression instanceof Select) {
@@ -364,7 +361,7 @@ public class SqlMasker {
 
         /**
          * 单一的 SELECT 查询，通常包含 SELECT 子句、FROM 子句、WHERE 子句、GROUP BY、HAVING、ORDER BY 等部分
-         * @param plainSelect
+         * @param plainSelect PlainSelect
          */
         @Override
         public void visit(PlainSelect plainSelect) {
@@ -376,8 +373,7 @@ public class SqlMasker {
                     ((ParenthesedSelect) selectItem).accept(this);
                 });
             // 2. SELECT * FROM (SELECT ... )
-            if (plainSelect.getFromItem() instanceof ParenthesedSelect) {
-                ParenthesedSelect parenthesedSelect = (ParenthesedSelect) plainSelect.getFromItem();
+            if (plainSelect.getFromItem() instanceof ParenthesedSelect parenthesedSelect) {
                 parenthesedSelect.getSelect().accept(this);
             }
             // 3. SELECT * FROM ... JOIN ...
@@ -401,7 +397,7 @@ public class SqlMasker {
 
         /**
          * 4. 被括号包裹的 SELECT 查询，例如作为子查询或在 UNION 操作中
-         * @param parenthesedSelect
+         * @param parenthesedSelect ParenthesedSelect
          */
         @Override
         public void visit(ParenthesedSelect parenthesedSelect) {
@@ -410,7 +406,7 @@ public class SqlMasker {
 
         /**
          * 5. 多个 SELECT 查询通过集合操作（如 UNION、INTERSECT、EXCEPT 等）连接而成的组合查询
-         * @param setOpList
+         * @param setOpList SetOperationList
          */
         @Override
         public void visit(SetOperationList setOpList) {
@@ -422,7 +418,7 @@ public class SqlMasker {
         /**
          * 6. SQL 中 LATERAL 关键字引入的子查询，例如： <br/>
          *     SELECT * FROM t1, LATERAL (SELECT * FROM t2 WHERE t2.id = t1.id) AS t2 <br/>
-         * @param subSelect
+         * @param subSelect LateralSubSelect
          */
         @Override
         public void visit(LateralSubSelect subSelect) {
@@ -540,8 +536,8 @@ public class SqlMasker {
 
     /**
      * 如果左右两侧的表达式中任意一侧是敏感字段，则对敏感字段的值进行mask
-     * @param left
-     * @param right
+     * @param left  left Expression
+     * @param right right Expression
      */
     private void maskIfSensitive(Expression left, Expression right) {
         if (left instanceof Column) {
@@ -562,8 +558,8 @@ public class SqlMasker {
 
     /**
      * 判断字段名是否是敏感字段（不区分大小写，且支持部分匹配）
-     * @param lowerCaseFieldName
-     * @return
+     * @param lowerCaseFieldName 小写的字段名
+     * @return                   是否是敏感字段
      */
     private boolean isSensitiveField(String lowerCaseFieldName) {
         for (String field : sensitiveFields) {
@@ -595,8 +591,7 @@ public class SqlMasker {
             expr = ((Parenthesis) expr).getExpression();
         }
 
-        if (expr instanceof StringValue) {
-            StringValue stringValue = (StringValue) expr;
+        if (expr instanceof StringValue stringValue) {
             stringValue.setValue(escapeCharInLikeExpr != null
                     ? maskLikeValue(stringValue.getValue(), escapeCharInLikeExpr)
                     : maskSensitiveValue(stringValue.getValue()));
@@ -606,9 +601,9 @@ public class SqlMasker {
     /**
      * 保留首尾的通配符 % _ ，其余部分mask。 <br/>
      * 有转义字符的话，则被转义的% _连同转义字符本身都视为普通字符。
-     * @param likeValue
+     * @param likeValue LIKE操作符的右侧的值
      * @param escapeStr 转义字符 null或""表示没有转义字符，其他字符表示转义字符
-     * @return
+     * @return          脱敏后的值
      */
     String maskLikeValue(String likeValue, String escapeStr) {
         if (likeValue == null || likeValue.isEmpty()) {
@@ -719,9 +714,7 @@ public class SqlMasker {
         sb.append(value, 0, pLen);  // 前缀
 
         // 循环填充中间部分
-        for (int i = 0; i < midLen / pLen; i++) {
-            sb.append(maskPattern);
-        }
+        sb.append(maskPattern.repeat(Math.max(0, midLen / pLen)));
         if (midLen % pLen > 0) {
             sb.append(maskPattern, 0, midLen % pLen);
         }
