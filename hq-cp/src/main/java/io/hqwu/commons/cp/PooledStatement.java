@@ -232,9 +232,14 @@ public class PooledStatement implements InvocationHandler {
                 }
             } else if (methodDoing.equals("executeQuery") && args != null) {
                 sqlDoing = (String) args[0];
-                LoggableResultSet lrs = LoggableResultSet.newInstance(this, real_statement.executeQuery((String) args[0]));
-                ret = resultSet = lrs == null ? null : lrs.getResultSet();
-                printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", (lrs == null ? "rs=null" : "rs=#" + lrs.getRsId()), "]");
+                ResultSet rs = real_statement.executeQuery((String) args[0]);
+                if (isVerbose() || isPrintSQL()) {
+                    LoggableResultSet lrs = LoggableResultSet.newInstance(this, rs);
+                    ret = resultSet = lrs == null ? null : lrs.getResultSet();
+                    printSQL(LOGGER, methodDoing, (System.nanoTime() - start), "[", (lrs == null ? "rs=null" : "rs=#" + lrs.getRsId()), "]");
+                } else {
+                    ret = resultSet = rs;
+                }
             } else if (methodDoing.startsWith("execute") && args != null) {
                 sqlDoing = (String) args[0];
                 ret = method.invoke(real_statement, args);
@@ -289,9 +294,15 @@ public class PooledStatement implements InvocationHandler {
             // false if it is an update count or there are no results
             if ((Boolean) ret) {
                 updateCount = -1L;
-                LoggableResultSet lrs = LoggableResultSet.newInstance(this, real_statement.getResultSet());
-                resultSet = lrs == null ? null : lrs.getResultSet();
-                return lrs == null ? "rs=null" : "rs=#" + lrs.getRsId();
+                ResultSet rs = real_statement.getResultSet();
+                if (isVerbose() || isPrintSQL()) {
+                    LoggableResultSet lrs = LoggableResultSet.newInstance(this, rs);
+                    resultSet = lrs == null ? null : lrs.getResultSet();
+                    return lrs == null ? "rs=null" : "rs=#" + lrs.getRsId();
+                } else {
+                    resultSet = rs;
+                    return "rs";
+                }
             } else {
                 resultSet = null;
                 updateCount = (long) real_statement.getUpdateCount();

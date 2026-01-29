@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * @author wuhongqiang.taige
  * @since 1.17.0
  */
-class PooledConnectionHandlerTest {
+class PooledConnectionProxyTest {
 
     private Hqcp pool;
     private MockJDBCDriver driver;

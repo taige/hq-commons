@@ -157,6 +157,9 @@ class PooledStatementTest {
         expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
         expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
         expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+        
+        // FIX: Must enable verbose or printSQL to trigger ResultSet wrapping
+        expect(mockPooledConnection.isVerbose()).andReturn(true).anyTimes();
 
         // Execution expectations
         ResultSet realRs = createMock(ResultSet.class);
@@ -185,6 +188,38 @@ class PooledStatementTest {
 
         // 3. Close ResultSet
         wrappedRs.close();
+
+        verify(mockPooledConnection, mockRealStatement, realRs);
+    }
+
+    @Test
+    void testResultSetNotWrappedWhenVerboseDisabled() throws SQLException {
+        String sql = "SELECT * FROM test";
+
+        // Constructor expectations
+        expect(mockPooledConnection.getConnectionName()).andReturn("conn-1").anyTimes();
+        expect(mockRealStatement.getResultSetType()).andReturn(ResultSet.TYPE_FORWARD_ONLY).anyTimes();
+        expect(mockRealStatement.getResultSetConcurrency()).andReturn(ResultSet.CONCUR_READ_ONLY).anyTimes();
+
+        // Ensure verbose and printSQL are disabled
+        expect(mockPooledConnection.isVerbose()).andReturn(false).anyTimes();
+        expect(mockPooledConnection.isPrintSQL()).andReturn(false).anyTimes();
+
+        // Execution expectations
+        ResultSet realRs = createMock(ResultSet.class);
+        expect(mockRealStatement.executeQuery(sql)).andReturn(realRs);
+
+        // Replay
+        replay(mockPooledConnection, mockRealStatement, mockConfig, mockPool, realRs);
+
+        PooledStatement pooledStatement = new PooledStatement(mockPooledConnection, mockRealStatement, 1);
+        Statement proxy = pooledStatement.checkOut();
+
+        // Execute Query
+        ResultSet resultRs = proxy.executeQuery(sql);
+
+        // Verify that the returned ResultSet is the original one, not a proxy
+        assertSame(realRs, resultRs, "ResultSet should NOT be wrapped when verbose/printSQL is disabled");
 
         verify(mockPooledConnection, mockRealStatement, realRs);
     }
