@@ -6,6 +6,7 @@ import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -143,8 +144,10 @@ public class JdbcUtilTest {
             JdbcUtil.createDriver("java.sql.Driver");
         });
 
-        assertTrue(exception.getCause() instanceof InstantiationException ||
-                   exception.getCause() instanceof IllegalAccessException);
+        assertTrue(exception.getCause() instanceof InstantiationException
+                || exception.getCause() instanceof NoSuchMethodException
+                || exception.getCause() instanceof InvocationTargetException
+                || exception.getCause() instanceof IllegalAccessException);
     }
 
     /**

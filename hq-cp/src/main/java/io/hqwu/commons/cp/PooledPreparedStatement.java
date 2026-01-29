@@ -30,12 +30,11 @@ import java.sql.Statement;
  */
 public class PooledPreparedStatement extends PooledStatement {
     private static final Logger LOGGER = new Logger();
-    
-    private PreparedStatement pstmt;
-    private PreparedStatement real_pstmt;
+
+    private final PreparedStatement real_pstmt;
     
     private final String preparedSql;
-    private final Object paras[];
+    private final Object[] paras;
 
     private String sqlDoing;
 
@@ -61,8 +60,7 @@ public class PooledPreparedStatement extends PooledStatement {
 
     protected PreparedStatement buildProxy() {
         Statement stmt = getStatement();
-        pstmt = (PreparedStatement) Proxy.newProxyInstance(stmt.getClass().getClassLoader(), new Class[] {PreparedStatement.class}, this);
-        return pstmt;
+        return (PreparedStatement) Proxy.newProxyInstance(stmt.getClass().getClassLoader(), new Class[]{PreparedStatement.class}, this);
     }
 
     protected Object _invoke(Object proxy, Method method, Object[] args) throws Throwable {
@@ -127,8 +125,7 @@ public class PooledPreparedStatement extends PooledStatement {
         }
         StringBuilder sb = new StringBuilder(preparedSql.length() + paras.length * 16);
         int idx = 0;
-        for (int i = 0; i < paras.length; i++) {
-            Object p = paras[i];
+        for (Object p : paras) {
             int idxNext = preparedSql.indexOf("?", idx);
 //            if (p == null) {
 //                idx = idxNext+1;
@@ -140,12 +137,12 @@ public class PooledPreparedStatement extends PooledStatement {
             sb.append(preparedSql, idx, idxNext);
             if (p == null) {
                 sb.append("NULL");
-            } else if (ClassUtil.isPrimitiveOrWrapper(p.getClass()) && p.getClass() != char.class && p.getClass() != Character.class) {
+            } else if (ClassUtil.isPrimitiveOrWrapper(p.getClass()) && p.getClass() != Character.class) {
                 sb.append(p);
             } else {
                 sb.append('\'').append(p).append('\'');
             }
-            idx = idxNext+1;
+            idx = idxNext + 1;
         }
         sb.append(preparedSql.substring(idx));
         sqlDoing = sb.toString();

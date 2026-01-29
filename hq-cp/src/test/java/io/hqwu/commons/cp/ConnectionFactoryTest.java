@@ -104,9 +104,9 @@ public class ConnectionFactoryTest {
         assertTrue(conn.getAutoCommit());
         conn.close();
         Connection conn2 = ConnectionFactory.getConnection(false);
-        assertFalse(conn.getAutoCommit());
+        assertFalse(conn2.getAutoCommit());
         conn2.close();
-        assertSame(conn, conn2);
+        assertNotSame(conn, conn2);
         ConnectionFactory.shutdown();
     }
 

@@ -238,7 +238,7 @@ public class HqcpConfig implements HqcpConfigMBean {
     @Getter
     private boolean isOceanBase = false;
 
-    /**
+    /*
      * Indicates if oracle implicit preparedstatement cache needed.
      */
     // private boolean useOracleImplicitCache = true;
@@ -247,7 +247,7 @@ public class HqcpConfig implements HqcpConfigMBean {
      * connection properties on DriverManager.getConnection(url,info)<br/>
      * 用 & 分割属性
      */
-    private Properties connectionProperties = new Properties();
+    private final Properties connectionProperties = new Properties();
 
     /**
      * query timeout (seconds) <br/>
@@ -297,14 +297,13 @@ public class HqcpConfig implements HqcpConfigMBean {
     }
 
     public void setConnectionInfo(String connectionInfo) {
-        if (connectionInfo == null || connectionInfo.trim().length() == 0) {
+        if (StringUtil.isBlank(connectionInfo)) {
             return;
         }
 
         String[] entries = connectionInfo.split("&");
-        for (int i = 0; i < entries.length; i++) {
-            String entry = entries[i];
-            if (entry.length() > 0) {
+        for (String entry : entries) {
+            if (!entry.isEmpty()) {
                 int index = entry.indexOf('=');
                 if (index > 0) {
                     String name = entry.substring(0, index);
@@ -320,7 +319,7 @@ public class HqcpConfig implements HqcpConfigMBean {
 
     private void _setUrl(String url) {
         this.url = url;
-        if (this.url != null && this.url.trim().length() != 0) {
+        if (StringUtil.isNotBlank(this.url)) {
             String[] buf = this.url.split(":");
             if (buf.length < 2) {
                 return;
@@ -335,7 +334,7 @@ public class HqcpConfig implements HqcpConfigMBean {
             } else if (dbf.compareToIgnoreCase("oceanbase") == 0) {
                 isOceanBase = true;
             }
-            if (this.checkStatement == null || this.checkStatement.trim().length() == 0) {
+            if (StringUtil.isBlank(this.checkStatement)) {
                 //if checkStatement NOT be set, auto-set by url
                 if (isDB2) {
                     checkStatement = "values(current timestamp)";
@@ -345,7 +344,7 @@ public class HqcpConfig implements HqcpConfigMBean {
                     checkStatement = "select now()";
                 }
             }
-            if (this.driverClassName == null || this.driverClassName.trim().length() == 0) {
+            if (StringUtil.isNotBlank(this.driverClassName)) {
                 try {
                     java.sql.Driver driver = DriverManager.getDriver(url);
                     if (driver != null) {
@@ -372,7 +371,7 @@ public class HqcpConfig implements HqcpConfigMBean {
 
     public void setUsername(String username) {
         this.username = username;
-        if (username != null && username.trim().length() > 0) {
+        if (StringUtil.isNotBlank(username)) {
             this.connectionProperties.setProperty("user", username);
         }
     }
@@ -415,7 +414,7 @@ public class HqcpConfig implements HqcpConfigMBean {
             // Base64 解码后非加密数据，返回初始 password
         } catch (Exception e) {
             LOGGER.debug(e);
-            LOGGER.info("使用明文密码: ", e.getMessage());
+            LOGGER.info("使用明文密码: {}", e.getMessage());
         }
         return password;
     }
@@ -526,7 +525,7 @@ public class HqcpConfig implements HqcpConfigMBean {
     // }
 
     public void setPasswordKey(String passwordAesKey) {
-        if (passwordAesKey != null && passwordAesKey.length() > 0) {
+        if (StringUtil.isNotBlank(passwordAesKey)) {
             this.passwordKey = passwordAesKey;
         }
     }
@@ -597,12 +596,12 @@ public class HqcpConfig implements HqcpConfigMBean {
                 break;
             }
         }
-        if (pfile != null && pfile.exists()) {
+        if (pfile.exists()) {
             FileInputStream fis = null;
             try {
                 fis = new FileInputStream(pfile);
                 _prop.load(fis);
-            } catch (FileNotFoundException e) {
+            } catch (FileNotFoundException ignored) {
             } catch (IOException e) {
                 LOGGER.warn(e);
             } finally {

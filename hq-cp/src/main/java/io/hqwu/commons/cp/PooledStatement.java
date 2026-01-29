@@ -7,6 +7,7 @@ import io.hqwu.commons.cp.util.SqlMasker;
 import io.hqwu.commons.util.ExceptionUtil;
 import io.hqwu.commons.util.Formatter;
 import io.hqwu.commons.util.Logger;
+import lombok.Getter;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.InvocationHandler;
@@ -41,23 +42,26 @@ public class PooledStatement implements InvocationHandler {
      * 归属连接
      */
     private final PooledConnection pooledConnection;
+
     /**
      * 语句Id
      */
+    @Getter
     private final int statementId;
     /**
      * 语句名称
      */
+    @Getter
     private final String statementName;
     
     /**
      * 封装过的语句
      */
-    private Statement statement;
+    private final Statement statement;
     /**
      * 真实的语句
      */
-    private Statement real_statement;
+    private final Statement real_statement;
     
     /**
      * 是否检出（使用中）
@@ -66,6 +70,7 @@ public class PooledStatement implements InvocationHandler {
     /**
      * 检入时间
      */
+    @Getter
     private long timeCheckIn = System.currentTimeMillis();
     /**
      * 检出时间
@@ -79,7 +84,8 @@ public class PooledStatement implements InvocationHandler {
     /**
      * 是否默认的结果集类型
      */
-    protected boolean isDefaultResultSetType = true;
+    @Getter
+    protected boolean isDefaultResultSetType;
     /**
      * 语句打开的结果集
      */
@@ -93,7 +99,7 @@ public class PooledStatement implements InvocationHandler {
     /**
      * 连接是否关闭
      */
-    private AtomicBoolean closed = new AtomicBoolean(false);
+    private final AtomicBoolean closed = new AtomicBoolean(false);
     
     /**
      * 语句是否正在执行
@@ -114,12 +120,8 @@ public class PooledStatement implements InvocationHandler {
         statementId = stmtId;
         statementName = conn.getConnectionName() + ".STMT#" + stmtId;
         real_statement = stmt;
-        if (stmt.getResultSetType() == ResultSet.TYPE_FORWARD_ONLY
-                && stmt.getResultSetConcurrency() == ResultSet.CONCUR_READ_ONLY) {
-            isDefaultResultSetType = true;
-        } else {
-            isDefaultResultSetType = false;
-        }
+        isDefaultResultSetType = stmt.getResultSetType() == ResultSet.TYPE_FORWARD_ONLY
+                && stmt.getResultSetConcurrency() == ResultSet.CONCUR_READ_ONLY;
         statement = buildProxy();
     }
     
@@ -245,12 +247,12 @@ public class PooledStatement implements InvocationHandler {
                     LOGGER.debug(statementName, ".", methodDoing, "(...)", "[", ret4log, "] use ", Formatter.formatNS(System.nanoTime() - start), " ns");
                 }
             } else if (methodDoing.equals("isWrapperFor") && args != null) {
-                ret = JdbcUtil.isWrapperFor((Class<?>) args[0], this, proxy, real_statement);
+                ret = JdbcUtil.isWrapperFor((Class<?>) args[0], this, real_statement, proxy);
                 if (isVerbose()) {
                     LOGGER.debug(statementName, ".", methodDoing, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - start), " ns");
                 }
             } else if (methodDoing.equals("unwrap") && args != null) {
-                ret = JdbcUtil.unwrap((Class<?>) args[0], this, proxy, real_statement);
+                ret = JdbcUtil.unwrap((Class<?>) args[0], this, real_statement, proxy);
                 if (isVerbose()) {
                     LOGGER.debug(statementName, ".", methodDoing, "(", args[0], ") use ", Formatter.formatNS(System.nanoTime() - start), " ns");
                 }
@@ -319,10 +321,10 @@ public class PooledStatement implements InvocationHandler {
 
     /**
      * 根据执行时间，打印不同级别的SQL日志
-     * @param logger
-     * @param methodDoing
-     * @param usedNS
-     * @param infos
+     * @param logger 日志记录器
+     * @param methodDoing 执行的方法名
+     * @param usedNS 执行耗时（纳秒）
+     * @param infos 日志信息
      */
     protected void printSQL(Logger logger, String methodDoing, long usedNS, Object... infos) {
         if (! isPrintSQL()) {
@@ -373,14 +375,6 @@ public class PooledStatement implements InvocationHandler {
     }
 
     /**
-     * Return statementId.
-     * @return statementId
-     */
-    public int getStatementId() {
-        return statementId;
-    }
-
-    /**
      * Return checkOut.
      * @return checkOut
      */
@@ -388,35 +382,19 @@ public class PooledStatement implements InvocationHandler {
         return checkOut.get();
     }
 
-    /**
-     * Return isDefaultResultSetType.
-     * @return isDefaultResultSetType
-     */
-    public boolean isDefaultResultSetType() {
-        return isDefaultResultSetType;
-    }
-    
     public void close() {
         if (closed.getAndSet(true)) {
             return;
         }
         try {
             real_statement.close();
-        } catch (SQLException e) {
+        } catch (SQLException ignored) {
         }
         if (isVerbose()) {
             LOGGER.debug(statementName, " real closed.");
         }
     }
 
-    /**
-     * Return statementName.
-     * @return statementName
-     */
-    public String getStatementName() {
-        return statementName;
-    }
-    
     public boolean isVerbose() {
         return pooledConnection.isVerbose();
     }
@@ -451,19 +429,18 @@ public class PooledStatement implements InvocationHandler {
     }
 
     /**
-     * Return timeCheckIn.
-     * @return timeCheckIn
-     */
-    public long getTimeCheckIn() {
-        return timeCheckIn;
-    }
-
-    /**
-     * Created with IntelliJ IDEA for hq-commons-parent
+     * {@link ResultSet} 的代理包装类，用于增强结果集的可观测性。
+     *
+     * <p>主要功能包括：
+     * <ul>
+     *   <li>自动统计并记录查询返回的总行数。</li>
+     *   <li>在日志级别允许时，格式化输出结果集的列名及各行数据。</li>
+     *   <li>识别并特殊处理 BLOB/CLOB 等大字段类型，避免在日志中输出二进制内容。</li>
+     *   <li>配合 {@link PooledStatement} 实现对 SQL 执行结果的完整追踪。</li>
+     * </ul>
      *
      * @author taige (Wu, Hongqiang)
-     * Date: 2021-03-30
-     * Time: 2:33 p.m.
+     * @since 2021-03-30
      */
     static class LoggableResultSet implements InvocationHandler {
         private static final Set<Integer> BLOB_TYPES = new HashSet<>();
@@ -474,6 +451,7 @@ public class PooledStatement implements InvocationHandler {
         private final PooledStatement pooledStatement;
         private final ResultSet resultSet;
         private final ResultSet rsProxy;
+        @Getter
         private final int rsId;
 
         static {
@@ -506,9 +484,9 @@ public class PooledStatement implements InvocationHandler {
             try {
                 String methodDoing = method.getName();
                 if (methodDoing.equals("isWrapperFor") && args != null) {
-                    return JdbcUtil.isWrapperFor((Class<?>) args[0], this, proxy, resultSet);
+                    return JdbcUtil.isWrapperFor((Class<?>) args[0], this, resultSet, proxy);
                 } else if (methodDoing.equals("unwrap") && args != null) {
-                    return JdbcUtil.unwrap((Class<?>) args[0], this, proxy, resultSet);
+                    return JdbcUtil.unwrap((Class<?>) args[0], this, resultSet, proxy);
                 }
                 Object o = method.invoke(resultSet, args);
                 if ("next".equals(methodDoing)) {
@@ -524,7 +502,7 @@ public class PooledStatement implements InvocationHandler {
                             printColumnValues(columnCount);
                         }
                     } else if (pooledStatement.isVerbose() || pooledStatement.isPrintSQL()) {
-                        LOGGER.debug("%s.rs#%d.Total: %d", pooledStatement.getStatementName(), this.rsId, rows);
+                        LOGGER.debugf("%s.rs#%d.Total: %d", pooledStatement.getStatementName(), this.rsId, rows);
                     }
                 }
                 return o;
@@ -541,7 +519,7 @@ public class PooledStatement implements InvocationHandler {
                 }
                 row.add(rsmd.getColumnLabel(i));
             }
-            LOGGER.trace("%s.rs#%d.Columns: %s", pooledStatement.getStatementName(), this.rsId, row);
+            LOGGER.tracef("%s.rs#%d.Columns: %s", pooledStatement.getStatementName(), this.rsId, row);
         }
 
         private void printColumnValues(int columnCount) {
@@ -558,7 +536,7 @@ public class PooledStatement implements InvocationHandler {
                     row.add("<<Cannot Display>>");
                 }
             }
-            LOGGER.trace("%s.rs#%d.Row: %s", pooledStatement.getStatementName(), this.rsId, row);
+            LOGGER.tracef("%s.rs#%d.Row: %s", pooledStatement.getStatementName(), this.rsId, row);
         }
 
         /**
@@ -568,10 +546,6 @@ public class PooledStatement implements InvocationHandler {
          */
         public ResultSet getResultSet() {
             return rsProxy;
-        }
-
-        public int getRsId() {
-            return rsId;
         }
 
     }

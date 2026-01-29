@@ -1,6 +1,7 @@
 package io.hqwu.commons.cp.util;
 
 import io.hqwu.commons.util.Logger;
+import lombok.Getter;
 
 import java.util.concurrent.Semaphore;
 
@@ -14,6 +15,7 @@ import java.util.concurrent.Semaphore;
  * @author taige (Wu, Hongqiang)
  * @since 2025-03-04
  */
+@Getter
 public class DynamicSemaphore extends Semaphore {
     private static final Logger LOGGER = new Logger();
 
@@ -43,7 +45,4 @@ public class DynamicSemaphore extends Semaphore {
         currentPermits = newPermits;
     }
 
-    public int getCurrentPermits() {
-        return currentPermits;
-    }
 }

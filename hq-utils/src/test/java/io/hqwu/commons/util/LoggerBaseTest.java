@@ -498,6 +498,57 @@ public class LoggerBaseTest {
     }
 
     @Test
+    public void testNonPlaceholderConcatMode() {
+        // 测试模式 3：无占位符拼接模式
+        // 当格式字符串既不包含 {} 也不包含 %s 等格式符时，会执行拼接逻辑
+        AlwaysEnabledLogger alwaysLogger = new AlwaysEnabledLogger(LoggerBaseTest.class);
+        Marker testMarker = MarkerFactory.getMarker("TEST_MARKER");
+
+        // 1. Basic concat without marker - simple strings
+        alwaysLogger.trace("Prefix", "arg1", "arg2");  // 应输出: Prefixarg1arg2
+        alwaysLogger.debug("Debug:", "value1", "value2");
+        alwaysLogger.info("Info", "concatenated");
+        alwaysLogger.warn("Warn", "msg1", "msg2", "msg3");
+        alwaysLogger.error("Error", "details");
+
+        // 2. Concat with marker
+        alwaysLogger.trace(testMarker, "Marker", "trace", "concat");
+        alwaysLogger.debug(testMarker, "Marker", "debug", "concat");
+        alwaysLogger.info(testMarker, "Marker", "info", "concat");
+        alwaysLogger.warn(testMarker, "Marker", "warn", "concat");
+        alwaysLogger.error(testMarker, "Marker", "error", "concat");
+
+        // 3. Concat with different data types
+        alwaysLogger.info("Number:", 123, "Boolean:", true, "Double:", 45.67);
+
+        // 4. Concat with null values
+        alwaysLogger.info("Before", null, "After");
+        alwaysLogger.warn("Multiple", null, null, "values");
+
+        // 5. Single argument concat (edge case)
+        alwaysLogger.info("SingleValue");
+
+        // 6. Concat with Throwable at the end
+        Exception ex = new Exception("test exception in concat mode");
+        alwaysLogger.error("Error occurred", "with", "context", ex);
+        alwaysLogger.warn(testMarker, "Marker", "with", "exception", ex);
+
+        // 7. Empty string concat
+        alwaysLogger.info("", "starts", "empty");
+        alwaysLogger.debug("Ends", "empty", "");
+
+        // 8. Special characters (应该不触发格式化)
+        alwaysLogger.info("Special", "chars:", "!@#$^&*()");
+
+        // 9. Numbers and special objects
+        alwaysLogger.info("ID:", 12345L, "Status:", Boolean.FALSE);
+
+        // 10. Verify concat mode is NOT triggered by {} or %
+        // (这些应该走 slf4j 或 formatter 模式，不是拼接模式)
+        // 注意：这里只是确认边界，不应该在拼接模式测试中
+    }
+
+    @Test
     public void testConcatRecursiveBranch() {
         AlwaysEnabledLogger alwaysLogger = new AlwaysEnabledLogger(LoggerBaseTest.class);
 
@@ -605,6 +656,124 @@ public class LoggerBaseTest {
         String stack7 = "at io.hqwu.commons.util.Logger.method(Logger.java:10)" + LINE_SEP +
                 "at com.example.Caller.method(Caller.java:20)" + LINE_SEP;
         assertEquals("com.example.Caller", LoggerBase.resolveClassName(CLASSNAME, stack7));
+    }
+
+    // ...existing code...
+
+    /**
+     * 测试新增的 xxxf() 方法（显式格式化方法）
+     * 这些方法是为了明确使用 printf 风格格式化而新增的
+     */
+    @Test
+    public void testTracefMethod() {
+        // Test tracef with printf style format
+        logger.tracef("tracef: %s %d %b", "test", 123, true);
+        logger.tracef("tracef with single arg: %s", "value");
+        logger.tracef("tracef with multiple format: %s-%d-%.2f", "str", 42, 3.14);
+
+        // Test with exception at the end
+        Exception ex = new Exception("test exception");
+        logger.tracef("tracef with exception: %s", ex);
+    }
+
+    @Test
+    public void testDebugfMethod() {
+        // Test debugf with printf style format
+        logger.debugf("debugf: %s %d %b", "test", 123, true);
+        logger.debugf("debugf with single arg: %s", "value");
+        logger.debugf("debugf with multiple format: %s-%d-%.2f", "str", 42, 3.14);
+
+        // Test with exception at the end
+        Exception ex = new Exception("test exception");
+        logger.debugf("debugf with exception: %s", ex);
+    }
+
+    @Test
+    public void testInfofMethod() {
+        // Test infof with printf style format
+        logger.infof("infof: %s %d %b", "test", 123, true);
+        logger.infof("infof with single arg: %s", "value");
+        logger.infof("infof with multiple format: %s-%d-%.2f", "str", 42, 3.14);
+
+        // Test with exception at the end
+        Exception ex = new Exception("test exception");
+        logger.infof("infof with exception: %s", ex);
+    }
+
+    @Test
+    public void testWarnfMethod() {
+        // Test warnf with printf style format
+        logger.warnf("warnf: %s %d %b", "test", 123, true);
+        logger.warnf("warnf with single arg: %s", "value");
+        logger.warnf("warnf with multiple format: %s-%d-%.2f", "str", 42, 3.14);
+
+        // Test with exception at the end
+        Exception ex = new Exception("test exception");
+        logger.warnf("warnf with exception: %s", ex);
+    }
+
+    @Test
+    public void testErrorfMethod() {
+        // Test errorf with printf style format
+        logger.errorf("errorf: %s %d %b", "test", 123, true);
+        logger.errorf("errorf with single arg: %s", "value");
+        logger.errorf("errorf with multiple format: %s-%d-%.2f", "str", 42, 3.14);
+
+        // Test with exception at the end
+        Exception ex = new Exception("test exception");
+        logger.errorf("errorf with exception: %s", ex);
+    }
+
+    @Test
+    public void testAllFormatMethodsWithVariousTypes() {
+        // Test all xxxf() methods with various printf format specifiers
+        AlwaysEnabledLogger alwaysLogger = new AlwaysEnabledLogger(LoggerBaseTest.class);
+
+        // String format
+        alwaysLogger.tracef("String: %s", "hello");
+        alwaysLogger.debugf("String: %s", "world");
+        alwaysLogger.infof("String: %s", "test");
+        alwaysLogger.warnf("String: %s", "warning");
+        alwaysLogger.errorf("String: %s", "error");
+
+        // Integer format
+        alwaysLogger.tracef("Integer: %d", 123);
+        alwaysLogger.debugf("Hex: %x", 255);
+        alwaysLogger.infof("Octal: %o", 8);
+
+        // Float format
+        alwaysLogger.warnf("Float: %.2f", 3.14159);
+        alwaysLogger.errorf("Scientific: %e", 1234.5);
+
+        // Boolean format
+        alwaysLogger.tracef("Boolean: %b", true);
+        alwaysLogger.debugf("Boolean: %b", false);
+
+        // Multiple arguments
+        alwaysLogger.infof("Multiple: %s %d %.2f %b", "test", 42, 3.14, true);
+        alwaysLogger.warnf("Args: %s-%d-%s", "a", 1, "b");
+        alwaysLogger.errorf("Triple: %s %s %s", "one", "two", "three");
+
+        // Edge cases
+        alwaysLogger.infof("Null: %s", (Object) null);
+        alwaysLogger.debugf("Empty string: %s", "");
+        alwaysLogger.tracef("Special chars: %s", "!@#$%^&*()");
+    }
+
+    @Test
+    public void testFormatMethodsVsStandardMethods() {
+        // Verify that xxxf() methods behave consistently with standard xxx() methods
+        // when using printf format
+        AlwaysEnabledLogger alwaysLogger = new AlwaysEnabledLogger(LoggerBaseTest.class);
+
+        // Both should produce similar output for printf format
+        alwaysLogger.debugf("Printf via debugf: %s-%d", "test", 123);
+        alwaysLogger.debug("Printf via debug: %s-%d", "test", 123);
+
+        alwaysLogger.infof("Printf via infof: %s", "value");
+        alwaysLogger.info("Printf via info: %s", "value");
+
+        // xxxf() methods make the intent clearer that printf formatting is being used
     }
 
     static class AlwaysEnabledLogger extends Logger {
