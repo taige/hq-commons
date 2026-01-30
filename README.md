@@ -32,6 +32,14 @@
 - 与Spring Boot属性配置无缝集成
 - 支持与 `hq-utils-spring` 配合，实现数据库密码解密服务的自动装配
 
+### hq-email-boot-starter
+- **✨ 新增模块**
+- 邮件发送服务 Spring Boot 3 Starter
+- 基于 Jakarta Mail API 实现
+- 支持 HTML 邮件、附件、抄送等完整功能
+- 自动配置 SMTP 连接和认证
+- 支持中文昵称自动 MIME 编码
+
 ### hq-dubbo-ext (已废弃)
 - **⚠️ 注意：自 v1.7.0 起已停止维护，请迁移至官方实现或寻找替代方案。**
 - Dubbo框架扩展组件
