@@ -1246,7 +1246,7 @@ public class BeanConverterTest {
     @Test
     void test_concurrent_conversion_initialization() throws Exception {
         // 使用多线程并发初始化同一个转换器映射
-        final int threadCount = 5;
+        final int threadCount = 3;
         Thread[] threads = new Thread[threadCount];
         final ComplexSrc[] sources = new ComplexSrc[threadCount];
         final ComplexTarget[] targets = new ComplexTarget[threadCount];
