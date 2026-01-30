@@ -1,0 +1,174 @@
+{
+  "properties": [
+    {
+      "name": "hq-commons.email.from-address",
+      "type": "java.lang.String",
+      "description": "发件人邮箱地址，必填项。",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties"
+    },
+    {
+      "name": "hq-commons.email.from-nickname",
+      "type": "java.lang.String",
+      "description": "发件人昵称（可选）。支持中文，会自动进行 MIME 编码。",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties"
+    },
+    {
+      "name": "hq-commons.email.smtp",
+      "type": "java.util.Properties",
+      "description": "SMTP 服务器配置属性。支持所有 Jakarta Mail SMTP 协议的配置项，例如：host、port、auth、starttls.enable、ssl.trust 等。参考：https://www.tutorialspoint.com/javamail_api/javamail_api_smtp_servers.htm",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties"
+    },
+    {
+      "name": "hq-commons.email.smtp.host",
+      "type": "java.lang.String",
+      "description": "SMTP 服务器主机地址，必填项。例如：smtp.gmail.com",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties"
+    },
+    {
+      "name": "hq-commons.email.smtp.port",
+      "type": "java.lang.String",
+      "description": "SMTP 服务器端口号。默认值：25（明文）、587（STARTTLS）、465（SSL）",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties"
+    },
+    {
+      "name": "hq-commons.email.smtp.auth",
+      "type": "java.lang.String",
+      "description": "是否启用 SMTP 认证。配置了 auth.username 和 auth.password 时会自动设置为 true。",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties",
+      "defaultValue": "false"
+    },
+    {
+      "name": "hq-commons.email.smtp.starttls.enable",
+      "type": "java.lang.String",
+      "description": "是否启用 STARTTLS 加密。推荐使用 587 端口时启用。",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties",
+      "defaultValue": "false"
+    },
+    {
+      "name": "hq-commons.email.smtp.ssl.trust",
+      "type": "java.lang.String",
+      "description": "信任的 SMTP 服务器主机名，用于 SSL/TLS 连接。通常设置为 SMTP 服务器的主机名。",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties"
+    },
+    {
+      "name": "hq-commons.email.auth",
+      "type": "io.hqwu.commons.email.autoconfigure.EmailProperties$Auth",
+      "description": "SMTP 认证配置（可选）。包含 username 和 password。",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties"
+    },
+    {
+      "name": "hq-commons.email.auth.username",
+      "type": "java.lang.String",
+      "description": "SMTP 认证用户名，通常是邮箱地址。",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties$Auth"
+    },
+    {
+      "name": "hq-commons.email.auth.password",
+      "type": "java.lang.String",
+      "description": "SMTP 认证密码或应用专用密码（部分邮件服务商需要）。",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties$Auth"
+    },
+    {
+      "name": "hq-commons.email.debug",
+      "type": "io.hqwu.commons.email.autoconfigure.EmailProperties$Debug",
+      "description": "调试配置（可选）。用于输出 Jakarta Mail 的调试信息。",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties"
+    },
+    {
+      "name": "hq-commons.email.debug.enabled",
+      "type": "java.lang.Boolean",
+      "description": "是否启用调试输出。启用后会输出 Jakarta Mail 的详细日志。",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties$Debug",
+      "defaultValue": false
+    },
+    {
+      "name": "hq-commons.email.debug.logger",
+      "type": "java.lang.String",
+      "description": "调试日志输出的 SLF4J Logger 名称。例如：io.hqwu.commons.email",
+      "sourceType": "io.hqwu.commons.email.autoconfigure.EmailProperties$Debug"
+    }
+  ],
+  "hints": [
+    {
+      "name": "hq-commons.email.smtp.host",
+      "values": [
+        {
+          "value": "smtp.gmail.com",
+          "description": "Google Gmail SMTP 服务器"
+        },
+        {
+          "value": "smtp.qq.com",
+          "description": "腾讯 QQ 邮箱 SMTP 服务器"
+        },
+        {
+          "value": "smtp.163.com",
+          "description": "网易 163 邮箱 SMTP 服务器"
+        },
+        {
+          "value": "smtp.exmail.qq.com",
+          "description": "腾讯企业邮箱 SMTP 服务器"
+        },
+        {
+          "value": "smtp.office365.com",
+          "description": "Microsoft Office 365 SMTP 服务器"
+        }
+      ]
+    },
+    {
+      "name": "hq-commons.email.smtp.port",
+      "values": [
+        {
+          "value": "25",
+          "description": "标准 SMTP 端口（明文，不推荐）"
+        },
+        {
+          "value": "587",
+          "description": "STARTTLS 加密端口（推荐）"
+        },
+        {
+          "value": "465",
+          "description": "SSL/TLS 加密端口"
+        }
+      ]
+    },
+    {
+      "name": "hq-commons.email.smtp.auth",
+      "values": [
+        {
+          "value": "true",
+          "description": "启用 SMTP 认证"
+        },
+        {
+          "value": "false",
+          "description": "禁用 SMTP 认证"
+        }
+      ]
+    },
+    {
+      "name": "hq-commons.email.smtp.starttls.enable",
+      "values": [
+        {
+          "value": "true",
+          "description": "启用 STARTTLS 加密（推荐用于 587 端口）"
+        },
+        {
+          "value": "false",
+          "description": "禁用 STARTTLS 加密"
+        }
+      ]
+    },
+    {
+      "name": "hq-commons.email.debug.enabled",
+      "values": [
+        {
+          "value": "true",
+          "description": "启用调试模式"
+        },
+        {
+          "value": "false",
+          "description": "禁用调试模式"
+        }
+      ]
+    }
+  ]
+}

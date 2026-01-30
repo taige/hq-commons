@@ -25,6 +25,8 @@
     <jacoco.version>0.8.12</jacoco.version>
     <lombok.version>1.18.42</lombok.version>
     <oceanbase-client.version>2.4.16</oceanbase-client.version>
+    <jakarta.mail-api.version>2.1.3</jakarta.mail-api.version>
+    <jakarta.mail.version>2.0.3</jakarta.mail.version>
 
     <test.logger.level>WARN</test.logger.level>
   </properties>
@@ -41,8 +43,9 @@
     <module>hq-cp-boot-starter</module>
     <module>hq-mybatis-plus-extension</module>
     <module>hq-spring-webmvc</module>
-    <module>report-aggregate</module>
     <module>hq-utils-spring</module>
+    <module>hq-email-boot-starter</module>
+    <module>report-aggregate</module>
     <!--    <module>hq-dubbo-ext</module>-->
   </modules>
 
@@ -98,8 +101,27 @@
         <artifactId>oceanbase-client</artifactId>
         <version>${oceanbase-client.version}</version>
       </dependency>
+      <!-- for email -->
+      <dependency>
+        <groupId>jakarta.mail</groupId>
+        <artifactId>jakarta.mail-api</artifactId>
+        <version>${jakarta.mail-api.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.eclipse.angus</groupId>
+        <artifactId>jakarta.mail</artifactId>
+        <version>${jakarta.mail.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+  </dependencies>
 
   <build>
     <plugins>

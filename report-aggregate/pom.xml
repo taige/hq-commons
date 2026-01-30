@@ -49,6 +49,11 @@
       <artifactId>hq-mybatis-plus-extension</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
+    <dependency>
+      <groupId>io.hqwu.commons</groupId>
+      <artifactId>hq-email-boot-starter</artifactId>
+      <version>${project.parent.version}</version>
+    </dependency>
   </dependencies>
 
   <build>

@@ -1,2 +1,2 @@
-io.hqwu.commons.cp.HqcpDataSourceAutoConfiguration
+io.hqwu.commons.cp.autoconfigure.HqcpDataSourceAutoConfiguration
 

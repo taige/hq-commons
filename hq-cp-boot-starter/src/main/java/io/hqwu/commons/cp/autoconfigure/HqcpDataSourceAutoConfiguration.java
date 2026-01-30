@@ -1,5 +1,7 @@
-package io.hqwu.commons.cp;
+package io.hqwu.commons.cp.autoconfigure;
 
+import io.hqwu.commons.cp.HqcpDataSource;
+import io.hqwu.commons.cp.HqcpDataSourceBoot;
 import io.hqwu.commons.security.SecurityService;
 import io.hqwu.commons.security.SecurityServiceLocalImpl;
 import io.hqwu.commons.util.Logger;
@@ -18,7 +20,12 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Created with IntelliJ IDEA for hq-cp-boot-starter
+ * Hqcp 数据源自动配置类。
+ * <p>
+ * 负责在 Spring Boot 环境中自动配置 {@link HqcpDataSource}。
+ * 该配置类在 {@link DataSourceAutoConfiguration} 之前运行，
+ * 旨在根据 {@link DataSourceProperties} 和可用的 {@link SecurityService}
+ *
  *
  * @author taige (Wu, Hongqiang)
  * Date: 2021-02-21

@@ -1,5 +1,6 @@
 package io.hqwu.commons.cp;
 
+import io.hqwu.commons.cp.autoconfigure.HqcpDataSourceAutoConfiguration;
 import io.hqwu.commons.security.SecurityService;
 import io.hqwu.commons.security.SecurityServiceLocalImpl;
 import org.junit.jupiter.api.Test;
