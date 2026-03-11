@@ -122,7 +122,7 @@ public class PooledConnection implements PooledConnectionMBean {
      */
     private final ReentrantLock operLock = new ReentrantLock();
 
-    private boolean autoCommit = false;
+    private volatile boolean autoCommit = false;
 
     private boolean dirty = false;
 

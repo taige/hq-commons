@@ -269,7 +269,7 @@ public class HqcpConfig implements HqcpConfigMBean {
     private String passwordKey = null;
 
     @Setter
-    private SecurityService securityService;
+    private volatile SecurityService securityService;
 
     /*
      * default login timeout 10 seconds
