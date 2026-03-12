@@ -741,6 +741,13 @@ public class HqcpTest {
         driver = MockJDBCDriver.getInstance().setMockJDBCAnswer(answer);
         connPool = new Hqcp(config);
 
+        // 等待 Monitor 完成 minConnections 初始连接创建，避免与主线程竞争 answer.answer() 的消费顺序
+        long deadline = System.currentTimeMillis() + 3000;
+        while (connPool.getIdleConnectionsCount() < 1) {
+            assertTrue(System.currentTimeMillis() < deadline, "等待 Monitor 初始化超时");
+            Thread.sleep(10);
+        }
+
         Connection conn1 = connPool.getConnection();
         assertEquals(conn1, mockConnection);
         Connection conn2 = connPool.getConnection();

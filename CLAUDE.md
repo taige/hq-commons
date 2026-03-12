@@ -70,6 +70,7 @@ Enforced via `mvn verify`:
 
 ## Conventions
 
-- Language: Chinese in commit messages and code comments
+- Commit messages: short English, focused on main (non-test) code changes; only describe test changes if there are no main code changes
+- Code comments: Chinese
 - All modules use Lombok
 - Base package: `io.hqwu.commons`
