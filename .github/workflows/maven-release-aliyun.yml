@@ -1,0 +1,70 @@
+name: Deploy Release to Aliyun
+
+# 两个入口：
+#   1. maven-release.yml 在 release:perform 成功后以 workflow_call 调用，传入刚打的 tag
+#   2. Aliyun 步骤失败时手动 workflow_dispatch，指定同一个 tag 单独重跑——不会再走 release:prepare，不会多切版本
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag（如 v1.17.0）'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag（如 v1.17.0）'
+        required: true
+        type: string
+
+jobs:
+  deploy-aliyun:
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    env:
+      ALIYUN_USERNAME: ${{ secrets.ALIYUN_USERNAME }}
+      ALIYUN_PASSWORD: ${{ secrets.ALIYUN_PASSWORD }}
+      ALIYUN_PACKAGES_RELEASE_URL: ${{ vars.ALIYUN_PACKAGES_RELEASE_URL }}
+
+    steps:
+      # 1. 检出 release tag（不是分支，保证发的就是打 tag 那一刻的代码）
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+
+      # 2. 设置 Java 17 环境并启用 Maven 缓存
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'      # 自动缓存 Maven 依赖
+
+      # 3. Configure Maven Settings（只需要 aliyun-maven 一个 server）
+      - name: Configure Maven Settings
+        run: |
+          mkdir -p ~/.m2
+          cat <<EOF > ~/.m2/settings.xml
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+            <servers>
+              <server>
+                <id>aliyun-maven</id>
+                <username>\${env.ALIYUN_USERNAME}</username>
+                <password>\${env.ALIYUN_PASSWORD}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      # 4. 部署 RELEASE 版本到阿里云效。有意用 package + deploy:deploy 而不是完整 deploy 生命周期：
+      #    跳过 verify 阶段的 maven-source-plugin，Aliyun 上只发 jar + pom、不发 sources（与 maven-snapshot.yml 一致）
+      - name: Deploy RELEASE to Aliyun Package
+        run: |
+          mvn -B package deploy:deploy -DskipTests -DaltReleaseDeploymentRepository="aliyun-maven::default::$ALIYUN_PACKAGES_RELEASE_URL"

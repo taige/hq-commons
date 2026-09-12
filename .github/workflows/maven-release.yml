@@ -1,16 +1,12 @@
 # This workflow will build a package using Maven and then publish it to GitHub packages when a release is created
 # For more information see: https://github.com/actions/setup-java/blob/main/docs/advanced-usage.md#apache-maven-with-a-settings-path
 
-name: Release to GitHub Packages
+name: Release to GitHub Packages and Aliyun
 
 on:
   push:
     branches:
-      - master
-  pull_request:
-    branches:
-      - master
-    types: [merged]  # 只在拉取请求被合并时触发
+      - master   # PR 合并到 master 也是一次 push，这里已覆盖
   workflow_dispatch: # 允许手动触发
     inputs:
       branch:
@@ -28,6 +24,14 @@ jobs:
       contents: write
       packages: write
 
+    # 把本次打的 tag 交给下游的 Aliyun job
+    outputs:
+      tag: ${{ steps.prepare.outputs.tag }}
+
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       # 1. 检出代码
       - name: Checkout code
@@ -41,19 +45,54 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          server-id: github   # 与pom.xml中的id对应
           cache: 'maven'      # 自动缓存 Maven 依赖
 
-      # 3. 部署 RELEASE 版本到GitHub Packages
-      - name: Deploy RELEASE Artifact
+      # 3. Configure Maven Settings（github server，与 snapshot 工作流同一写法）
+      - name: Configure Maven Settings
+        run: |
+          mkdir -p ~/.m2
+          cat <<EOF > ~/.m2/settings.xml
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+            <servers>
+              <server>
+                <id>github</id>
+                <username>\${env.GITHUB_ACTOR}</username>
+                <password>\${env.GITHUB_TOKEN}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
+      # 4. release:prepare —— 改版本号、提交、打 tag、推送；tag 名从 release.properties 读出来交给 Aliyun job
+      - name: Prepare RELEASE (commit + tag)
+        id: prepare
         run: |
           git config --global user.name "taige@Github Actions"
           git config --global user.email "hongqiang.wu@gmail.com"
-          mvn -B -DskipTests release:clean release:prepare release:perform -Dusername=$GITHUB_ACTOR -Dpassword=$GITHUB_TOKEN -DscmCommentPrefix="[skip ci][maven release plugin]"
-        env:
-          GITHUB_ACTOR: ${{ secrets.GITHUB_ACTOR }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          mvn -B -DskipTests release:clean release:prepare -Dusername="$GITHUB_ACTOR" -Dpassword="$GITHUB_TOKEN" -DscmCommentPrefix="[skip ci][maven release plugin]"
+          TAG=$(sed -n 's/^scm\.tag=//p' release.properties)
+          test -n "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $TAG"
+
+      # 5. release:perform —— 检出 tag 到 target/checkout，执行 deploy 发到 GitHub Packages
+      - name: Perform RELEASE (deploy to GitHub Packages)
+        run: |
+          mvn -B -DskipTests release:perform -Dusername="$GITHUB_ACTOR" -Dpassword="$GITHUB_TOKEN"
 
       - name: Successfully Released
         run: |
-          echo "Successfully Released"
+          echo "Successfully Released ${{ steps.prepare.outputs.tag }}"
+
+  # Aliyun 单独一个 job：失败时用 Re-run failed jobs 只重跑它，或手动 dispatch maven-release-aliyun.yml 填同一个 tag；
+  # 不会再走 release:prepare，不会多切版本
+  deploy-aliyun:
+    needs: deploy-release
+    permissions:
+      contents: read
+    uses: ./.github/workflows/maven-release-aliyun.yml
+    with:
+      tag: ${{ needs.deploy-release.outputs.tag }}
+    secrets: inherit

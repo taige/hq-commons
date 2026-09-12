@@ -4,11 +4,7 @@ name: Deploy Snapshot to Github Packages and Aliyun
 on:
   push:
     branches:
-      - develop
-  pull_request:
-    branches:
-      - develop
-    types: [merged]  # 只在拉取请求被合并时触发
+      - develop   # PR 合并到 develop 也是一次 push，这里已覆盖
   workflow_dispatch: # 允许手动触发
     inputs:
       branch:
@@ -78,4 +74,4 @@ jobs:
       # 5. 部署 SNAPSHOT 版本到阿里云效
       - name: Deploy SNAPSHOT to Aliyun Package
         run: |
-          mvn -B package deploy:deploy -DskipTests -DaltSnapshotDeploymentRepository=aliyun-maven::default::$ALIYUN_PACKAGES_SNAPSHOT_URL
+          mvn -B package deploy:deploy -DskipTests -DaltSnapshotDeploymentRepository="aliyun-maven::default::$ALIYUN_PACKAGES_SNAPSHOT_URL"
