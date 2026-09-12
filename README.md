@@ -32,6 +32,12 @@
 - 与Spring Boot属性配置无缝集成
 - 支持与 `hq-utils-spring` 配合，实现数据库密码解密服务的自动装配
 
+### hq-cp-boot4-starter
+- **✨ 新增模块**
+- `hq-cp-boot-starter` 的 Spring Boot 4 变体，功能与配置项完全相同
+- Spring Boot 4 消费方用它替换 `hq-cp-boot-starter`（SB4 把 `DataSourceProperties` 迁到了 `org.springframework.boot.jdbc.autoconfigure`，SB3 starter 在 SB4 下会 `ClassNotFoundException`）
+- 其余模块（`hq-utils-spring` / `hq-spring-webmvc` / `hq-mybatis-plus-extension` / `hq-email-boot-starter`）SB3 / SB4 通用
+
 ### hq-email-boot-starter
 - **✨ 新增模块**
 - 邮件发送服务 Spring Boot 3 Starter

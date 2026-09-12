@@ -20,14 +20,16 @@ hq-utils                      基础工具，零 Spring 依赖，含 SPI 扩展�
 ├── hq-utils-spring           hq-utils 的 Spring 适配（SPI → Spring bean，自动感知远程 KeyManageService）
 ├── hq-spring-webmvc          Spring MVC 增强：BeanConverter（@ValueOf + cglib BeanCopier）、校验器、过滤器、Redis 脚本
 ├── hq-cp                     连接池 HQCP 本体，与 Spring 解耦、可独立用；多方言（MySQL / Oracle / DB2 / OceanBase）+ SQL 敏感信息脱敏
-│   └── hq-cp-boot-starter    HQCP 的 Spring Boot 3 自动装配
+│   ├── hq-cp-boot-starter    HQCP 的 Spring Boot 3 自动装配
+│   └── hq-cp-boot4-starter   同上的 Spring Boot 4 变体：自带 SB 4.x BOM；类布局与 SB3 版完全相同（同包同名，两者不会同时上 classpath）
 ├── hq-mybatis-plus-extension MainLambdaQueryWrapper / JoinQueryWrapper 联表封装、CommonFieldsFiller、代码生成器；也依赖 hq-spring-webmvc
-├── hq-email-boot-starter     Jakarta Mail 邮件服务 Spring Boot 3 starter
+├── hq-email-boot-starter     Jakarta Mail 邮件服务 Spring Boot 3 starter（SB4 下也能装配，见下）
 └── hq-dubbo-ext              已废弃（不在 modules 里）
 report-aggregate              JaCoCo 聚合报告模块，不是库
+hq-boot4-compat-test          SB4 消费方视角的兼容回归（只有测试：不发布、不计覆盖率）
 ```
 
-自动装配一律用 Spring Boot 3 风格 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`（不用 `spring.factories`）。带自动装配的只有 `hq-cp-boot-starter` 与 `hq-email-boot-starter` 两个。
+自动装配一律用 Spring Boot 3 风格 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`（不用 `spring.factories`）。带自动装配的只有 `hq-cp-boot-starter` / `hq-cp-boot4-starter` / `hq-email-boot-starter` 三个。
 
 ## 构建与测试
 
@@ -67,8 +69,11 @@ mvn verify                               # 含 JaCoCo 覆盖率门（见下）
 
 下游同时有 SB3 与 SB4 消费方。Spring Boot 4 把 `spring-boot-autoconfigure` 按技术拆成独立模块（如 `DataSourceProperties` 迁到 `org.springframework.boot.jdbc.autoconfigure`），旧包路径在 SB4 下 `ClassNotFound`。因此：
 
-- 既有 `*-boot-starter` 是 **SB3 线**，不改成 SB4-only；SB4 支持用**新模块**承接（命名参照 MyBatis-Plus 的 `*-spring-boot4-starter`），新模块自己导入 SB 4.x BOM，父 pom 的 BOM 版本不动。
+- 既有 `*-boot-starter` 是 **SB3 线**，不改成 SB4-only；SB4 支持用**新模块**承接（`hq-cp-boot4-starter`）：新模块自己 import `spring-boot-dependencies` 4.x BOM，子模块自己的 import 先于从父 pom 继承的 3.x BOM（已用 `dependency:tree` 验证），父 pom 的 BOM 版本不动。
 - 库的字节码目标保持 Java 17，两条线共用 hq-cp / hq-utils 等无 Boot 依赖的本体。
+- **SB4 消费方的接法**（`hq-boot4-compat-test` 在 SB 4.1.1 / MP boot4 starter 3.5.17 / HV 9 / Jackson 3 下验证过）：`hq-cp-boot4-starter` 替换 `hq-cp-boot-starter`；`hq-utils-spring` / `hq-spring-webmvc` / `hq-mybatis-plus-extension` / `hq-email-boot-starter` 原样用，不做 boot4 变体。
+- **SB4 已知限制**：`JsonFieldArgumentProcessor` 内部用 Jackson 2 的 `JsonNode`，把 SB4 默认的 Jackson 3 转换器喂给它会 400（`HttpMessageNotReadableException`）——必须显式 `new JsonFieldArgumentProcessor(List.of(new MappingJackson2HttpMessageConverter()))`（SB3 消费方本来就是这么接的）；`ValidatedDeserializer` 同理只对 Jackson 2 `ObjectMapper` 生效。MP 3.5.9+ 的 `PaginationInnerInterceptor` 要另加 `mybatis-plus-jsqlparser`。
+- 改共享模块后 `mvn verify` 会顺带跑 `hq-boot4-compat-test`；单跑它（`-pl`）前先 `install -DskipTests` 上游，它用的是已构建 jar，否则拿到的是 `~/.m2` 里的旧包。
 
 ## 反模式禁忌
 

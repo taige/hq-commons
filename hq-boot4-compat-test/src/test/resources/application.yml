@@ -1,0 +1,15 @@
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:boot4compat;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password: sa
+    hqcp:
+      min-connections: 1
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema-h2.sql
+
+mybatis-plus:
+  type-aliases-package: io.hqwu.commons.boot4compat.entity
