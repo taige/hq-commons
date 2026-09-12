@@ -51,7 +51,10 @@ mvn verify                               # 含 JaCoCo 覆盖率门（见下）
 ## 分支与发布
 
 - **remote**：`taige@github` = `taige/hq-commons`（真源，所有本地分支 track 它，GitHub Actions 在这跑）；`ericwu917@github`：独立仓，不发布。**没有 `origin`**：全局 worktree hook 找不到 `origin/develop` 会退到当前 HEAD，开 worktree 前先 `git fetch taige@github && git checkout develop && git pull`。
-- **`gh` 写操作（开 PR、dispatch workflow）前先 `gh auth switch --user taige`**：active 账号是全局的，默认的 `ericwu917` 对 `taige/hq-commons` 只有 pull。
+- **`gh` 全局 active 账号是 `ericwu917`（其他仓都用它），本仓写操作需要 `taige`，但不切账号**：
+  - `git push`：本仓已配仓库级 credential helper 固定取 taige 的 token（`git config --local --add credential.https://github.com.helper '' && git config --local --add credential.https://github.com.helper '!f(){ echo username=taige; echo "password=$(gh auth token --user taige)"; }; f'`，新 clone 要重配）。没配时 push 报 `could not read Password for 'https://taige@github.com'`（实测，不是 403）。
+  - `gh pr` / `gh run` / `gh api`：单条命令前缀 `GH_TOKEN=$(gh auth token --user taige)`。
+  - 不要 `gh auth switch`；万一切了，用完切回 `ericwu917`。
 - **版本现状（2026-09-12）**：`develop` 是当前线（1.17.0-SNAPSHOT）。**最后一次 release 是 v1.4.0（2025-03-06）**，`master` 停在 `1.4.1-SNAPSHOT`；**1.5–1.16 不存在**——5c67391（2026-01-14）随 JDK 17 升级把版本号从 `1.4.1-SNAPSHOT` 直接改成 `1.17.0-SNAPSHOT`，之后只发过 SNAPSHOT，下游全在吃它。下次 release 就是 1.17.0，develop → master 会是跨 1.4 → 1.17 的大合并。
 - **发布全靠 GitHub Actions，不在本地跑 release**：`feature/*` → `develop`（推送触发 `maven-snapshot.yml`：SNAPSHOT 发 GitHub Packages + Aliyun 云效）→ 把 develop 合到 `master` 推上去（触发 `maven-release.yml`：job 1 `release:prepare/perform` 打 tag `v<version>`、bump 下一个 SNAPSHOT、发 GitHub Packages；job 2 调 `maven-release-aliyun.yml` 按 tag 发 Aliyun）→ 手动 dispatch `maven-release-merge-to-develop.yml` 把 master ff-merge 回 develop。**Aliyun 那步失败只重跑它**：Re-run failed jobs，或手动 dispatch `maven-release-aliyun.yml` 填同一个 tag；别重跑整个 release，那会再切一个版本。
 - 发布产物两处：GitHub Packages（pom 的 distributionManagement，含 sources jar）与 Aliyun 云效 packages（workflow 里用 `-Dalt*DeploymentRepository` 指过去）。业务仓从 Aliyun 拉。**Aliyun 有意不发 sources**：两条 Aliyun 步骤都是 `package deploy:deploy` 而非完整 `deploy`，就是为了跳过 verify 阶段的 source plugin，别"修"成 `deploy`。
