@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>io.hqwu.commons</groupId>
+    <artifactId>hq-commons-parent</artifactId>
+    <version>1.17.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>hq-boot4-compat-test</artifactId>
+  <description>
+    Spring Boot 4 消费方视角的兼容性回归测试：以 SB 4.x BOM 起一个真实上下文，
+    把 hq-utils-spring / hq-spring-webmvc / hq-mybatis-plus-extension / hq-email-boot-starter / hq-cp-boot4-starter
+    当依赖用一遍。只有测试代码，不发布。
+  </description>
+
+  <properties>
+    <spring-boot4.version>4.1.1</spring-boot4.version>
+    <mybatis-plus4.version>3.5.17</mybatis-plus4.version>
+    <!-- 纯测试模块：没有 main 代码，不发布、不计覆盖率 -->
+    <maven.deploy.skip>true</maven.deploy.skip>
+    <jacoco.skip>true</jacoco.skip>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-dependencies</artifactId>
+        <version>${spring-boot4.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+      <!-- 父 pom 把 mybatis-plus 钉在 3.5.11；SB4 消费方用的是 boot4 starter 这条线，整体压到同一版本 -->
+      <dependency>
+        <groupId>com.baomidou</groupId>
+        <artifactId>mybatis-plus</artifactId>
+        <version>${mybatis-plus4.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+
+    <!-- 被测的 hq-commons 模块（消费方视角：用已构建的 jar，不重编译） -->
+    <dependency>
+      <groupId>io.hqwu.commons</groupId>
+      <artifactId>hq-utils-spring</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.hqwu.commons</groupId>
+      <artifactId>hq-spring-webmvc</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.hqwu.commons</groupId>
+      <artifactId>hq-mybatis-plus-extension</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.hqwu.commons</groupId>
+      <artifactId>hq-email-boot-starter</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.hqwu.commons</groupId>
+      <artifactId>hq-cp-boot4-starter</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- SB4 消费方的典型 starter 组合 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+      <version>${mybatis-plus4.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.h2database</groupId>
+      <artifactId>h2</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    <testResources>
+      <testResource>
+        <directory>src/test/resources</directory>
+        <filtering>true</filtering>
+      </testResource>
+    </testResources>
+  </build>
+
+</project>
