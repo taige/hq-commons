@@ -41,10 +41,12 @@
     <module>hq-utils</module>
     <module>hq-cp</module>
     <module>hq-cp-boot-starter</module>
+    <module>hq-cp-boot4-starter</module>
     <module>hq-mybatis-plus-extension</module>
     <module>hq-spring-webmvc</module>
     <module>hq-utils-spring</module>
     <module>hq-email-boot-starter</module>
+    <module>hq-boot4-compat-test</module>
     <module>report-aggregate</module>
     <!--    <module>hq-dubbo-ext</module>-->
   </modules>
